@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tokens de color (canales RGB para que Tailwind pueda aplicar opacidad).
+ * Cambiar de paleta = sustituir este bloque. Paletas B y C documentadas en el README.
+ */
+@layer base {
+  :root {
+    /* Paleta A · Azul Confianza */
+    --color-primary-50: 239 246 255;
+    --color-primary-100: 219 234 254;
+    --color-primary-200: 191 219 254;
+    --color-primary-400: 96 165 250;
+    --color-primary-500: 59 130 246;
+    --color-primary-600: 37 99 235;
+    --color-primary-700: 29 78 216;
+    --color-primary-900: 30 58 138;
+    --color-accent: 245 158 11;
+    --color-accent-soft: 254 243 199;
+    --color-accent-strong: 146 64 14;
+    --color-ink: 15 23 42;
+    --color-ink-muted: 71 85 105;
+    --color-line: 226 232 240;
+    --color-canvas: 248 250 252;
+    --color-surface: 255 255 255;
+
+    color-scheme: light;
+    accent-color: rgb(var(--color-primary-600));
+    caret-color: rgb(var(--color-primary-600));
+    scrollbar-color: rgb(var(--color-ink-muted) / 0.45) transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply min-h-screen bg-canvas font-sans text-ink antialiased;
+  }
+
+  ::selection {
+    background: rgb(var(--color-primary-200));
+    color: rgb(var(--color-primary-900));
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--color-primary-500));
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+  }
+}
+
+@layer components {
+  /*
+   * Estado "retirado": un único lenguaje visual para lo que existe pero no está vivo
+   * (productos en la papelera y módulos de la plataforma aún no disponibles).
+   * Borde discontinuo + media desaturada; el texto que se lee conserva su contraste.
+   */
+  .retired {
+    @apply border-dashed;
+  }
+
+  .retired-dim {
+    @apply opacity-70 grayscale;
+  }
+
+  .retired-tag {
+    @apply inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-current px-2 py-0.5 text-[0.6875rem] font-semibold;
+  }
+
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .btn {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 text-white shadow-sm hover:bg-primary-700;
+  }
+
+  .btn-accent {
+    @apply bg-accent text-ink shadow-sm hover:bg-[#FBBF24];
+  }
+
+  .btn-secondary {
+    @apply border border-line bg-surface text-ink hover:border-ink-muted/40 hover:bg-canvas;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 text-white shadow-sm hover:bg-red-700;
+  }
+
+  .btn-ghost {
+    @apply text-ink-muted hover:bg-primary-50 hover:text-primary-700;
+  }
+
+  .icon-btn {
+    @apply inline-flex size-9 items-center justify-center rounded-lg text-ink-muted transition-colors duration-150 hover:bg-primary-50 hover:text-primary-700 disabled:opacity-50;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-ink;
+  }
+
+  .field-hint {
+    @apply mt-1.5 text-xs text-ink-muted;
+  }
+
+  .field-control {
+    @apply block min-h-11 w-full rounded-xl border border-line bg-surface px-3.5 text-[0.9375rem] text-ink shadow-sm transition-[border-color,box-shadow] duration-150 placeholder:text-ink-muted/80 hover:border-ink-muted/40 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-100;
+
+    &[aria-invalid='true'] {
+      @apply border-red-500 focus:border-red-500 focus:ring-red-100;
+    }
+  }
+
+  textarea.field-control {
+    @apply py-2.5 leading-relaxed;
+  }
+
+  select.field-control {
+    @apply cursor-pointer appearance-none bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+  }
+}
+
+/* SweetAlert2 con la paleta del producto */
+.swal-popup {
+  @apply rounded-2xl p-6 font-sans shadow-lift;
+}
+
+.swal-title {
+  @apply text-xl font-semibold text-ink;
+}
+
+.swal-text {
+  @apply text-[0.9375rem] leading-relaxed text-ink-muted;
+}
+
+.swal-details {
+  @apply mt-3 list-disc space-y-1 pl-5 text-left text-sm text-ink;
+}
+
+.swal-actions {
+  @apply mt-6 gap-3;
+}
+
+.swal-icon {
+  @apply mx-auto mb-4 mt-1 rounded-2xl;
+  width: 3.5rem !important;
+  height: 3.5rem !important;
+  border: 0 !important;
+  animation: none !important;
+
+  .swal2-icon-content {
+    @apply flex items-center justify-center;
+    font-size: inherit !important;
+    animation: none !important;
+  }
+}
+
+.swal-icon--danger {
+  @apply bg-red-50 text-red-700 #{!important};
+}
+
+.swal-icon--info {
+  @apply bg-primary-50 text-primary-600 #{!important};
+}
+
+.swal-icon--success {
+  @apply m-0 mr-2 rounded-lg bg-emerald-50 text-emerald-700 #{!important};
+  width: 2rem !important;
+  height: 2rem !important;
+}
+
+.swal-toast {
+  @apply rounded-xl font-sans text-sm text-ink shadow-lift;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

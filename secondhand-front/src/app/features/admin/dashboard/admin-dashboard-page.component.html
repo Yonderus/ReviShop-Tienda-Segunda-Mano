@@ -1,0 +1,146 @@
+<div class="mx-auto max-w-6xl">
+  <header class="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-ink">Resumen</h1>
+      <p class="mt-1 text-sm text-ink-muted">Estado del catálogo de Revishop en tiempo real.</p>
+    </div>
+    <button type="button" class="btn btn-secondary min-h-9 px-3" (click)="retry()" [disabled]="!store.statsReady() && !error()">
+      <app-icon name="refresh" [size]="17" />
+      Actualizar
+    </button>
+  </header>
+
+  @if (error(); as err) {
+    <app-error-state title="No hemos podido cargar el resumen" [error]="err" (retry)="retry()" />
+  } @else if (!store.statsReady()) {
+    <div class="space-y-6">
+      <app-skeleton variant="stats" [count]="4" label="Cargando resumen…" />
+      <app-skeleton variant="table" [count]="5" label="Cargando últimos productos…" />
+    </div>
+  } @else {
+    <!-- Inventario -->
+    <section class="rounded-2xl border border-line bg-surface shadow-card" aria-labelledby="inv-title">
+      <div class="flex items-center justify-between px-5 pt-5">
+        <h2 id="inv-title" class="text-sm font-semibold text-ink">Inventario</h2>
+        <span class="text-xs text-ink-muted tabular-nums">{{ store.stats().published + store.stats().trashed }} registros en total</span>
+      </div>
+      <div class="grid grid-cols-2 gap-1 p-1.5 lg:grid-cols-4">
+        <app-stat-card label="Publicados" [value]="store.stats().published" tone="primary" hint="Activos e inactivos" />
+        <app-stat-card label="Activos" [value]="store.stats().active" tone="success" hint="Visibles en la tienda" link="/admin/products" />
+        <app-stat-card label="Inactivos" [value]="store.stats().inactive" tone="neutral" hint="Ocultos, sin borrar" link="/admin/products/inactive" />
+        <app-stat-card label="En papelera" [value]="store.stats().trashed" tone="retired" hint="Se pueden restaurar" link="/admin/trash" />
+      </div>
+      <div class="px-5 pb-5">
+        <div class="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-canvas" role="img" [attr.aria-label]="inventorySplit().label">
+          @if (inventorySplit().active) {
+            <span class="h-full bg-emerald-600 transition-[width] duration-500" [style.width.%]="inventorySplit().active"></span>
+          }
+          @if (inventorySplit().inactive) {
+            <span class="h-full bg-slate-500 transition-[width] duration-500" [style.width.%]="inventorySplit().inactive"></span>
+          }
+          @if (inventorySplit().trashed) {
+            <span
+              class="h-full rounded-r-full border border-dashed border-slate-500 bg-[repeating-linear-gradient(135deg,rgb(148_163_184/0.35)_0_3px,transparent_3px_7px)] transition-[width] duration-500"
+              [style.width.%]="inventorySplit().trashed"
+            ></span>
+          }
+        </div>
+      </div>
+    </section>
+
+    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+      <!-- Estado de venta -->
+      <section class="rounded-2xl border border-line bg-surface p-5 shadow-card" aria-labelledby="status-title">
+        <h2 id="status-title" class="text-sm font-semibold text-ink">Estado de venta</h2>
+        <p class="mt-0.5 text-xs text-ink-muted">Sobre los {{ store.stats().published }} productos publicados</p>
+        <ul class="mt-5 space-y-4">
+          @for (row of statusRows(); track row.key) {
+            <li>
+              <div class="flex items-baseline justify-between text-sm">
+                <span class="font-medium text-ink">{{ row.label }}</span>
+                <span class="font-semibold tabular-nums text-ink">{{ row.count }}</span>
+              </div>
+              <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-canvas" aria-hidden="true">
+                <div class="h-full rounded-full transition-[width] duration-500" [class]="row.bar" [style.width.%]="row.width"></div>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <!-- Categorías -->
+      <section class="rounded-2xl border border-line bg-surface p-5 shadow-card" aria-labelledby="cat-title">
+        <h2 id="cat-title" class="text-sm font-semibold text-ink">Por categoría</h2>
+        <p class="mt-0.5 text-xs text-ink-muted">Productos publicados en cada categoría</p>
+        @if (categoryRows().length) {
+          <ul class="mt-5 space-y-3">
+            @for (row of categoryRows(); track row.key) {
+              <li class="grid grid-cols-[7rem_1fr_2rem] items-center gap-3 text-sm">
+                <span class="truncate text-ink">{{ row.label }}</span>
+                <div class="h-2 overflow-hidden rounded-full bg-canvas" aria-hidden="true">
+                  <div class="h-full rounded-full bg-primary-600 transition-[width] duration-500" [style.width.%]="row.width"></div>
+                </div>
+                <span class="text-right font-semibold tabular-nums text-ink">{{ row.count }}</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="mt-5 text-sm text-ink-muted">Aún no hay productos publicados.</p>
+        }
+      </section>
+    </div>
+
+    <!-- Últimos productos -->
+    <section class="mt-6 rounded-2xl border border-line bg-surface shadow-card" aria-labelledby="recent-title">
+      <div class="flex items-center justify-between px-5 py-4">
+        <h2 id="recent-title" class="text-sm font-semibold text-ink">Últimos productos</h2>
+        <a routerLink="/admin/products" class="text-sm font-medium text-primary-700 hover:underline">Ver todos</a>
+      </div>
+      @if (store.recentProducts().length) {
+        <ul class="divide-y divide-line border-t border-line">
+          @for (product of store.recentProducts(); track product._id) {
+            <li class="flex items-center gap-3 px-5 py-3">
+              <app-admin-thumb [src]="product.images[0]" [title]="product.title" />
+              <div class="min-w-0 flex-1">
+                <a [routerLink]="['/admin/products', product.slug, 'edit']" class="block truncate text-sm font-medium text-ink hover:text-primary-700 hover:underline">
+                  {{ product.title }}
+                </a>
+                <p class="truncate text-xs text-ink-muted">
+                  {{ categoryLabels[product.category] }} · {{ product.isActive ? 'Activo' : 'Inactivo' }}
+                </p>
+              </div>
+              <app-badge class="hidden sm:inline-flex" [tone]="statusTones[product.status]">{{ statusLabels[product.status] }}</app-badge>
+              <span class="w-20 text-right text-sm font-semibold tabular-nums text-ink">{{ product.price | price }}</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="border-t border-line px-5 py-6 text-sm text-ink-muted">Todavía no hay productos publicados.</p>
+      }
+    </section>
+
+    <!-- Módulos de la plataforma (estáticos) -->
+    <section class="mt-8" aria-labelledby="modules-title">
+      <h2 id="modules-title" class="text-sm font-semibold text-ink">Módulos de la plataforma</h2>
+      <p class="mt-0.5 text-xs text-ink-muted">Se activarán cuando la API los exponga.</p>
+      <ul class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        @for (module of modules; track module.label) {
+          <li
+            class="retired cursor-not-allowed rounded-2xl border border-slate-400 bg-surface p-4"
+            aria-disabled="true"
+            title="Disponible próximamente"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <span class="retired-dim inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
+                <app-icon [name]="module.icon" [size]="20" />
+              </span>
+              <span class="retired-tag text-slate-600" aria-hidden="true">Próximamente</span>
+            </div>
+            <p class="mt-3 text-sm font-semibold text-ink">{{ module.label }}<span class="sr-only">, próximamente</span></p>
+            <p class="mt-0.5 text-xs text-ink-muted">{{ module.description }}</p>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</div>

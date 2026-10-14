@@ -1,0 +1,172 @@
+<div class="mx-auto max-w-6xl" [@.disabled]="reducedMotion">
+  <header class="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-ink">Productos</h1>
+      <p class="mt-1 text-sm text-ink-muted">
+        {{ isActiveView() ? 'Visibles en la tienda.' : 'Ocultos de la tienda pero sin borrar. Actívalos cuando quieras.' }}
+      </p>
+    </div>
+  </header>
+
+  <nav class="mb-5 flex gap-1 border-b border-line" aria-label="Secciones de productos">
+    <a
+      routerLink="/admin/products"
+      class="tab"
+      [class.is-current]="isActiveView()"
+      [attr.aria-current]="isActiveView() ? 'page' : null"
+    >
+      <app-icon name="checkCircle" [size]="17" />
+      Activos
+      @if (countsReady()) {
+        <span class="tab-count">{{ activeCount() }}</span>
+      }
+    </a>
+    <a
+      routerLink="/admin/products/inactive"
+      class="tab"
+      [class.is-current]="!isActiveView()"
+      [attr.aria-current]="!isActiveView() ? 'page' : null"
+    >
+      <app-icon name="eyeOff" [size]="17" />
+      Inactivos
+      @if (countsReady()) {
+        <span class="tab-count">{{ inactiveCount() }}</span>
+      }
+    </a>
+  </nav>
+
+  @if (list().loading() && !list().loaded()) {
+    <app-skeleton variant="table" [count]="6" label="Cargando productos…" />
+  } @else if (list().error()) {
+    <app-error-state title="No hemos podido cargar los productos" [error]="list().error()" (retry)="retry()" />
+  } @else if (list().items().length === 0) {
+    @if (isActiveView()) {
+      <app-empty-state icon="package" title="No hay productos activos" message="Publica un producto o activa uno de la pestaña Inactivos.">
+        <a routerLink="/admin/products/new" class="btn btn-primary">
+          <app-icon name="plus" [size]="18" />
+          Nuevo producto
+        </a>
+      </app-empty-state>
+    } @else {
+      <app-empty-state
+        icon="eyeOff"
+        title="No hay productos inactivos"
+        message="Desactiva un producto para ocultarlo de la tienda sin borrarlo."
+      />
+    }
+  } @else {
+    <!-- Escritorio: tabla -->
+    <div class="hidden overflow-x-auto rounded-2xl border border-line bg-surface shadow-card md:block">
+      <table class="w-full text-left text-sm">
+        <caption class="sr-only">{{ isActiveView() ? 'Productos activos' : 'Productos inactivos' }}</caption>
+        <thead class="border-b border-line bg-canvas/70 text-xs font-medium text-ink-muted">
+          <tr>
+            <th scope="col" class="py-3 pl-5 pr-3 font-medium">Producto</th>
+            <th scope="col" class="hidden px-3 py-3 font-medium 2xl:table-cell">Categoría</th>
+            <th scope="col" class="px-3 py-3 text-right font-medium">Precio</th>
+            <th scope="col" class="px-3 py-3 font-medium">Venta</th>
+            <th scope="col" class="hidden px-3 py-3 font-medium xl:table-cell">Condición</th>
+            <th scope="col" class="px-3 py-3 font-medium">Visibilidad</th>
+            <th scope="col" class="hidden px-3 py-3 font-medium xl:table-cell">Publicado</th>
+            <th scope="col" class="py-3 pl-3 pr-5"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-line">
+          @for (product of list().items(); track product._id) {
+            <tr @rowLeave class="transition-colors duration-150 hover:bg-canvas/60">
+              <td class="py-2.5 pl-5 pr-3">
+                <div class="flex items-center gap-3">
+                  <app-admin-thumb [src]="product.images[0]" [title]="product.title" />
+                  <div class="min-w-0">
+                    <a
+                      [routerLink]="['/admin/products', product.slug, 'edit']"
+                      [title]="product.title"
+                      class="block max-w-[11rem] lg:max-w-[14rem] truncate font-medium text-ink hover:text-primary-700 hover:underline"
+                    >{{ product.title }}</a>
+                    <p class="max-w-[11rem] lg:max-w-[14rem] truncate font-mono text-xs text-ink-muted">/{{ product.slug }}</p>
+                  </div>
+                </div>
+              </td>
+              <td class="hidden px-3 text-ink 2xl:table-cell">{{ categoryLabels[product.category] }}</td>
+              <td class="px-3 text-right font-semibold tabular-nums text-ink">{{ product.price | price }}</td>
+              <td class="px-3">
+                <app-badge [tone]="statusTones[product.status]">{{ statusLabels[product.status] }}</app-badge>
+              </td>
+              <td class="hidden px-3 xl:table-cell">
+                <app-level-meter [value]="conditionLevel[product.condition]" [label]="conditionLabels[product.condition]" caption="Condición" [showLabel]="false" [attr.title]="conditionLabels[product.condition]" />
+              </td>
+              <td class="px-3 [&_.toggle-text]:hidden xl:[&_.toggle-text]:inline">
+                <app-toggle-switch
+                  [checked]="product.isActive"
+                  [busy]="store.pendingIds().has(product._id)"
+                  [label]="'Visible en la tienda: ' + product.title"
+                  (toggled)="toggle(product, $event)"
+                />
+              </td>
+              <td class="hidden whitespace-nowrap px-3 tabular-nums text-ink-muted xl:table-cell">
+                <time [attr.datetime]="product.createdAt">{{ product.createdAt | date: 'd MMM y' }}</time>
+              </td>
+              <td class="py-2.5 pl-3 pr-5">
+                <div class="flex justify-end gap-1">
+                  <a [routerLink]="['/admin/products', product.slug, 'edit']" class="icon-btn" [attr.aria-label]="'Editar ' + product.title" title="Editar">
+                    <app-icon name="pencil" [size]="18" />
+                  </a>
+                  <button
+                    type="button"
+                    class="icon-btn hover:!bg-red-50 hover:!text-red-700"
+                    [attr.aria-label]="'Mover a la papelera ' + product.title"
+                    title="Mover a la papelera"
+                    [disabled]="store.deletingId() === product._id"
+                    (click)="remove(product)"
+                  >
+                    <app-icon name="trash" [size]="18" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Móvil: tarjetas -->
+    <ul class="space-y-3 md:hidden" [attr.aria-label]="isActiveView() ? 'Productos activos' : 'Productos inactivos'">
+      @for (product of list().items(); track product._id) {
+        <li @rowLeave class="rounded-2xl border border-line bg-surface p-4 shadow-card">
+          <div class="flex items-start gap-3">
+            <app-admin-thumb [src]="product.images[0]" [title]="product.title" />
+            <div class="min-w-0 flex-1">
+              <a [routerLink]="['/admin/products', product.slug, 'edit']" class="block font-medium leading-snug text-ink hover:text-primary-700">
+                {{ product.title }}
+              </a>
+              <p class="mt-0.5 text-xs text-ink-muted">{{ categoryLabels[product.category] }} · {{ product.price | price }}</p>
+            </div>
+            <app-badge [tone]="statusTones[product.status]">{{ statusLabels[product.status] }}</app-badge>
+          </div>
+          <div class="mt-3 flex items-center justify-between border-t border-line pt-3">
+            <app-toggle-switch
+              [checked]="product.isActive"
+              [busy]="store.pendingIds().has(product._id)"
+              [label]="'Visible en la tienda: ' + product.title"
+              (toggled)="toggle(product, $event)"
+            />
+            <div class="flex gap-1">
+              <a [routerLink]="['/admin/products', product.slug, 'edit']" class="icon-btn" [attr.aria-label]="'Editar ' + product.title">
+                <app-icon name="pencil" [size]="18" />
+              </a>
+              <button
+                type="button"
+                class="icon-btn hover:!bg-red-50 hover:!text-red-700"
+                [attr.aria-label]="'Mover a la papelera ' + product.title"
+                [disabled]="store.deletingId() === product._id"
+                (click)="remove(product)"
+              >
+                <app-icon name="trash" [size]="18" />
+              </button>
+            </div>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

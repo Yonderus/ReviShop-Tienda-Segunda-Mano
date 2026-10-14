@@ -1,0 +1,235 @@
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate class="space-y-6">
+  @if (generalError(); as error) {
+    <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+      <p class="font-semibold">{{ error.message }}</p>
+      @if (error.details.length) {
+        <ul class="mt-2 list-disc space-y-1 pl-5">
+          @for (detail of error.details; track $index) {
+            <li>{{ detail }}</li>
+          }
+        </ul>
+      }
+    </div>
+  }
+
+  <!-- Lo esencial -->
+  <section class="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6" aria-labelledby="pf-s-basics">
+    <h2 id="pf-s-basics" class="text-base font-semibold text-ink">Qué vendes</h2>
+    <div class="mt-5 space-y-5">
+      <div>
+        <div class="flex items-baseline justify-between gap-3">
+          <label for="pf-title" class="field-label">Título</label>
+          <span class="text-xs tabular-nums text-ink-muted" aria-hidden="true">{{ f.title.value.length }}/80</span>
+        </div>
+        <input
+          id="pf-title"
+          type="text"
+          formControlName="title"
+          class="field-control"
+          placeholder="Ej.: Bicicleta de montaña 29 pulgadas"
+          autocomplete="off"
+          maxlength="80"
+          [attr.aria-invalid]="showError('title')"
+          [attr.aria-describedby]="describedBy('title')"
+        />
+        <app-form-field-error errorId="pf-title-error" label="El título" [errors]="f.title.errors" [show]="showError('title')" />
+      </div>
+
+      <div>
+        <div class="flex items-baseline justify-between gap-3">
+          <label for="pf-description" class="field-label">Descripción</label>
+          <span class="text-xs tabular-nums text-ink-muted" aria-hidden="true">{{ f.description.value.length }}/2000</span>
+        </div>
+        <textarea
+          id="pf-description"
+          formControlName="description"
+          rows="5"
+          class="field-control"
+          placeholder="Estado real, medidas, qué incluye y por qué lo vendes."
+          maxlength="2000"
+          [attr.aria-invalid]="showError('description')"
+          [attr.aria-describedby]="describedBy('description')"
+        ></textarea>
+        <app-form-field-error errorId="pf-description-error" label="La descripción" [errors]="f.description.errors" [show]="showError('description')" />
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div>
+          <label for="pf-price" class="field-label">Precio (€)</label>
+          <input
+            id="pf-price"
+            type="number"
+            formControlName="price"
+            class="field-control tabular-nums"
+            inputmode="decimal"
+            min="0.01"
+            step="0.01"
+            placeholder="0,00"
+            [attr.aria-invalid]="showError('price')"
+            [attr.aria-describedby]="describedBy('price')"
+          />
+          <app-form-field-error errorId="pf-price-error" label="El precio" [errors]="f.price.errors" [show]="showError('price')" />
+        </div>
+
+        <div>
+          <label for="pf-category" class="field-label">Categoría</label>
+          <select
+            id="pf-category"
+            formControlName="category"
+            class="field-control"
+            [attr.aria-invalid]="showError('category')"
+            [attr.aria-describedby]="describedBy('category')"
+          >
+            <option value="" disabled>Selecciona una categoría</option>
+            @for (c of categories; track c) {
+              <option [value]="c">{{ categoryLabels[c] }}</option>
+            }
+          </select>
+          <app-form-field-error errorId="pf-category-error" label="La categoría" [errors]="f.category.errors" [show]="showError('category')" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Condición: escala de segunda vida -->
+  <section class="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6">
+    <fieldset [attr.aria-describedby]="describedBy('condition', true)">
+      <legend class="text-base font-semibold text-ink">¿Cuánta vida le queda?</legend>
+      <p id="pf-condition-hint" class="field-hint mt-1">Elige la condición real: cuanto más honesta, menos devoluciones.</p>
+      <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-5">
+        @for (c of conditions; track c; let i = $index) {
+          <label
+            class="relative flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3.5 py-3 transition-colors duration-150 sm:flex-col sm:items-start sm:justify-start"
+            [ngClass]="
+              f.condition.value === c
+                ? 'border-primary-600 bg-primary-50 ring-1 ring-primary-600'
+                : 'border-line hover:border-primary-200 hover:bg-canvas'
+            "
+          >
+            <input
+              [id]="'pf-condition-' + i"
+              type="radio"
+              formControlName="condition"
+              [value]="c"
+              class="peer sr-only"
+              [attr.aria-invalid]="showError('condition')"
+            />
+            <span class="text-sm font-semibold text-ink">{{ conditionLabels[c] }}</span>
+            <app-level-meter [value]="conditionLevel[c]" [label]="conditionLabels[c]" caption="Condición" [showLabel]="false" />
+            <span class="pointer-events-none absolute inset-0 rounded-xl peer-focus-visible:ring-2 peer-focus-visible:ring-primary-500 peer-focus-visible:ring-offset-2"></span>
+          </label>
+        }
+      </div>
+      <app-form-field-error errorId="pf-condition-error" label="La condición" [errors]="f.condition.errors" [show]="showError('condition')" />
+    </fieldset>
+
+    @if (isEdit()) {
+      <div class="mt-6 max-w-xs">
+        <label for="pf-status" class="field-label">Estado de la venta</label>
+        <select id="pf-status" formControlName="status" class="field-control" [attr.aria-describedby]="describedBy('status')">
+          @for (s of statuses; track s) {
+            <option [value]="s">{{ statusLabels[s] }}</option>
+          }
+        </select>
+        <app-form-field-error errorId="pf-status-error" label="El estado" [errors]="f.status.errors" [show]="showError('status')" />
+      </div>
+    }
+  </section>
+
+  <!-- Fotos -->
+  <section class="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6" aria-labelledby="pf-s-images">
+    <div class="flex items-baseline justify-between gap-3">
+      <h2 id="pf-s-images" class="text-base font-semibold text-ink">Fotos</h2>
+      <span class="text-xs tabular-nums text-ink-muted">{{ f.images.length }}/{{ maxImages }}</span>
+    </div>
+    <p id="pf-images-hint" class="field-hint mt-1">Pega enlaces http(s) a tus fotos. La primera será la portada.</p>
+
+    <ul formArrayName="images" class="mt-4 space-y-3">
+      @for (control of f.images.controls; track control; let i = $index) {
+        <li class="flex items-start gap-3">
+          <div class="relative mt-0.5 size-11 shrink-0 overflow-hidden rounded-lg border border-line bg-primary-50">
+            @if (control.valid && control.value) {
+              <img [src]="control.value" alt="" width="44" height="44" loading="lazy" class="size-full object-cover" />
+            }
+          </div>
+          <div class="min-w-0 flex-1">
+            <label [for]="'pf-image-' + i" class="sr-only">URL de la foto {{ i + 1 }}</label>
+            <input
+              [id]="'pf-image-' + i"
+              type="url"
+              [formControlName]="i"
+              class="field-control"
+              placeholder="https://…"
+              inputmode="url"
+              [attr.aria-invalid]="showImageError(i)"
+              [attr.aria-describedby]="'pf-image-' + i + '-error'"
+            />
+            <app-form-field-error [errorId]="'pf-image-' + i + '-error'" label="La URL" [errors]="control.errors" [show]="showImageError(i)" />
+          </div>
+          <button type="button" class="icon-btn mt-1" [attr.aria-label]="'Quitar foto ' + (i + 1)" (click)="removeImage(i)">
+            <app-icon name="trash" [size]="18" />
+          </button>
+        </li>
+      }
+    </ul>
+
+    @if (f.images.errors?.['duplicateValues']) {
+      <p class="mt-2 text-sm font-medium text-red-700" role="alert">Hay fotos repetidas: cada URL solo puede aparecer una vez.</p>
+    }
+
+    <button
+      id="pf-add-image"
+      type="button"
+      class="btn btn-secondary mt-4"
+      [disabled]="f.images.length >= maxImages"
+      (click)="addImage()"
+    >
+      <app-icon name="plus" [size]="18" />
+      {{ f.images.length >= maxImages ? 'Máximo de ' + maxImages + ' fotos' : 'Añadir foto' }}
+    </button>
+  </section>
+
+  <!-- Vendedor -->
+  <section class="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6" aria-labelledby="pf-s-seller">
+    <h2 id="pf-s-seller" class="text-base font-semibold text-ink">Quién vende y dónde</h2>
+    <div class="mt-5 grid gap-5 sm:grid-cols-2">
+      <div>
+        <label for="pf-seller" class="field-label">Vendedor</label>
+        <input
+          id="pf-seller"
+          type="text"
+          formControlName="seller"
+          class="field-control"
+          autocomplete="name"
+          maxlength="60"
+          placeholder="Tu nombre o el de tu tienda"
+          [attr.aria-invalid]="showError('seller')"
+          [attr.aria-describedby]="describedBy('seller')"
+        />
+        <app-form-field-error errorId="pf-seller-error" label="El vendedor" [errors]="f.seller.errors" [show]="showError('seller')" />
+      </div>
+      <div>
+        <label for="pf-location" class="field-label">Ubicación <span class="font-normal text-ink-muted">(opcional)</span></label>
+        <input
+          id="pf-location"
+          type="text"
+          formControlName="location"
+          class="field-control"
+          autocomplete="address-level2"
+          maxlength="100"
+          placeholder="Ej.: Valencia"
+          [attr.aria-invalid]="showError('location')"
+          [attr.aria-describedby]="describedBy('location')"
+        />
+        <app-form-field-error errorId="pf-location-error" label="La ubicación" [errors]="f.location.errors" [show]="showError('location')" />
+      </div>
+    </div>
+  </section>
+
+  <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+    <a [routerLink]="cancelLink()" class="btn btn-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary min-w-44" [disabled]="saving()" [attr.aria-busy]="saving()">
+      {{ saving() ? 'Guardando…' : isEdit() ? 'Guardar cambios' : 'Publicar producto' }}
+    </button>
+  </div>
+</form>

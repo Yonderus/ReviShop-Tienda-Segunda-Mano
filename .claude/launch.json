@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "secondhand-api",
+      "port": 3000
+    },
+    {
+      "name": "front",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["ng", "serve", "--port", "4200"],
+      "cwd": "secondhand-front",
+      "port": 4200
+    }
+  ]
+}

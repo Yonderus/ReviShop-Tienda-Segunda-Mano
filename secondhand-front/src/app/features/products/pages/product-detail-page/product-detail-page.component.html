@@ -1,0 +1,124 @@
+@switch (store.detailStatus()) {
+  @case ('not-found') {
+    <app-page-not-found
+      title="Producto no encontrado"
+      message="Puede que el anuncio se haya retirado o que el enlace no sea correcto."
+    />
+  }
+  @case ('error') {
+    <div class="container-page">
+      <app-error-state title="No hemos podido cargar el anuncio" [error]="store.detailError()" (retry)="load()" />
+    </div>
+  }
+  @default {
+    <div class="container-page py-6 sm:py-10">
+      <nav aria-label="Ruta de navegación" class="mb-6">
+        <ol class="flex flex-wrap items-center gap-1.5 text-sm text-ink-muted">
+          <li><a routerLink="/" class="rounded hover:text-primary-700 hover:underline">Catálogo</a></li>
+          @if (product(); as p) {
+            <li aria-hidden="true">/</li>
+            <li>
+              <a routerLink="/" [queryParams]="{ category: p.category }" class="rounded hover:text-primary-700 hover:underline">
+                {{ categoryLabels[p.category] }}
+              </a>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li class="max-w-[16rem] truncate font-medium text-ink" aria-current="page">{{ p.title }}</li>
+          }
+        </ol>
+      </nav>
+
+      @if (product(); as p) {
+        <article class="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-12">
+          <div class="space-y-3">
+            <app-product-image
+              class="aspect-[4/3] rounded-2xl border border-line"
+              [src]="p.images[activeImage()]"
+              [alt]="p.title"
+              [priority]="true"
+              [large]="true"
+              sizes="(min-width: 1024px) 55vw, 100vw"
+              [style.view-transition-name]="'product-' + p._id"
+            />
+            @if (p.images.length > 1) {
+              @defer (on idle) {
+                <app-product-gallery [images]="p.images" [active]="activeImage()" (select)="activeImage.set($event)" />
+              } @placeholder {
+                <div class="h-16 sm:h-20" aria-hidden="true"></div>
+              }
+            }
+          </div>
+
+          <div class="flex flex-col">
+            <div class="flex flex-wrap items-center gap-2">
+              <app-badge [tone]="statusTones[p.status]">{{ statusLabels[p.status] }}</app-badge>
+              <app-badge tone="info">{{ categoryLabels[p.category] }}</app-badge>
+            </div>
+
+            <h1 class="mt-3 text-2xl font-semibold leading-tight tracking-tight text-ink sm:text-3xl">{{ p.title }}</h1>
+
+            <div class="mt-5 rounded-2xl border border-primary-100 bg-primary-50/60 p-4">
+              <p class="text-sm font-semibold text-ink">Condición: {{ conditionLabels[p.condition] }}</p>
+              <app-level-meter
+                class="mt-2"
+                size="lg"
+                [value]="conditionLevel()"
+                [label]="conditionLabels[p.condition]"
+                caption="Condición"
+                [showLabel]="false"
+              />
+              <p class="mt-2 text-sm text-ink-muted">Conserva {{ conditionLevel() }} de 5 tramos de vida útil.</p>
+            </div>
+
+            <p class="mt-5 self-start rounded-xl bg-accent-soft px-3 py-1 text-4xl font-bold tabular-nums tracking-tight text-accent-strong">
+              {{ p.price | price }}
+            </p>
+
+            <dl class="mt-6 grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+              <div class="flex items-start gap-3">
+                <app-icon name="user" [size]="18" class="mt-0.5 text-primary-600" />
+                <div><dt class="text-ink-muted">Vendedor</dt><dd class="font-medium text-ink">{{ p.seller }}</dd></div>
+              </div>
+              @if (p.location) {
+                <div class="flex items-start gap-3">
+                  <app-icon name="pin" [size]="18" class="mt-0.5 text-primary-600" />
+                  <div><dt class="text-ink-muted">Ubicación</dt><dd class="font-medium text-ink">{{ p.location }}</dd></div>
+                </div>
+              }
+              <div class="flex items-start gap-3">
+                <app-icon name="calendar" [size]="18" class="mt-0.5 text-primary-600" />
+                <div>
+                  <dt class="text-ink-muted">Publicado</dt>
+                  <dd class="font-medium text-ink"><time [attr.datetime]="p.createdAt">{{ p.createdAt | date: 'd MMMM y' : undefined : 'es-ES' }}</time></dd>
+                </div>
+              </div>
+            </dl>
+
+            <section class="mt-8 border-t border-line pt-6" aria-labelledby="desc-title">
+              <h2 id="desc-title" class="text-base font-semibold text-ink">Descripción</h2>
+              <p class="mt-2 max-w-prose whitespace-pre-line text-[0.9375rem] leading-relaxed text-ink">{{ p.description }}</p>
+            </section>
+
+            <div class="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row">
+              <a [routerLink]="['/products', p.slug, 'edit']" class="btn btn-primary">
+                <app-icon name="pencil" [size]="18" />
+                Editar anuncio
+              </a>
+              <button
+                type="button"
+                class="btn btn-secondary text-red-700 hover:border-red-200 hover:bg-red-50"
+                [disabled]="store.deletingId() === p._id"
+                (click)="remove(p)"
+              >
+                <app-icon name="trash" [size]="18" />
+                {{ store.deletingId() === p._id ? 'Retirando…' : 'Retirar anuncio' }}
+              </button>
+            </div>
+          </div>
+        </article>
+      } @else {
+        <app-skeleton variant="detail" label="Cargando anuncio…" />
+      }
+    </div>
+  }
+}

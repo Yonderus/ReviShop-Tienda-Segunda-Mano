@@ -2,248 +2,174 @@
 
 Base URL: `http://localhost:3000/api`
 
+Todas las respuestas tienen la forma `{ "success": true, "data": … }` o `{ "success": false, "message": "…" }`.
+
+---
+
+## Catálogo (solo lectura)
+
+### Categorías
+
+```
+GET /api/categories
+```
+
+Devuelve las categorías publicadas, activas y sin borrar, con `parentId` (subcategorías) y `attributes` (opciones válidas de variante). Para los `select` del front.
+
+```json
+{ "_id": "…", "name": "Ropa", "slug": "ropa", "parentId": null, "order": 2,
+  "attributes": [{ "key": "talla", "label": "Talla", "values": ["XS","S","M","L","XL"] }] }
+```
+
+### Vendedores
+
+```
+GET /api/sellers
+```
+
+Usuarios activos con rol `seller` o `admin`. Solo campos públicos: `_id`, `name`, `slug`, `location`.
+
+> No hay POST, PATCH ni DELETE de categorías ni de usuarios.
+
 ---
 
 ## Productos
 
-### 1. Obtener todos los productos
+### 1. Listados
 
 ```
-GET http://localhost:3000/api/products
+GET /api/products              activos y no eliminados (o ?isActive=false)
+GET /api/products/actives      solo activos
+GET /api/products/inactives    solo inactivos (no eliminados)
+GET /api/products/trash        eliminados (soft delete), del más reciente al más antiguo
 ```
 
-> Por defecto solo devuelve productos activos (`isActive: true`) y no eliminados (`deletedAt: null`).
+Cada producto incluye `category { name, slug }`, `seller { name, slug, location }`, `images` (solo la principal) y `variantsCount`.
 
 **Query params opcionales:**
 
-| Param     | Ejemplo               |
-| --------- | --------------------- |
-| category  | `?category=electronica` |
-| condition | `?condition=nuevo`      |
-| status    | `?status=disponible`    |
-| seller    | `?seller=Juan`          |
-| minPrice  | `?minPrice=10`          |
-| maxPrice  | `?maxPrice=500`         |
-| isActive  | `?isActive=false`       |
+| Param | Ejemplo | Notas |
+|---|---|---|
+| `category` | `?category=electronica` | Slug; incluye sus subcategorías |
+| `seller` | `?seller=lucia-martin` | Slug del vendedor |
+| `condition` | `?condition=nuevo` | |
+| `status` | `?status=disponible` | |
+| `minPrice` / `maxPrice` | `?minPrice=10&maxPrice=500` | Sobre `basePrice` |
+| `isActive` | `?isActive=false` | Solo en `GET /products` |
 
-Ejemplo con filtros:
-
-```
-GET http://localhost:3000/api/products?category=electronica&minPrice=50&maxPrice=300
-```
-
-### 1b. Obtener solo activos / solo inactivos
+### 2. Detalle por slug (getBySlug)
 
 ```
-GET http://localhost:3000/api/products/actives
-GET http://localhost:3000/api/products/inactives
+GET /api/products/slug/:slug
+GET /api/products/:id
 ```
 
-> Ambos excluyen los productos eliminados. Aceptan los mismos query params que el listado, salvo `isActive`.
+Devuelve el producto con `category`, `seller`, **todas** las `images` (por `order`) y sus `variants` no eliminadas. Un producto en la papelera devuelve **404**.
 
-### 1c. Papelera: productos con soft delete
-
-```
-GET http://localhost:3000/api/products/trash
-```
-
-> Solo lectura. Devuelve los productos con `deletedAt` (borrados con `DELETE /:id`), del más reciente al más antiguo. Acepta los mismos query params que `/actives`. Para recuperarlos usa `PATCH /:id/restore`.
-
----
-
-### 2. Obtener un producto por ID
+### 3. Crear
 
 ```
-GET http://localhost:3000/api/products/:id
-```
-
-Ejemplo:
-
-```
-GET http://localhost:3000/api/products/64f1a2b3c4d5e6f7a8b9c0d1
-```
-
----
-
-### 3. Obtener un producto por slug
-
-```
-GET http://localhost:3000/api/products/slug/:slug
-```
-
-Ejemplo:
-
-```
-GET http://localhost:3000/api/products/slug/iphone-13-pro-256gb
-```
-
----
-
-### 4. Crear un producto
-
-```
-POST http://localhost:3000/api/products
-```
-
-**Headers:**
-
-```
+POST /api/products
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
-
 ```json
 {
-  "title": "iPhone 13 Pro",
-  "description": "iPhone 13 Pro 256GB, estado impecable, con caja original y cargador",
-  "price": 650,
-  "category": "electronica",
+  "title": "Chaqueta vaquera Levi's",
+  "description": "Talla M, apenas usada, sin manchas ni roturas.",
+  "basePrice": 40,
   "condition": "como_nuevo",
-  "location": "Madrid",
-  "images": ["https://ejemplo.com/iphone1.jpg", "https://ejemplo.com/iphone2.jpg"],
-  "seller": "Juan"
-}
-```
-
-> El `slug` se genera automaticamente a partir del `title` y debe ser unico: si ya existe otro producto con ese slug (aunque este eliminado) devuelve `409 Conflict`.
-> `isActive` es `true` por defecto. `deletedAt` es `null` por defecto.
-
-**Valores posibles para `category`:**
-
-`electronica` | `ropa` | `hogar` | `deportes` | `vehiculos` | `libros` | `juguetes` | `otros`
-
-**Valores posibles para `condition`:**
-
-`nuevo` | `como_nuevo` | `bueno` | `aceptable` | `mejorable`
-
-**Valores posibles para `status`:**
-
-`disponible` | `reservado` | `vendido`
-
-> `status` es opcional al crear, por defecto es `disponible`.
-
----
-
-### 5. Actualizar un producto (parcial)
-
-```
-PATCH http://localhost:3000/api/products/:id
-```
-
-**Headers:**
-
-```
-Content-Type: application/json
-```
-
-**Body (raw JSON) - solo los campos a actualizar:**
-
-```json
-{
-  "price": 600,
-  "status": "reservado"
-}
-```
-
-> Si se actualiza el `title`, el `slug` se regenera automaticamente (409 si choca con otro producto).
-> `isActive` y `deletedAt` no se pueden modificar desde aqui: usa `/active`, `/restore` y `DELETE`.
-
----
-
-### 6. Activar / Desactivar un producto
-
-```
-PATCH http://localhost:3000/api/products/:id/active
-```
-
-**Body (raw JSON) - obligatorio:**
-
-```json
-{
-  "isActive": false
-}
-```
-
-> Cambia solo `isActive`, nunca toca `deletedAt`.
-> Si el producto esta eliminado devuelve `409 Conflict`: hay que restaurarlo primero.
-
----
-
-### 7. Eliminar un producto (soft delete)
-
-```
-DELETE http://localhost:3000/api/products/:id
-```
-
-> No elimina el producto de la base de datos. Establece `deletedAt` con la fecha actual y `isActive` a `false`.
-
----
-
-### 8. Restaurar un producto eliminado
-
-```
-PATCH http://localhost:3000/api/products/:id/restore
-```
-
-**Body (raw JSON) - opcional:**
-
-```json
-{
-  "isActive": true
-}
-```
-
-| Body                   | Resultado                                |
-| ---------------------- | ---------------------------------------- |
-| `{ "isActive": true }` | `deletedAt = null`, `isActive = true`    |
-| `{ "isActive": false }`| `deletedAt = null`, `isActive = false`   |
-| sin body               | `deletedAt = null`, `isActive = false`   |
-
-> Si el producto no esta eliminado devuelve `409 Conflict`.
-
----
-
-## Ejemplos adicionales de body para crear productos
-
-### Ropa
-
-```json
-{
-  "title": "Chaqueta North Face",
-  "description": "Talla M, usada 2 veces, como nueva",
-  "price": 85,
-  "category": "ropa",
-  "condition": "como_nuevo",
-  "location": "Barcelona",
-  "seller": "Maria"
-}
-```
-
-### Vehiculo
-
-```json
-{
-  "title": "Bicicleta de montana BTT",
-  "description": "Cuadro aluminio, 27 velocidades, ruedas 29 pulgadas",
-  "price": 320,
-  "category": "vehiculos",
-  "condition": "bueno",
   "location": "Valencia",
-  "seller": "Pedro"
+  "categoryId": "<_id de GET /api/categories>",
+  "sellerId": "<_id de GET /api/sellers>",
+  "images": [
+    { "url": "https://picsum.photos/id/1/800/600", "alt": "Chaqueta de frente" },
+    { "url": "https://picsum.photos/id/2/800/600", "alt": "Detalle del bolsillo" }
+  ]
 }
 ```
 
-### Hogar
+- **201** con el producto completo. Se crea automáticamente su **variante por defecto** (`optionsKey: "default"`, SKU `SLUG-DEF`).
+- La primera imagen es la portada (`kind: "cover"`, `isPrimary: true`); máximo 5 y sin repetir URL.
+- **409** si el slug (generado desde `title`) ya existe, aunque el otro producto esté en la papelera.
+- **422** si `categoryId` o `sellerId` no existen, están inactivos o la categoría no está publicada (el mensaje nombra el campo).
+
+**Valores de `condition`:** `nuevo` · `como_nuevo` · `bueno` · `aceptable` · `mejorable`
+
+### 4. Actualizar (parcial)
+
+```
+PATCH /api/products/:id
+```
 
 ```json
-{
-  "title": "Mesa escritorio IKEA MALM",
-  "description": "140x65cm, color roble, en perfecto estado",
-  "price": 45,
-  "category": "hogar",
-  "condition": "bueno",
-  "location": "Sevilla",
-  "seller": "Ana"
-}
+{ "basePrice": 35, "title": "Chaqueta vaquera Levi's talla M" }
 ```
+
+- Mismos campos que al crear, todos opcionales. **No acepta `status`** (va por `/status`).
+- Si cambia el `title`, se regeneran el slug del producto (**409** si choca) y los de sus variantes.
+- Si se envía `images`, sustituye el conjunto: las anteriores pasan a soft delete.
+
+### 5. Cambiar estado de venta (changeStatus)
+
+```
+PATCH /api/products/:id/status
+```
+
+```json
+{ "status": "reservado" }
+```
+
+- `status`: `disponible` · `reservado` · `vendido`.
+- Con una sola variante actualiza la variante y recalcula el producto (**200**).
+- Con varias variantes devuelve **422**: el estado se gestiona por variante.
+
+### 6. Activar / desactivar (isActive)
+
+```
+PATCH /api/products/:id/active
+```
+
+```json
+{ "isActive": false }
+```
+
+Solo cambia `isActive`. Si el producto está eliminado → **409** (hay que restaurarlo antes).
+
+### 7. Eliminar (softDelete)
+
+```
+DELETE /api/products/:id
+```
+
+**204**. Pone `deletedAt` e `isActive: false` en el producto **y en cascada** en sus variantes e imágenes, con la misma fecha.
+
+### 8. Restaurar (RestoreDelete)
+
+```
+PATCH /api/products/:id/restore
+```
+
+```json
+{ "isActive": true }
+```
+
+| Body | Resultado |
+|---|---|
+| `{ "isActive": true }` | `deletedAt = null`, `isActive = true` |
+| `{ "isActive": false }` o sin body | `deletedAt = null`, `isActive = false` |
+
+Restaura también las variantes e imágenes **que se borraron con él** (misma fecha); las que se borraron antes por separado siguen borradas. Si el producto no está eliminado → **409**.
+
+---
+
+## Códigos de respuesta
+
+| Código | Cuándo |
+|---|---|
+| 200 | GET, PATCH, restore, changeStatus |
+| 201 | POST |
+| 204 | DELETE |
+| 404 | Recurso o ruta inexistente |
+| 409 | Slug o email duplicado; activar un producto eliminado; restaurar uno no eliminado |
+| 422 | Validación, ID mal formado, JSON mal formado, referencia inválida |

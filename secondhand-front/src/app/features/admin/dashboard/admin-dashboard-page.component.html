@@ -100,17 +100,17 @@
         <ul class="divide-y divide-line border-t border-line">
           @for (product of store.recentProducts(); track product._id) {
             <li class="flex items-center gap-3 px-5 py-3">
-              <app-admin-thumb [src]="product.images[0]" [title]="product.title" />
+              <app-admin-thumb [src]="primaryImage(product)?.url" [title]="product.title" />
               <div class="min-w-0 flex-1">
                 <a [routerLink]="['/admin/products', product.slug, 'edit']" class="block truncate text-sm font-medium text-ink hover:text-primary-700 hover:underline">
                   {{ product.title }}
                 </a>
                 <p class="truncate text-xs text-ink-muted">
-                  {{ categoryLabels[product.category] }} · {{ product.isActive ? 'Activo' : 'Inactivo' }}
+                  {{ product.category.name }} · {{ product.isActive ? 'Activo' : 'Inactivo' }}
                 </p>
               </div>
               <app-badge class="hidden sm:inline-flex" [tone]="statusTones[product.status]">{{ statusLabels[product.status] }}</app-badge>
-              <span class="w-20 text-right text-sm font-semibold tabular-nums text-ink">{{ product.price | price }}</span>
+              <span class="w-20 text-right text-sm font-semibold tabular-nums text-ink">{{ product.basePrice | price }}</span>
             </li>
           }
         </ul>

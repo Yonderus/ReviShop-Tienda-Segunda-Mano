@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { IconComponent } from '../../../../shared/ui/icon.component';
 import { LevelMeterComponent } from '../../../../shared/ui/level-meter.component';
+import { CatalogStore } from '../../../catalog/store/catalog.store';
 import {
-  CATEGORY_LABELS,
   CONDITION_LABELS,
   CONDITION_LEVEL,
-  PRODUCT_CATEGORIES,
   PRODUCT_CONDITIONS,
   PRODUCT_STATUSES,
   ProductFilters,
@@ -55,10 +54,13 @@ type FilterKey = keyof ProductFilters;
       >
         <div>
           <label for="f-category" class="field-label">Categoría</label>
-          <select id="f-category" class="field-control" (change)="set('category', $event)">
+          <select id="f-category" class="field-control" [disabled]="!catalog.loaded()" (change)="set('category', $event)">
             <option value="" [selected]="!filters().category">Todas</option>
-            @for (c of categories; track c) {
-              <option [value]="c" [selected]="filters().category === c">{{ categoryLabels[c] }}</option>
+            @for (group of catalog.categoryGroups(); track group.root._id) {
+              <option [value]="group.root.slug" [selected]="filters().category === group.root.slug">{{ group.root.name }}</option>
+              @for (child of group.children; track child._id) {
+                <option [value]="child.slug" [selected]="filters().category === child.slug">&nbsp;&nbsp;{{ child.name }}</option>
+              }
             }
           </select>
         </div>
@@ -114,10 +116,9 @@ export class ProductFiltersComponent {
   readonly filtersChange = output<ProductFilters>();
 
   protected readonly expanded = signal(false);
-  protected readonly categories = PRODUCT_CATEGORIES;
+  protected readonly catalog = inject(CatalogStore);
   protected readonly conditions = PRODUCT_CONDITIONS;
   protected readonly statuses = PRODUCT_STATUSES;
-  protected readonly categoryLabels = CATEGORY_LABELS;
   protected readonly conditionLabels = CONDITION_LABELS;
   protected readonly conditionLevel = CONDITION_LEVEL;
   protected readonly statusLabels = STATUS_LABELS;

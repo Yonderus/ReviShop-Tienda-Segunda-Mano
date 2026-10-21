@@ -5,13 +5,13 @@ import { BadgeComponent } from '../../../../shared/ui/badge.component';
 import { IconComponent } from '../../../../shared/ui/icon.component';
 import { LevelMeterComponent } from '../../../../shared/ui/level-meter.component';
 import {
-  CATEGORY_LABELS,
   CONDITION_LABELS,
   CONDITION_LEVEL,
   Product,
   STATUS_LABELS,
   STATUS_TONES,
 } from '../../models/product.model';
+import { displayPrice, primaryImage } from '../../models/product.utils';
 import { ProductImageComponent } from '../product-image/product-image.component';
 
 @Component({
@@ -27,8 +27,8 @@ import { ProductImageComponent } from '../product-image/product-image.component'
     >
       <app-product-image
         class="aspect-[4/3]"
-        [src]="product().images[0]"
-        [alt]="product().title"
+        [src]="cover()?.url"
+        [alt]="cover()?.alt || product().title"
         [priority]="priority()"
         [style.view-transition-name]="'product-' + product()._id"
       />
@@ -51,12 +51,17 @@ import { ProductImageComponent } from '../product-image/product-image.component'
         />
 
         <p class="mt-2 truncate text-sm text-ink-muted">
-          {{ categoryLabels[product().category] }}@if (product().location) { · {{ product().location }}}
+          {{ product().category.name }}@if (product().location) { · {{ product().location }}}
         </p>
+        @if (product().variantsCount > 1) {
+          <p class="mt-1 text-xs text-ink-muted">{{ product().variantsCount }} variantes</p>
+        }
 
         <div class="mt-auto flex items-end justify-between gap-2 pt-4">
           <p class="rounded-lg bg-accent-soft px-2 py-0.5 text-lg font-bold tabular-nums tracking-tight text-accent-strong">
-            {{ product().price | price }}
+            @if (price().from) {
+              <span class="text-xs font-semibold">desde </span>
+            }{{ price().amount | price }}
           </p>
           <div class="relative z-10 flex gap-1">
             <a
@@ -89,11 +94,12 @@ export class ProductCardComponent {
   readonly priority = input(false);
   readonly remove = output<Product>();
 
-  protected readonly categoryLabels = CATEGORY_LABELS;
   protected readonly conditionLabels = CONDITION_LABELS;
   protected readonly statusLabels = STATUS_LABELS;
   protected readonly statusTones = STATUS_TONES;
 
   protected readonly link = computed(() => `/products/${this.product().slug}`);
   protected readonly conditionLevel = computed(() => CONDITION_LEVEL[this.product().condition]);
+  protected readonly cover = computed(() => primaryImage(this.product()));
+  protected readonly price = computed(() => displayPrice(this.product()));
 }

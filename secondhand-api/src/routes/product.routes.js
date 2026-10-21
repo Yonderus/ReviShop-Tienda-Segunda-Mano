@@ -1,29 +1,44 @@
 import { Router } from "express";
-import { productController } from "../controllers/product.controller.js";
+import {
+  changeProductStatus,
+  createProduct,
+  getActiveProducts,
+  getInactiveProducts,
+  getProductById,
+  getProductBySlug,
+  getProducts,
+  getTrashedProducts,
+  restoreProduct,
+  setProductActive,
+  softDeleteProduct,
+  updateProduct,
+} from "../controllers/product.controller.js";
 import { validate } from "../middlewares/validate.js";
 import {
+  changeStatusSchema,
   createProductSchema,
-  updateProductSchema,
-  setActiveSchema,
-  restoreSchema,
   idParamsSchema,
-  slugParamsSchema,
   listQuerySchema,
+  restoreSchema,
+  setActiveSchema,
+  slugParamsSchema,
   stateListQuerySchema,
+  updateProductSchema,
 } from "../validators/product.validator.js";
 
 const router = Router();
 
-router.get("/", validate({ query: listQuerySchema }), productController.list);
-router.get("/actives", validate({ query: stateListQuerySchema }), productController.listActives);
-router.get("/inactives", validate({ query: stateListQuerySchema }), productController.listInactives);
-router.get("/trash", validate({ query: stateListQuerySchema }), productController.listTrashed);
-router.get("/slug/:slug", validate({ params: slugParamsSchema }), productController.getBySlug);
-router.get("/:id", validate({ params: idParamsSchema }), productController.getById);
-router.post("/", validate({ body: createProductSchema }), productController.create);
-router.patch("/:id", validate({ params: idParamsSchema, body: updateProductSchema }), productController.update);
-router.patch("/:id/active", validate({ params: idParamsSchema, body: setActiveSchema }), productController.setActive);
-router.patch("/:id/restore", validate({ params: idParamsSchema, body: restoreSchema }), productController.restore);
-router.delete("/:id", validate({ params: idParamsSchema }), productController.softDelete);
+router.get("/", validate({ query: listQuerySchema }), getProducts);
+router.get("/actives", validate({ query: stateListQuerySchema }), getActiveProducts);
+router.get("/inactives", validate({ query: stateListQuerySchema }), getInactiveProducts);
+router.get("/trash", validate({ query: stateListQuerySchema }), getTrashedProducts);
+router.get("/slug/:slug", validate({ params: slugParamsSchema }), getProductBySlug);
+router.get("/:id", validate({ params: idParamsSchema }), getProductById);
+router.post("/", validate({ body: createProductSchema }), createProduct);
+router.patch("/:id", validate({ params: idParamsSchema, body: updateProductSchema }), updateProduct);
+router.patch("/:id/status", validate({ params: idParamsSchema, body: changeStatusSchema }), changeProductStatus);
+router.patch("/:id/active", validate({ params: idParamsSchema, body: setActiveSchema }), setProductActive);
+router.patch("/:id/restore", validate({ params: idParamsSchema, body: restoreSchema }), restoreProduct);
+router.delete("/:id", validate({ params: idParamsSchema }), softDeleteProduct);
 
 export default router;

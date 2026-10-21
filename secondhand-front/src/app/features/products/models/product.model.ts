@@ -1,33 +1,14 @@
 import { BadgeTone } from '../../../shared/ui/badge.component';
-
-export const PRODUCT_CATEGORIES = [
-  'electronica',
-  'ropa',
-  'hogar',
-  'deportes',
-  'vehiculos',
-  'libros',
-  'juguetes',
-  'otros',
-] as const;
-export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+import { CategorySummary } from '../../catalog/models/category.model';
+import { Seller } from '../../catalog/models/seller.model';
+import { ProductImage, ProductImageInput } from './image.model';
+import { ProductVariant } from './product-variant.model';
 
 export const PRODUCT_CONDITIONS = ['nuevo', 'como_nuevo', 'bueno', 'aceptable', 'mejorable'] as const;
 export type ProductCondition = (typeof PRODUCT_CONDITIONS)[number];
 
 export const PRODUCT_STATUSES = ['disponible', 'reservado', 'vendido'] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
-
-export const CATEGORY_LABELS: Record<ProductCategory, string> = {
-  electronica: 'Electrónica',
-  ropa: 'Ropa',
-  hogar: 'Hogar',
-  deportes: 'Deportes',
-  vehiculos: 'Vehículos',
-  libros: 'Libros',
-  juguetes: 'Juguetes',
-  otros: 'Otros',
-};
 
 export const CONDITION_LABELS: Record<ProductCondition, string> = {
   nuevo: 'Nuevo',
@@ -63,29 +44,35 @@ export interface Product {
   title: string;
   slug: string;
   description: string;
-  price: number;
-  category: ProductCategory;
+  basePrice: number;
   condition: ProductCondition;
   location?: string;
-  images: string[];
-  seller: string;
+  /** Calculado por la API a partir de las variantes. */
   status: ProductStatus;
   isActive: boolean;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  categoryId: string;
+  sellerId: string;
+  category: CategorySummary;
+  seller: Seller;
+  /** En listados solo llega la portada; en el detalle, todas ordenadas. */
+  images: ProductImage[];
+  /** Solo en el detalle. */
+  variants?: ProductVariant[];
+  variantsCount: number;
 }
 
 export interface ProductInput {
   title: string;
   description: string;
-  price: number;
-  category: ProductCategory;
+  basePrice: number;
   condition: ProductCondition;
   location?: string;
-  images: string[];
-  seller: string;
-  status?: ProductStatus;
+  categoryId: string;
+  sellerId: string;
+  images: ProductImageInput[];
 }
 
 export type ProductUpdate = Partial<ProductInput>;
@@ -93,7 +80,8 @@ export type ProductUpdate = Partial<ProductInput>;
 export type ProductSort = 'recent' | 'price-asc' | 'price-desc';
 
 export type ProductFilters = {
-  category?: ProductCategory;
+  /** Slug de la categoría (incluye sus subcategorías). */
+  category?: string;
   condition?: ProductCondition;
   status?: ProductStatus;
   minPrice?: number;

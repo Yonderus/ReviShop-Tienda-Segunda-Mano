@@ -32,7 +32,8 @@ const baseClasses: SweetAlertOptions['customClass'] = {
 };
 
 @Injectable({ providedIn: 'root' })
-export class NotificationService {
+/** Feedback global con SweetAlert2 (cargado bajo demanda): errores, toasts y confirmaciones. */
+export class AlertService {
   private swal?: Promise<Swal>;
 
   /** SweetAlert2 se carga bajo demanda para no inflar el bundle inicial. */

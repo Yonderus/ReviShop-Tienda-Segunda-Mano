@@ -1,6 +1,6 @@
 import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { BLOCKING_REQUEST, INLINE_ERROR_STATUSES, SKIP_ERROR_ALERT, SKIP_GLOBAL_LOADER } from '../config/api.tokens';
 import { ApiSuccess } from '../models/api-response.model';
@@ -22,36 +22,36 @@ export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = environment.apiUrl;
 
-  get<T>(path: string, options?: ApiRequestOptions): Observable<T> {
+  get<T>(path: string, options?: ApiRequestOptions): Promise<T> {
     return this.request<T>('GET', path, undefined, options);
   }
 
-  post<T>(path: string, body: unknown, options?: ApiRequestOptions): Observable<T> {
+  post<T>(path: string, body: unknown, options?: ApiRequestOptions): Promise<T> {
     return this.request<T>('POST', path, body, options);
   }
 
-  patch<T>(path: string, body: unknown, options?: ApiRequestOptions): Observable<T> {
+  patch<T>(path: string, body: unknown, options?: ApiRequestOptions): Promise<T> {
     return this.request<T>('PATCH', path, body, options);
   }
 
-  delete<T = void>(path: string, options?: ApiRequestOptions): Observable<T> {
+  delete<T = void>(path: string, options?: ApiRequestOptions): Promise<T> {
     return this.request<T>('DELETE', path, undefined, options);
   }
 
-  /** La forma `{ success, data }` ya la valida el errorInterceptor; aquí solo se desempaqueta. */
-  private request<T>(
-    method: Method,
-    path: string,
-    body: unknown,
-    options: ApiRequestOptions = {},
-  ): Observable<T> {
-    return this.http
-      .request<ApiSuccess<T> | null>(method, `${this.baseUrl}${path}`, {
+  /**
+   * Único punto de contacto con HttpClient: convierte el Observable en Promise.
+   * La forma `{ success, data }` ya la valida el errorInterceptor; aquí solo se desempaqueta (204 → undefined).
+   */
+  private async request<T>(method: Method, path: string, body: unknown, options: ApiRequestOptions = {}): Promise<T> {
+    const response = await firstValueFrom(
+      this.http.request<ApiSuccess<T> | null>(method, `${this.baseUrl}${path}`, {
         body,
         params: this.buildParams(options.params),
         context: this.buildContext(options),
-      })
-      .pipe(map((response) => (response === null ? undefined : response.data) as T));
+      }),
+      { defaultValue: null },
+    );
+    return (response === null ? undefined : response.data) as T;
   }
 
   private buildParams(params: Record<string, QueryValue> = {}): HttpParams {

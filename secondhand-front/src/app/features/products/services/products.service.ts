@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
 import { ApiRequestOptions, ApiService } from '../../../core/services/api.service';
-import { Product, ProductInput, ProductUpdate } from '../models/product.model';
+import { Product, ProductInput, ProductStatus, ProductUpdate } from '../models/product.model';
 
 /** Las cargas pintan skeleton y ErrorState propios: sin loader global ni modal. */
 const READ_OPTIONS: ApiRequestOptions = { skipErrorAlert: true, skipGlobalLoader: true };
@@ -14,28 +13,48 @@ const FORM_OPTIONS: ApiRequestOptions = { inlineErrorStatuses: INLINE_FORM_STATU
 /** 409 de estado (activar uno eliminado, restaurar uno vivo): el llamador muestra un mensaje específico. */
 export const STATE_CONFLICT_STATUS = 409;
 
+/** 422 de changeStatus: el producto tiene varias variantes. */
+export const STATUS_BY_VARIANT_STATUS = 422;
+
 @Injectable({ providedIn: 'root' })
 export class ProductsService {
   private readonly api = inject(ApiService);
 
-  list(): Observable<Product[]> {
+  list(): Promise<Product[]> {
     return this.api.get<Product[]>('/products', READ_OPTIONS);
   }
 
-  listInactive(): Observable<Product[]> {
+  listInactive(): Promise<Product[]> {
     return this.api.get<Product[]>('/products/inactives', READ_OPTIONS);
   }
 
-  listTrashed(): Observable<Product[]> {
+  listTrashed(): Promise<Product[]> {
     return this.api.get<Product[]>('/products/trash', READ_OPTIONS);
   }
 
+  getBySlug(slug: string): Promise<Product> {
+    return this.api.get<Product>(`/products/slug/${encodeURIComponent(slug)}`, READ_OPTIONS);
+  }
+
+  create(input: ProductInput): Promise<Product> {
+    return this.api.post<Product>('/products', input, FORM_OPTIONS);
+  }
+
+  update(id: string, changes: ProductUpdate): Promise<Product> {
+    return this.api.patch<Product>(`/products/${id}`, changes, FORM_OPTIONS);
+  }
+
   /** No bloqueante: la UI ya ha aplicado el cambio de forma optimista. */
-  setActive(id: string, isActive: boolean): Observable<Product> {
+  changeStatus(id: string, status: ProductStatus): Promise<Product> {
+    return this.api.patch<Product>(`/products/${id}/status`, { status }, { inlineErrorStatuses: [STATUS_BY_VARIANT_STATUS] });
+  }
+
+  /** No bloqueante: la UI ya ha aplicado el cambio de forma optimista. */
+  setActive(id: string, isActive: boolean): Promise<Product> {
     return this.api.patch<Product>(`/products/${id}/active`, { isActive }, { inlineErrorStatuses: [STATE_CONFLICT_STATUS] });
   }
 
-  restore(id: string, isActive: boolean): Observable<Product> {
+  restore(id: string, isActive: boolean): Promise<Product> {
     return this.api.patch<Product>(
       `/products/${id}/restore`,
       { isActive },
@@ -43,19 +62,7 @@ export class ProductsService {
     );
   }
 
-  getBySlug(slug: string): Observable<Product> {
-    return this.api.get<Product>(`/products/slug/${encodeURIComponent(slug)}`, READ_OPTIONS);
-  }
-
-  create(input: ProductInput): Observable<Product> {
-    return this.api.post<Product>('/products', input, FORM_OPTIONS);
-  }
-
-  update(id: string, changes: ProductUpdate): Observable<Product> {
-    return this.api.patch<Product>(`/products/${id}`, changes, FORM_OPTIONS);
-  }
-
-  remove(id: string): Observable<void> {
+  remove(id: string): Promise<void> {
     return this.api.delete(`/products/${id}`, { blocking: true });
   }
 }

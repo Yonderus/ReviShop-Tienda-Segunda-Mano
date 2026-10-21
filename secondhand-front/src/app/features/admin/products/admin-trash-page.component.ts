@@ -2,14 +2,15 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiError } from '../../../core/models/api-error.model';
-import { NotificationService } from '../../../core/services/notification.service';
+import { AlertService } from '../../../core/services/alert.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { PricePipe } from '../../../shared/utils/price.pipe';
 import { RelativeTimePipe } from '../../../shared/utils/relative-time.pipe';
-import { CATEGORY_LABELS, Product } from '../../products/models/product.model';
+import { Product } from '../../products/models/product.model';
+import { primaryImage } from '../../products/models/product.utils';
 import { ProductsStore } from '../../products/store/products.store';
 import { prefersReducedMotion, rowLeave } from '../admin.animations';
 import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.component';
@@ -54,7 +55,7 @@ import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.compo
             <li @rowLeave class="retired rounded-2xl border border-slate-400 bg-surface p-4 sm:p-5">
               <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div class="flex min-w-0 flex-1 items-start gap-3">
-                  <app-admin-thumb class="retired-dim" [src]="product.images[0]" [title]="product.title" />
+                  <app-admin-thumb class="retired-dim" [src]="primaryImage(product)?.url" [title]="product.title" />
                   <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                       <p class="font-medium text-ink">{{ product.title }}</p>
@@ -64,8 +65,8 @@ import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.compo
                       </span>
                     </div>
                     <p class="mt-1 text-sm text-ink-muted">
-                      {{ categoryLabels[product.category] }} · {{ product.seller }} ·
-                      <span class="retired-dim line-through decoration-slate-400 tabular-nums">{{ product.price | price }}</span>
+                      {{ product.category.name }} · {{ product.seller.name }} ·
+                      <span class="retired-dim line-through decoration-slate-400 tabular-nums">{{ product.basePrice | price }}</span>
                     </p>
                     <p class="mt-1 text-xs font-medium text-slate-700">
                       Eliminado
@@ -106,10 +107,10 @@ import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.compo
 })
 export class AdminTrashPageComponent implements OnInit {
   protected readonly store = inject(ProductsStore);
-  private readonly notification = inject(NotificationService);
+  private readonly alert = inject(AlertService);
 
   protected readonly trash = this.store.collection('trash');
-  protected readonly categoryLabels = CATEGORY_LABELS;
+  protected readonly primaryImage = primaryImage;
   protected readonly reducedMotion = prefersReducedMotion();
 
   ngOnInit(): void {
@@ -123,10 +124,10 @@ export class AdminTrashPageComponent implements OnInit {
   protected async restore(product: Product, isActive: boolean): Promise<void> {
     try {
       await this.store.restore(product, isActive);
-      void this.notification.success(`"${product.title}" restaurado como ${isActive ? 'activo' : 'inactivo'}`);
+      void this.alert.success(`"${product.title}" restaurado como ${isActive ? 'activo' : 'inactivo'}`);
     } catch (error) {
       if (error instanceof ApiError && error.isConflict) {
-        void this.notification.error('Este producto ya no está en la papelera. Hemos actualizado la lista.');
+        void this.alert.error('Este producto ya no está en la papelera. Hemos actualizado la lista.');
         this.retry();
       }
     }

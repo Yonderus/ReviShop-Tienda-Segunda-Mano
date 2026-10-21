@@ -76,7 +76,7 @@
             <tr @rowLeave class="transition-colors duration-150 hover:bg-canvas/60">
               <td class="py-2.5 pl-5 pr-3">
                 <div class="flex items-center gap-3">
-                  <app-admin-thumb [src]="product.images[0]" [title]="product.title" />
+                  <app-admin-thumb [src]="primaryImage(product)?.url" [title]="product.title" />
                   <div class="min-w-0">
                     <a
                       [routerLink]="['/admin/products', product.slug, 'edit']"
@@ -87,10 +87,22 @@
                   </div>
                 </div>
               </td>
-              <td class="hidden px-3 text-ink 2xl:table-cell">{{ categoryLabels[product.category] }}</td>
-              <td class="px-3 text-right font-semibold tabular-nums text-ink">{{ product.price | price }}</td>
+              <td class="hidden px-3 text-ink 2xl:table-cell">{{ product.category.name }}</td>
+              <td class="px-3 text-right font-semibold tabular-nums text-ink">{{ product.basePrice | price }}</td>
               <td class="px-3">
-                <app-badge [tone]="statusTones[product.status]">{{ statusLabels[product.status] }}</app-badge>
+                <label [for]="'status-' + product._id" class="sr-only">Estado de venta de {{ product.title }}</label>
+                <select
+                  [id]="'status-' + product._id"
+                  class="status-select"
+                  [class]="'status-' + product.status"
+                  [disabled]="product.variantsCount > 1 || store.pendingIds().has(product._id)"
+                  [title]="product.variantsCount > 1 ? 'Se gestiona por variante' : ''"
+                  (change)="changeStatus(product, $any($event.target).value)"
+                >
+                  @for (s of statuses; track s) {
+                    <option [value]="s" [selected]="s === product.status">{{ statusLabels[s] }}</option>
+                  }
+                </select>
               </td>
               <td class="hidden px-3 xl:table-cell">
                 <app-level-meter [value]="conditionLevel[product.condition]" [label]="conditionLabels[product.condition]" caption="Condición" [showLabel]="false" [attr.title]="conditionLabels[product.condition]" />
@@ -134,14 +146,30 @@
       @for (product of list().items(); track product._id) {
         <li @rowLeave class="rounded-2xl border border-line bg-surface p-4 shadow-card">
           <div class="flex items-start gap-3">
-            <app-admin-thumb [src]="product.images[0]" [title]="product.title" />
+            <app-admin-thumb [src]="primaryImage(product)?.url" [title]="product.title" />
             <div class="min-w-0 flex-1">
               <a [routerLink]="['/admin/products', product.slug, 'edit']" class="block font-medium leading-snug text-ink hover:text-primary-700">
                 {{ product.title }}
               </a>
-              <p class="mt-0.5 text-xs text-ink-muted">{{ categoryLabels[product.category] }} · {{ product.price | price }}</p>
+              <p class="mt-0.5 text-xs text-ink-muted">{{ product.category.name }} · {{ product.basePrice | price }}</p>
             </div>
             <app-badge [tone]="statusTones[product.status]">{{ statusLabels[product.status] }}</app-badge>
+          </div>
+          <div class="mt-3">
+            <label [for]="'m-status-' + product._id" class="field-label text-xs">Estado de venta</label>
+            <select
+              [id]="'m-status-' + product._id"
+              class="field-control min-h-10 text-sm"
+              [disabled]="product.variantsCount > 1 || store.pendingIds().has(product._id)"
+              (change)="changeStatus(product, $any($event.target).value)"
+            >
+              @for (s of statuses; track s) {
+                <option [value]="s" [selected]="s === product.status">{{ statusLabels[s] }}</option>
+              }
+            </select>
+            @if (product.variantsCount > 1) {
+              <p class="field-hint">Se gestiona por variante.</p>
+            }
           </div>
           <div class="mt-3 flex items-center justify-between border-t border-line pt-3">
             <app-toggle-switch

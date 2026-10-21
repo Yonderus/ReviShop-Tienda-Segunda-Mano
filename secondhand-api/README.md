@@ -1,114 +1,127 @@
-# Secondhand API
+# Secondhand API (Revishop)
 
-API REST para marketplace de productos de segunda mano.
+API REST del marketplace de segunda mano **Revishop**: Express + MongoDB (Mongoose) + Zod.
 
 ## Requisitos previos
 
-- [Node.js](https://nodejs.org/) (v18 o superior)
-- [MongoDB](https://www.mongodb.com/) corriendo en local o una URI de MongoDB Atlas
+- [Node.js](https://nodejs.org/) 18 o superior
+- [MongoDB](https://www.mongodb.com/) en local o una URI de MongoDB Atlas
 
-## Instalacion
-
-### 1. Instalar dependencias
+## Instalación
 
 ```bash
 cd secondhand-api
 npm install
-```
-
-### 2. Configurar variables de entorno
-
-Crea un archivo `.env` en la raiz del proyecto copiando el ejemplo:
-
-```bash
 cp .env.example .env
 ```
 
-Contenido del `.env`:
+### Variables de entorno
 
-```
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/secondhand-db
-```
+Se leen y validan en un único sitio, `src/config/env.js` (con Zod). Si falta alguna obligatoria, la API no arranca y dice cuál.
 
-> Si usas MongoDB Atlas, sustituye la URI por tu string de conexion:
-> `MONGODB_URI=mongodb+srv://usuario:password@cluster.xxxxx.mongodb.net/secondhand-db`
+| Variable | Obligatoria | Uso |
+|---|---|---|
+| `NODE_ENV` | No (`development`) | `production` activa CORS restringido y oculta los logs de error |
+| `PORT` | No (`3000`) | Puerto HTTP |
+| `MONGODB_URI` | **Sí** | Conexión a MongoDB, p. ej. `mongodb://localhost:27017/secondhand-db` |
+| `CORS_ORIGIN` | En producción | Orígenes permitidos, separados por comas (en desarrollo CORS está abierto) |
+| `SEED_DEFAULT_PASSWORD` | Solo para el seed | Contraseña de todos los usuarios de prueba (mínimo 8 caracteres) |
 
-### 3. Arrancar el servidor
-
-**Modo desarrollo (con hot reload):**
-
-```bash
-npm run dev
-```
-
-**Modo produccion:**
+### Arrancar
 
 ```bash
-npm start
+npm run dev     # desarrollo (node --watch)
+npm start       # producción
 ```
 
-El servidor arrancara en `http://localhost:3000`.
-
-### 4. Seed (datos de prueba)
+### Seed (datos de prueba)
 
 ```bash
 npm run seed
 ```
 
-Vacía la colección de productos e inserta 14 de ejemplo para probar todo el CRUD:
+Vacía las 6 colecciones, sincroniza los índices e inserta, en orden de dependencias:
 
-- 8 activos (con estados disponible, reservado y vendido)
-- 3 inactivos (`isActive: false`)
-- 3 en la papelera (`deletedAt` con fechas distintas)
+| Colección | Datos |
+|---|---|
+| `roles` | `admin`, `moderator`, `seller`, `user` (`isSystem: true`) con sus permisos |
+| `users` | 1 admin, 3 vendedores y 1 usuario (emails `@revishop.test`, contraseña de `SEED_DEFAULT_PASSWORD`, hasheada con bcryptjs) |
+| `categories` | 8 raíz + 4 subcategorías (Móviles, Ordenadores, Chaquetas, Pádel), con `attributes` de variante |
+| `products` | 14: 8 activos, 3 inactivos y 3 en la papelera |
+| `productvariants` | 1 por defecto por producto + tallas de la chaqueta y capacidades del iPhone |
+| `images` | Fotos de producto (portada + galería) y avatares de usuario |
 
-## Estructura del proyecto
+> **Cuidado:** borra todos los datos de esas colecciones cada vez que se ejecuta.
+
+## Modelo de datos
+
+6 colecciones con relaciones por referencia (`<entidad>Id` + `ref`). Diagrama completo en [`../PROMPT.md`](../PROMPT.md).
+
+| Modelo | Colección | Relaciones |
+|---|---|---|
+| `Role` | `roles` | 1 → N `User` |
+| `User` | `users` | `roleId` → `Role` · 1 → N `Product` (como vendedor) |
+| `Category` | `categories` | `parentId` → `Category` (subcategorías) · 1 → N `Product` |
+| `Product` | `products` | `sellerId` → `User` · `categoryId` → `Category` · 1 → N `ProductVariant` · 1 → N `Image` |
+| `ProductVariant` | `productvariants` | `productId` → `Product` |
+| `Image` | `images` | Polimórfica: `ownerType` + `ownerId` (`refPath`) → `User` · `Category` · `Product` · `ProductVariant` |
+
+Todas tienen `isActive`, `status`, `deletedAt`, `deletedBy`, `slug`, `createdAt` y `updatedAt`.
+
+**Reglas de negocio:**
+- Todo producto tiene al menos una variante; la variante por defecto se crea con el producto.
+- El `status` del producto se calcula a partir de sus variantes.
+- El soft delete se propaga a variantes e imágenes, y el restore solo devuelve los hijos borrados con el producto.
+
+## Estructura
 
 ```
-secondhand-api/
-├── src/
-│   ├── config/
-│   │   └── db.js                    # Conexion a MongoDB
-│   ├── models/
-│   │   └── product.model.js         # Esquema de Mongoose
-│   ├── repositories/
-│   │   └── product.repository.js    # Acceso a base de datos
-│   ├── services/
-│   │   └── product.service.js       # Logica de negocio
-│   ├── controllers/
-│   │   └── product.controller.js    # Manejo de peticiones HTTP
-│   ├── routes/
-│   │   └── product.routes.js        # Definicion de rutas
-│   ├── seed.js                      # Script de datos de prueba
-│   └── server.js                    # Punto de entrada
-├── .env.example
-├── .gitignore
-├── package.json
-├── postman.md
-└── README.md
+src/
+├── config/          env.js (entorno validado), db.js
+├── constants/       permissions.js
+├── models/          base.fields.js + role, user, category, product, productVariant, image
+├── repositories/    acceso a datos y populate (product, productVariant, image, category, user)
+├── services/        reglas de negocio (product, category, seller)
+├── controllers/     funciones const con async/await y try/catch → next(error)
+├── routes/          product.routes.js, catalog.routes.js (solo lectura)
+├── validators/      schemas Zod de entrada
+├── middlewares/     validate.js (params, query, body)
+├── utils/           AppError, errorHandler, response, slugify (+ uniqueSlug)
+├── seed.js
+└── server.js
 ```
 
 ## Endpoints
 
-| Metodo | Ruta                          | Descripcion                                      |
-| ------ | ----------------------------- | ------------------------------------------------ |
-| GET    | `/api/products`               | Listar productos (activos por defecto)           |
-| GET    | `/api/products/actives`       | Listar solo productos activos                    |
-| GET    | `/api/products/inactives`     | Listar solo productos inactivos (no eliminados)  |
-| GET    | `/api/products/trash`         | Papelera: productos con soft delete (solo lectura) |
-| GET    | `/api/products/slug/:slug`    | Obtener un producto por slug                     |
-| GET    | `/api/products/:id`           | Obtener un producto por ID                       |
-| POST   | `/api/products`               | Crear un producto (slug unico, 409 si existe)    |
-| PATCH  | `/api/products/:id`           | Actualizar parcialmente un producto              |
-| PATCH  | `/api/products/:id/active`    | Cambiar `isActive` (body `{ "isActive": bool }`) |
-| PATCH  | `/api/products/:id/restore`   | Restaurar un producto eliminado                  |
-| DELETE | `/api/products/:id`           | Borrado logico (`deletedAt` + inactivo)          |
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/products` | Activos (o `?isActive=false`) con categoría, vendedor e imagen principal |
+| GET | `/api/products/actives` · `/inactives` · `/trash` | Por estado de visibilidad |
+| GET | `/api/products/slug/:slug` | **getBySlug**: detalle con imágenes y variantes |
+| GET | `/api/products/:id` | Detalle por ID |
+| POST | `/api/products` | Crear (201; 409 si el slug existe; 422 si la categoría o el vendedor no son válidos) |
+| PATCH | `/api/products/:id` | Actualización parcial |
+| PATCH | `/api/products/:id/status` | **changeStatus**: `{ status }` |
+| PATCH | `/api/products/:id/active` | **isActive**: `{ isActive }` |
+| DELETE | `/api/products/:id` | **softDelete** en cascada (204) |
+| PATCH | `/api/products/:id/restore` | **RestoreDelete** selectivo |
+| GET | `/api/categories` | Categorías publicadas (solo lectura) |
+| GET | `/api/sellers` | Vendedores, solo campos públicos (solo lectura) |
 
-Consulta `postman.md` para ver los body de ejemplo y los query params disponibles.
+Ejemplos de petición y respuesta en [`postman.md`](postman.md).
 
-## Tecnologias
+## Manejo de errores
 
-- Express
-- MongoDB + Mongoose
-- CORS
-- dotenv
+| Origen | Respuesta |
+|---|---|
+| Validación Zod en la ruta | 422 con los mensajes de cada campo |
+| `AppError` lanzado por un service | Su código (404, 409, 422…) |
+| Duplicado de Mongo (E11000) | 409 |
+| `CastError` / `ValidationError` de Mongoose | 422 |
+| JSON mal formado | 422 |
+| Ruta inexistente | 404 en JSON |
+| Cualquier otro | 500 "Error interno del servidor" |
+
+## Tecnologías
+
+Express · MongoDB + Mongoose · Zod · bcryptjs · Helmet · Morgan · CORS · dotenv

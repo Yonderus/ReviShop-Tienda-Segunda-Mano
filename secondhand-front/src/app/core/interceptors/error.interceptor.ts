@@ -11,7 +11,7 @@ import { environment } from '../../../environments/environment';
 import { INLINE_ERROR_STATUSES, SKIP_ERROR_ALERT } from '../config/api.tokens';
 import { ApiError } from '../models/api-error.model';
 import { isApiFailure, isApiSuccess } from '../models/api-response.model';
-import { NotificationService } from '../services/notification.service';
+import { AlertService } from '../services/alert.service';
 
 const MESSAGES = {
   network: 'No hemos podido conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.',
@@ -55,7 +55,7 @@ function normalizeError(error: unknown): ApiError {
 }
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
-  const notification = inject(NotificationService);
+  const alert = inject(AlertService);
 
   return next(req).pipe(
     timeout(environment.requestTimeoutMs),
@@ -69,7 +69,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
       const handledInline =
         req.context.get(SKIP_ERROR_ALERT) || req.context.get(INLINE_ERROR_STATUSES).includes(error.status);
-      if (!handledInline) void notification.error(error.message, error.details);
+      if (!handledInline) void alert.error(error.message, error.details);
 
       return throwError(() => error);
     }),

@@ -1,12 +1,8 @@
 import { Injectable, Signal, computed, inject, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
 import { ApiError, toApiError } from '../../../core/models/api-error.model';
 import {
-  CATEGORY_LABELS,
-  PRODUCT_CATEGORIES,
   PRODUCT_STATUSES,
   Product,
-  ProductCategory,
   ProductFilters,
   ProductInput,
   ProductStatus,
@@ -24,18 +20,24 @@ export interface Breakdown<K extends string> {
   count: number;
 }
 
-export function applyFilters(products: readonly Product[], filters: ProductFilters): Product[] {
+/** `categoryScope`: slugs válidos para el filtro de categoría (la categoría y sus subcategorías). */
+export function applyFilters(
+  products: readonly Product[],
+  filters: ProductFilters,
+  categoryScope: ReadonlySet<string> | null = null,
+): Product[] {
   const { category, condition, status, minPrice, maxPrice, sort = 'recent' } = filters;
+  const scope = category ? (categoryScope ?? new Set([category])) : null;
   const result = products.filter(
     (p) =>
-      (!category || p.category === category) &&
+      (!scope || scope.has(p.category?.slug)) &&
       (!condition || p.condition === condition) &&
       (!status || p.status === status) &&
-      (minPrice === undefined || p.price >= minPrice) &&
-      (maxPrice === undefined || p.price <= maxPrice),
+      (minPrice === undefined || p.basePrice >= minPrice) &&
+      (maxPrice === undefined || p.basePrice <= maxPrice),
   );
-  if (sort === 'price-asc') return result.sort((a, b) => a.price - b.price);
-  if (sort === 'price-desc') return result.sort((a, b) => b.price - a.price);
+  if (sort === 'price-asc') return result.sort((a, b) => a.basePrice - b.basePrice);
+  if (sort === 'price-desc') return result.sort((a, b) => b.basePrice - a.basePrice);
   return result.sort(byNewest);
 }
 
@@ -101,9 +103,9 @@ export class ProductsStore {
   private readonly service = inject(ProductsService);
 
   private readonly collections: Record<CollectionKey, ProductCollection> = {
-    active: new ProductCollection(() => firstValueFrom(this.service.list()), byNewest),
-    inactive: new ProductCollection(() => firstValueFrom(this.service.listInactive()), byNewest),
-    trash: new ProductCollection(() => firstValueFrom(this.service.listTrashed()), byDeletedNewest),
+    active: new ProductCollection(() => this.service.list(), byNewest),
+    inactive: new ProductCollection(() => this.service.listInactive(), byNewest),
+    trash: new ProductCollection(() => this.service.listTrashed(), byDeletedNewest),
   };
 
   private readonly _selectedProduct = signal<Product | null>(null);
@@ -158,15 +160,17 @@ export class ProductsStore {
     })),
   );
 
-  readonly categoryBreakdown = computed<Breakdown<ProductCategory>[]>(() =>
-    PRODUCT_CATEGORIES.map((key) => ({
-      key,
-      label: CATEGORY_LABELS[key],
-      count: this.liveProducts().filter((p) => p.category === key).length,
-    }))
-      .filter((row) => row.count > 0)
-      .sort((a, b) => b.count - a.count),
-  );
+  /** Agrupado por la categoría poblada de cada producto (nombre real de la API, no constantes). */
+  readonly categoryBreakdown = computed<Breakdown<string>[]>(() => {
+    const rows = new Map<string, Breakdown<string>>();
+    for (const p of this.liveProducts()) {
+      const key = p.category?.slug ?? 'sin-categoria';
+      const row = rows.get(key) ?? { key, label: p.category?.name ?? 'Sin categoría', count: 0 };
+      row.count++;
+      rows.set(key, row);
+    }
+    return [...rows.values()].sort((a, b) => b.count - a.count);
+  });
 
   readonly recentProducts = computed(() => [...this.liveProducts()].sort(byNewest).slice(0, 5));
 
@@ -192,8 +196,8 @@ export class ProductsStore {
     return Promise.all((Object.keys(this.collections) as CollectionKey[]).map((key) => this.loadCollection(key, options)));
   }
 
-  filteredBy(filters: Signal<ProductFilters>): Signal<Product[]> {
-    return computed(() => applyFilters(this.products(), filters()));
+  filteredBy(filters: Signal<ProductFilters>, categoryScope?: Signal<ReadonlySet<string> | null>): Signal<Product[]> {
+    return computed(() => applyFilters(this.products(), filters(), categoryScope?.() ?? null));
   }
 
   async loadBySlug(slug: string): Promise<Product | null> {
@@ -210,7 +214,7 @@ export class ProductsStore {
 
     let request = this.detailInFlight.get(slug);
     if (!request) {
-      request = firstValueFrom(this.service.getBySlug(slug));
+      request = this.service.getBySlug(slug);
       this.detailInFlight.set(slug, request);
     }
 
@@ -234,7 +238,7 @@ export class ProductsStore {
   async create(input: ProductInput): Promise<Product> {
     this._saving.set(true);
     try {
-      const product = await firstValueFrom(this.service.create(input));
+      const product = await this.service.create(input);
       this.placeLive(product);
       this.select(product);
       return product;
@@ -248,7 +252,7 @@ export class ProductsStore {
   async update(product: Product, changes: ProductUpdate): Promise<Product> {
     this._saving.set(true);
     try {
-      const updated = await firstValueFrom(this.service.update(product._id, changes));
+      const updated = await this.service.update(product._id, changes);
       this.detailCache.delete(product.slug);
       this.placeLive(updated);
       this.select(updated);
@@ -269,7 +273,26 @@ export class ProductsStore {
     this.placeLive(optimistic);
 
     try {
-      const updated = await firstValueFrom(this.service.setActive(product._id, isActive));
+      const updated = await this.service.setActive(product._id, isActive);
+      this.placeLive(updated);
+      return updated;
+    } catch (raw) {
+      this.placeLive(product);
+      throw toApiError(raw);
+    } finally {
+      this.setPending(product._id, false);
+    }
+  }
+
+  /** Optimista: el estado de venta cambia al instante y se revierte si la API falla. */
+  async changeStatus(product: Product, status: ProductStatus): Promise<Product> {
+    if (product.status === status || this._pendingIds().has(product._id)) return product;
+
+    this.setPending(product._id, true);
+    this.placeLive({ ...product, status });
+
+    try {
+      const updated = await this.service.changeStatus(product._id, status);
       this.placeLive(updated);
       return updated;
     } catch (raw) {
@@ -284,7 +307,7 @@ export class ProductsStore {
   async remove(product: Product): Promise<void> {
     this._deletingId.set(product._id);
     try {
-      await firstValueFrom(this.service.remove(product._id), { defaultValue: undefined });
+      await this.service.remove(product._id);
       this.collections.active.remove(product._id);
       this.collections.inactive.remove(product._id);
       this.collections.trash.upsert({ ...product, isActive: false, deletedAt: new Date().toISOString() });
@@ -300,7 +323,7 @@ export class ProductsStore {
   async restore(product: Product, isActive: boolean): Promise<Product> {
     this.setPending(product._id, true);
     try {
-      const restored = await firstValueFrom(this.service.restore(product._id, isActive));
+      const restored = await this.service.restore(product._id, isActive);
       this.collections.trash.remove(product._id);
       this.placeLive(restored);
       return restored;

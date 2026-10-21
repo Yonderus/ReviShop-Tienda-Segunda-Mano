@@ -31,6 +31,15 @@ export const uniqueValues: ValidatorFn = (control: AbstractControl): ValidationE
   return new Set(values).size === values.length ? null : { duplicateValues: true };
 };
 
+/** En un FormArray de grupos: el campo `field` no puede repetirse entre elementos. */
+export function uniqueField(field: string): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    if (!(control instanceof FormArray)) return null;
+    const values = control.controls.map((c) => String(c.get(field)?.value ?? '').trim()).filter(Boolean);
+    return new Set(values).size === values.length ? null : { duplicateValues: true };
+  };
+}
+
 export function oneOf(allowed: readonly string[]): ValidatorFn {
   return (control) => (!control.value || allowed.includes(control.value) ? null : { oneOf: true });
 }

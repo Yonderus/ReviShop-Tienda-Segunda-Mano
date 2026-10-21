@@ -1,60 +1,110 @@
 import { productService } from "../services/product.service.js";
-import { catchAsync } from "../utils/catchAsync.js";
-import { sendSuccess, sendCreated, sendNoContent } from "../utils/response.js";
+import { sendCreated, sendNoContent, sendSuccess } from "../utils/response.js";
 
-export const productController = {
-  list: catchAsync(async (req, res) => {
+export const getProducts = async (req, res, next) => {
+  try {
     const products = await productService.list(req.query);
     sendSuccess(res, products);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  listActives: catchAsync(async (req, res) => {
+export const getActiveProducts = async (req, res, next) => {
+  try {
     const products = await productService.listActives(req.query);
     sendSuccess(res, products);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  listInactives: catchAsync(async (req, res) => {
+export const getInactiveProducts = async (req, res, next) => {
+  try {
     const products = await productService.listInactives(req.query);
     sendSuccess(res, products);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  listTrashed: catchAsync(async (req, res) => {
+export const getTrashedProducts = async (req, res, next) => {
+  try {
     const products = await productService.listTrashed(req.query);
     sendSuccess(res, products);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  getById: catchAsync(async (req, res) => {
+export const getProductById = async (req, res, next) => {
+  try {
     const product = await productService.getById(req.params.id);
     sendSuccess(res, product);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  getBySlug: catchAsync(async (req, res) => {
+export const getProductBySlug = async (req, res, next) => {
+  try {
     const product = await productService.getBySlug(req.params.slug);
     sendSuccess(res, product);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  create: catchAsync(async (req, res) => {
+export const createProduct = async (req, res, next) => {
+  try {
     const product = await productService.create(req.body);
     sendCreated(res, product);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  update: catchAsync(async (req, res) => {
+export const updateProduct = async (req, res, next) => {
+  try {
     const product = await productService.update(req.params.id, req.body);
     sendSuccess(res, product);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  setActive: catchAsync(async (req, res) => {
+export const changeProductStatus = async (req, res, next) => {
+  try {
+    const product = await productService.changeStatus(req.params.id, req.body.status);
+    sendSuccess(res, product);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const setProductActive = async (req, res, next) => {
+  try {
     const product = await productService.setActive(req.params.id, req.body.isActive);
     sendSuccess(res, product);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  restore: catchAsync(async (req, res) => {
+export const restoreProduct = async (req, res, next) => {
+  try {
     const product = await productService.restore(req.params.id, req.body.isActive);
     sendSuccess(res, product);
-  }),
+  } catch (error) {
+    next(error);
+  }
+};
 
-  softDelete: catchAsync(async (req, res) => {
+export const softDeleteProduct = async (req, res, next) => {
+  try {
     await productService.softDelete(req.params.id);
     sendNoContent(res);
-  }),
+  } catch (error) {
+    next(error);
+  }
 };

@@ -23,7 +23,15 @@ export const appConfig: ApplicationConfig = {
     provideRouter(
       routes,
       withComponentInputBinding(),
-      withViewTransitions(),
+      withViewTransitions({
+        skipInitialTransition: true,
+        // El navegador aborta la transición si la pestaña está oculta; sin este catch
+        // la promesa rechazada deja la vista sin pintar.
+        onViewTransitionCreated: ({ transition }) => {
+          transition.finished.catch(() => undefined);
+          transition.updateCallbackDone.catch(() => undefined);
+        },
+      }),
       withPreloading(PreloadAllModules),
       withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),
     ),

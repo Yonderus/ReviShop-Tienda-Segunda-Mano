@@ -6,7 +6,8 @@ import { BadgeComponent } from '../../../shared/ui/badge.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { StatCardComponent } from '../../../shared/ui/stat-card.component';
 import { PricePipe } from '../../../shared/utils/price.pipe';
-import { CATEGORY_LABELS, ProductStatus, STATUS_LABELS, STATUS_TONES } from '../../products/models/product.model';
+import { ProductStatus, STATUS_LABELS, STATUS_TONES } from '../../products/models/product.model';
+import { primaryImage } from '../../products/models/product.utils';
 import { ProductsStore } from '../../products/store/products.store';
 import { PLATFORM_MODULES } from '../admin-nav.config';
 import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.component';
@@ -39,7 +40,7 @@ export class AdminDashboardPageComponent implements OnInit {
   protected readonly store = inject(ProductsStore);
 
   protected readonly modules = PLATFORM_MODULES;
-  protected readonly categoryLabels = CATEGORY_LABELS;
+  protected readonly primaryImage = primaryImage;
   protected readonly statusLabels = STATUS_LABELS;
   protected readonly statusTones = STATUS_TONES;
 

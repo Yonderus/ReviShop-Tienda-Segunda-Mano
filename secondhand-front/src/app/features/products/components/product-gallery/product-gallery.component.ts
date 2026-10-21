@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import { ProductImage } from '../../models/image.model';
 
 @Component({
   selector: 'app-product-gallery',
@@ -6,8 +7,8 @@ import { ChangeDetectionStrategy, Component, input, output, signal } from '@angu
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ul class="flex gap-2 overflow-x-auto pb-1" aria-label="Fotos del producto">
-      @for (url of images(); track url; let i = $index) {
-        @if (!failed().has(url)) {
+      @for (image of images(); track image._id; let i = $index) {
+        @if (!failed().has(image.url)) {
           <li class="shrink-0">
             <button
               type="button"
@@ -19,7 +20,7 @@ import { ChangeDetectionStrategy, Component, input, output, signal } from '@angu
               [attr.aria-current]="i === active() ? 'true' : null"
               (click)="select.emit(i)"
             >
-              <img [src]="url" alt="" width="80" height="80" class="size-full object-cover" (error)="markFailed(url)" />
+              <img [src]="image.url" [alt]="image.alt || ''" width="80" height="80" class="size-full object-cover" (error)="markFailed(image.url)" />
             </button>
           </li>
         }
@@ -28,7 +29,7 @@ import { ChangeDetectionStrategy, Component, input, output, signal } from '@angu
   `,
 })
 export class ProductGalleryComponent {
-  readonly images = input.required<string[]>();
+  readonly images = input.required<ProductImage[]>();
   readonly active = input(0);
   readonly select = output<number>();
 

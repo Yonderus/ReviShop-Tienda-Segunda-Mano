@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { NotificationService } from '../../../../core/services/notification.service';
+import { AlertService } from '../../../../core/services/alert.service';
 import { EmptyStateComponent } from '../../../../shared/components/empty-state/empty-state.component';
 import { ErrorStateComponent } from '../../../../shared/components/error-state/error-state.component';
 import { SkeletonComponent } from '../../../../shared/components/skeleton/skeleton.component';
 import { IconComponent } from '../../../../shared/ui/icon.component';
 import { ProductFiltersComponent } from '../../components/product-filters/product-filters.component';
 import { ProductGridComponent } from '../../components/product-grid/product-grid.component';
+import { CatalogStore } from '../../../catalog/store/catalog.store';
 import {
-  PRODUCT_CATEGORIES,
   PRODUCT_CONDITIONS,
   PRODUCT_STATUSES,
   Product,
@@ -45,8 +45,9 @@ const toPrice = (value?: string): number | undefined => {
 })
 export class ProductListPageComponent implements OnInit {
   protected readonly store = inject(ProductsStore);
+  private readonly catalog = inject(CatalogStore);
   private readonly router = inject(Router);
-  private readonly notification = inject(NotificationService);
+  private readonly alert = inject(AlertService);
 
   readonly category = input<string>();
   readonly condition = input<string>();
@@ -56,7 +57,8 @@ export class ProductListPageComponent implements OnInit {
   readonly sort = input<string>();
 
   protected readonly filters = computed<ProductFilters>(() => ({
-    category: pick(PRODUCT_CATEGORIES, this.category()),
+    // El slug se valida contra las categorías reales de la API.
+    category: this.catalog.categoryBySlug(this.category())?.slug,
     condition: pick(PRODUCT_CONDITIONS, this.condition()),
     status: pick(PRODUCT_STATUSES, this.status()),
     minPrice: toPrice(this.minPrice()),
@@ -64,7 +66,13 @@ export class ProductListPageComponent implements OnInit {
     sort: pick(SORTS, this.sort()),
   }));
 
-  protected readonly visible = this.store.filteredBy(this.filters);
+  /** Una categoría raíz incluye sus subcategorías. */
+  private readonly categoryScope = computed(() => {
+    const slug = this.filters().category;
+    return slug ? this.catalog.descendantSlugs(slug) : null;
+  });
+
+  protected readonly visible = this.store.filteredBy(this.filters, this.categoryScope);
   protected readonly hasFilters = computed(() => {
     const { sort, ...rest } = this.filters();
     return Object.values(rest).some((v) => v !== undefined);
@@ -72,6 +80,7 @@ export class ProductListPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.store.loadAll();
+    void this.catalog.load();
   }
 
   protected retry(): void {
@@ -90,7 +99,7 @@ export class ProductListPageComponent implements OnInit {
   }
 
   protected async remove(product: Product): Promise<void> {
-    const confirmed = await this.notification.confirm({
+    const confirmed = await this.alert.confirm({
       title: '¿Retirar este anuncio?',
       text: `"${product.title}" dejará de mostrarse en el catálogo.`,
       confirmText: 'Sí, retirar',
@@ -100,7 +109,7 @@ export class ProductListPageComponent implements OnInit {
 
     try {
       await this.store.remove(product);
-      void this.notification.success('Anuncio retirado');
+      void this.alert.success('Anuncio retirado');
     } catch {
       // El errorInterceptor ya ha mostrado el aviso al usuario.
     }

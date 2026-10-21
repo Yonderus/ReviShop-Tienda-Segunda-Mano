@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnChanges, OnDestroy, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiError } from '../../../../core/models/api-error.model';
-import { NotificationService } from '../../../../core/services/notification.service';
+import { AlertService } from '../../../../core/services/alert.service';
 import { ErrorStateComponent } from '../../../../shared/components/error-state/error-state.component';
 import { PageNotFoundComponent } from '../../../../shared/components/page-not-found/page-not-found.component';
 import { SkeletonComponent } from '../../../../shared/components/skeleton/skeleton.component';
@@ -59,7 +59,7 @@ import { INLINE_FORM_STATUSES } from '../../services/products.service';
 export class ProductEditPageComponent implements OnChanges, OnDestroy {
   protected readonly store = inject(ProductsStore);
   private readonly router = inject(Router);
-  private readonly notification = inject(NotificationService);
+  private readonly alert = inject(AlertService);
 
   readonly slug = input.required<string>();
   protected readonly serverError = signal<ApiError | null>(null);
@@ -80,14 +80,14 @@ export class ProductEditPageComponent implements OnChanges, OnDestroy {
     this.serverError.set(null);
     const changes = diffProduct(product, input);
     if (Object.keys(changes).length === 0) {
-      void this.notification.success('No había cambios que guardar');
+      void this.alert.success('No había cambios que guardar');
       void this.router.navigate(['/products', product.slug]);
       return;
     }
 
     try {
       const updated = await this.store.update(product, changes);
-      void this.notification.success('Cambios guardados');
+      void this.alert.success('Cambios guardados');
       void this.router.navigate(['/products', updated.slug], { replaceUrl: true });
     } catch (error) {
       if (error instanceof ApiError && INLINE_FORM_STATUSES.includes(error.status)) this.serverError.set(error);

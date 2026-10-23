@@ -1,12 +1,11 @@
 import mongoose from "mongoose";
-import { DEFAULT_OPTIONS_KEY } from "../models/productVariant.model.js";
 import { categoryRepository } from "../repositories/category.repository.js";
 import { imageRepository } from "../repositories/image.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { BadRequestError, ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
-import { buildSku, uniqueSku } from "../utils/sku.js";
+import { DEFAULT_OPTIONS_KEY, buildSku, uniqueSku, variantSlugBase } from "../utils/productVariant.utils.js";
 import { slugify } from "../utils/slugify.js";
 
 const WRITABLE_FIELDS = ["title", "description", "basePrice", "condition", "location", "categoryId", "sellerId"];
@@ -40,11 +39,6 @@ async function findLiveProduct(id) {
   if (!product || product.deletedAt) throw new NotFoundError("Producto no encontrado");
   return product;
 }
-
-const variantSlugBase = (productSlug, variant) =>
-  variant.optionsKey === DEFAULT_OPTIONS_KEY
-    ? `${productSlug}-default`
-    : `${productSlug}-${variant.options.map((o) => o.value).join("-")}`;
 
 /** Imágenes de entrada { url, alt } → documentos Image del producto; la primera es la portada. */
 function buildProductImages(product, images = []) {
@@ -133,7 +127,7 @@ export const productService = {
       await productVariantRepository.create({
         productId: product._id,
         sku: await uniqueSku(buildSku(product.slug), (sku) => productVariantRepository.existsSku(sku)),
-        slug: await productVariantRepository.uniqueSlug(`${product.slug}-default`),
+        slug: await productVariantRepository.uniqueSlug(variantSlugBase(product.slug)),
         options: [],
         optionsKey: DEFAULT_OPTIONS_KEY,
         isDefault: true,
@@ -165,7 +159,7 @@ export const productService = {
     if (titleChanged) {
       const variants = await productVariantRepository.findAllByProduct(id);
       for (const variant of variants) {
-        const slug = await productVariantRepository.uniqueSlug(variantSlugBase(product.slug, variant), variant._id);
+        const slug = await productVariantRepository.uniqueSlug(variantSlugBase(product.slug, variant.options.map((o) => o.value)), variant._id);
         await productVariantRepository.updateById(variant._id, { slug });
       }
     }

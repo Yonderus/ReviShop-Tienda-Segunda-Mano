@@ -1,8 +1,7 @@
 import mongoose from "mongoose";
 import { baseFields, baseOptions } from "./base.fields.js";
 import { SALE_STATUSES } from "../constants/product.constants.js";
-
-export const DEFAULT_OPTIONS_KEY = "default";
+import { buildOptionsKey } from "../utils/productVariant.utils.js";
 
 const optionSchema = new mongoose.Schema(
   {
@@ -11,15 +10,6 @@ const optionSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
-/** "color:negro|talla:m" (ordenado) o "default" si no hay opciones. */
-export const buildOptionsKey = (options = []) =>
-  options.length === 0
-    ? DEFAULT_OPTIONS_KEY
-    : [...options]
-        .map((o) => `${o.key.toLowerCase()}:${o.value.toLowerCase()}`)
-        .sort()
-        .join("|");
 
 const productVariantSchema = new mongoose.Schema(
   {

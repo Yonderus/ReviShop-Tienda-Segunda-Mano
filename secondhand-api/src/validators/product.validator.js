@@ -1,7 +1,5 @@
 import { z } from "zod";
-
-const conditions = ["nuevo", "como_nuevo", "bueno", "aceptable", "mejorable"];
-const statuses = ["disponible", "reservado", "vendido"];
+import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
 
 const objectId = (field) => z.string().regex(/^[0-9a-fA-F]{24}$/, `${field} no es un ID válido`);
 
@@ -22,7 +20,7 @@ export const createProductSchema = z.object({
     .min(10, "La descripción debe tener al menos 10 caracteres")
     .max(2000, "La descripción no puede superar 2000 caracteres"),
   basePrice: z.number({ error: "basePrice debe ser un número" }).min(0, "basePrice debe ser mayor o igual a 0"),
-  condition: z.enum(conditions, { error: `condition debe ser: ${conditions.join(", ")}` }),
+  condition: z.enum(PRODUCT_CONDITIONS, { error: `condition debe ser: ${PRODUCT_CONDITIONS.join(", ")}` }),
   location: z.string().trim().max(100, "La ubicación no puede superar 100 caracteres").optional(),
   categoryId: objectId("categoryId"),
   sellerId: objectId("sellerId"),
@@ -37,7 +35,7 @@ export const createProductSchema = z.object({
 export const updateProductSchema = createProductSchema.partial();
 
 export const changeStatusSchema = z.object({
-  status: z.enum(statuses, { error: `status debe ser: ${statuses.join(", ")}` }),
+  status: z.enum(SALE_STATUSES, { error: `status debe ser: ${SALE_STATUSES.join(", ")}` }),
 });
 
 export const setActiveSchema = z.object({
@@ -57,8 +55,8 @@ export const slugParamsSchema = z.object({
 export const listQuerySchema = z.object({
   category: z.string().trim().optional(),
   seller: z.string().trim().optional(),
-  condition: z.enum(conditions, { error: `condition debe ser: ${conditions.join(", ")}` }).optional(),
-  status: z.enum(statuses, { error: `status debe ser: ${statuses.join(", ")}` }).optional(),
+  condition: z.enum(PRODUCT_CONDITIONS, { error: `condition debe ser: ${PRODUCT_CONDITIONS.join(", ")}` }).optional(),
+  status: z.enum(SALE_STATUSES, { error: `status debe ser: ${SALE_STATUSES.join(", ")}` }).optional(),
   minPrice: z.coerce.number({ error: "minPrice debe ser un número" }).min(0, "minPrice debe ser positivo").optional(),
   maxPrice: z.coerce.number({ error: "maxPrice debe ser un número" }).min(0, "maxPrice debe ser positivo").optional(),
   isActive: z.enum(["true", "false"], { error: "isActive debe ser true o false" }).optional(),

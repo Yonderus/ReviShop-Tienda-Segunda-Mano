@@ -1,9 +1,7 @@
 import mongoose from "mongoose";
 import { slugify } from "../utils/slugify.js";
+import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
 import { baseFields, baseOptions } from "./base.fields.js";
-
-export const PRODUCT_CONDITIONS = ["nuevo", "como_nuevo", "bueno", "aceptable", "mejorable"];
-export const SALE_STATUSES = ["disponible", "reservado", "vendido"];
 
 const productSchema = new mongoose.Schema(
   {

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { baseFields, baseOptions } from "./base.fields.js";
-import { SALE_STATUSES } from "./product.model.js";
+import { SALE_STATUSES } from "../constants/product.constants.js";
 
 export const DEFAULT_OPTIONS_KEY = "default";
 

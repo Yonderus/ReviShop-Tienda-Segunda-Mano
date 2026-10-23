@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { uniqueSlug } from "../utils/slugify.js";
+import { isHttpUrl } from "../utils/url.js";
 import { baseFields, baseOptions } from "./base.fields.js";
 
 /** Nombres exactos de los modelos: refPath los usa para resolver la referencia. */
@@ -16,7 +17,7 @@ const imageSchema = new mongoose.Schema(
       type: String,
       required: [true, "La URL de la imagen es obligatoria"],
       trim: true,
-      match: [/^https?:\/\/\S+$/i, "La URL de la imagen debe empezar por http:// o https://"],
+      validate: { validator: isHttpUrl, message: "La URL de la imagen debe ser una dirección http(s) válida" },
     },
     storageKey: { type: String, trim: true },
     alt: { type: String, trim: true, maxlength: [120, "El texto alternativo no puede superar 120 caracteres"] },

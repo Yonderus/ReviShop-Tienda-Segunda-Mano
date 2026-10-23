@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
+import { isHttpUrl } from "../utils/url.js";
+
+const INVALID_IMAGE_URL = "Cada imagen debe tener una URL http(s) válida";
 
 const objectId = (field) => z.string().regex(/^[0-9a-fA-F]{24}$/, `${field} no es un ID válido`);
 
 const imageInputSchema = z.object({
-  url: z.url({ protocol: /^https?$/, error: "Cada imagen debe tener una URL http(s) válida" }),
+  url: z.string({ error: INVALID_IMAGE_URL }).refine(isHttpUrl, INVALID_IMAGE_URL),
   alt: z.string().trim().max(120, "El texto alternativo no puede superar 120 caracteres").optional(),
 });
 

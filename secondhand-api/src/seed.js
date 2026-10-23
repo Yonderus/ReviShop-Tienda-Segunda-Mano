@@ -10,6 +10,7 @@ import { ProductVariant } from "./models/productVariant.model.js";
 import { Role } from "./models/role.model.js";
 import { User } from "./models/user.model.js";
 import { cascadeSoftDelete, productService } from "./services/product.service.js";
+import { buildSku } from "./utils/sku.js";
 import { uniqueSlug } from "./utils/slugify.js";
 
 const daysAgo = (days) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -284,7 +285,7 @@ async function seedVariants(product, spec) {
   if (!spec.variants) {
     await ProductVariant.create({
       productId: product._id,
-      sku: `${product.slug.toUpperCase()}-DEF`,
+      sku: buildSku(product.slug),
       slug: await uniqueSlug(ProductVariant, `${product.slug}-default`),
       options: [],
       isDefault: true,
@@ -296,7 +297,7 @@ async function seedVariants(product, spec) {
     const values = variant.options.map((o) => o.value);
     await ProductVariant.create({
       productId: product._id,
-      sku: [product.slug, ...values].join("-").toUpperCase().replace(/\s+/g, ""),
+      sku: buildSku(product.slug, values),
       slug: await uniqueSlug(ProductVariant, `${product.slug}-${values.join("-")}`),
       options: variant.options,
       price: variant.price ?? null,

@@ -6,6 +6,7 @@ import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { BadRequestError, ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
+import { buildSku, uniqueSku } from "../utils/sku.js";
 import { slugify } from "../utils/slugify.js";
 
 const WRITABLE_FIELDS = ["title", "description", "basePrice", "condition", "location", "categoryId", "sellerId"];
@@ -38,14 +39,6 @@ async function findLiveProduct(id) {
   const product = await productRepository.findRawById(id);
   if (!product || product.deletedAt) throw new NotFoundError("Producto no encontrado");
   return product;
-}
-
-/** SKU de la variante por defecto: SLUG-DEF, con sufijo numérico si ya existe. */
-async function defaultSku(productSlug) {
-  const root = `${productSlug.toUpperCase()}-DEF`;
-  let candidate = root;
-  for (let n = 2; await productVariantRepository.existsSku(candidate); n++) candidate = `${root}-${n}`;
-  return candidate;
 }
 
 const variantSlugBase = (productSlug, variant) =>
@@ -139,7 +132,7 @@ export const productService = {
     try {
       await productVariantRepository.create({
         productId: product._id,
-        sku: await defaultSku(product.slug),
+        sku: await uniqueSku(buildSku(product.slug), (sku) => productVariantRepository.existsSku(sku)),
         slug: await productVariantRepository.uniqueSlug(`${product.slug}-default`),
         options: [],
         optionsKey: DEFAULT_OPTIONS_KEY,

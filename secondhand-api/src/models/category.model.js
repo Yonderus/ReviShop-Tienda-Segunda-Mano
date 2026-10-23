@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
-import { slugify } from "../utils/slugify.js";
-import { baseFields, baseOptions } from "./base.fields.js";
+import { DELETED_FIELDS, baseFields, baseOptions } from "./base.fields.js";
+import { slugPlugin } from "./plugins/slug.plugin.js";
+import { softDeletePlugin } from "./plugins/softDelete.plugin.js";
 
 const attributeSchema = new mongoose.Schema(
   {
@@ -14,7 +15,6 @@ const attributeSchema = new mongoose.Schema(
 const categorySchema = new mongoose.Schema(
   {
     name: { type: String, required: [true, "El nombre de la categoría es obligatorio"], trim: true },
-    slug: { type: String, required: true, unique: true },
     description: { type: String, trim: true },
     parentId: { type: mongoose.Schema.Types.ObjectId, ref: "Category", default: null },
     attributes: { type: [attributeSchema], default: [] },
@@ -27,8 +27,7 @@ const categorySchema = new mongoose.Schema(
 
 categorySchema.index({ parentId: 1, order: 1 });
 
-categorySchema.pre("validate", function () {
-  if (!this.slug && this.name) this.slug = slugify(this.name);
-});
+categorySchema.plugin(slugPlugin, { source: (doc) => doc.name });
+categorySchema.plugin(softDeletePlugin, { deletedFields: DELETED_FIELDS });
 
 export const Category = mongoose.model("Category", categorySchema);

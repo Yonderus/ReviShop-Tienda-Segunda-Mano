@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
 import { PERMISSIONS } from "../constants/permissions.js";
-import { slugify } from "../utils/slugify.js";
-import { baseFields, baseOptions } from "./base.fields.js";
+import { DELETED_FIELDS, baseFields, baseOptions } from "./base.fields.js";
+import { slugPlugin } from "./plugins/slug.plugin.js";
+import { softDeletePlugin } from "./plugins/softDelete.plugin.js";
 
 const roleSchema = new mongoose.Schema(
   {
     name: { type: String, required: [true, "El nombre del rol es obligatorio"], trim: true },
-    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     description: { type: String, trim: true },
     permissions: {
       type: [String],
@@ -23,8 +23,7 @@ const roleSchema = new mongoose.Schema(
   baseOptions
 );
 
-roleSchema.pre("validate", function () {
-  if (!this.slug && this.name) this.slug = slugify(this.name);
-});
+roleSchema.plugin(slugPlugin, { source: (doc) => doc.name });
+roleSchema.plugin(softDeletePlugin, { deletedFields: DELETED_FIELDS });
 
 export const Role = mongoose.model("Role", roleSchema);

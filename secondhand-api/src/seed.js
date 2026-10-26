@@ -30,20 +30,20 @@ const ROLES = [
     description: "Revisa, retira y restaura anuncios",
     permissions: ["products:read", "products:write", "products:delete", "products:restore"],
   },
+  // Cualquier usuario compra y vende. Que solo toque sus propios anuncios se controlará con el JWT.
   {
-    name: "Vendedor",
-    slug: ROLE.SELLER,
-    description: "Publica y gestiona sus anuncios",
+    name: "Usuario",
+    slug: ROLE.USER,
+    description: "Compra y publica sus anuncios",
     permissions: ["products:read", "products:write", "products:delete"],
   },
-  { name: "Usuario", slug: ROLE.USER, description: "Compra y consulta anuncios", permissions: ["products:read"] },
 ];
 
 const USERS = [
   { key: "admin", name: "Admin Revishop", email: "admin@revishop.test", role: ROLE.ADMIN, location: "Valencia", avatar: 338 },
-  { key: "lucia", name: "Lucía Martín", email: "lucia@revishop.test", role: ROLE.SELLER, location: "Valencia", avatar: 64, bio: "Vendo lo que ya no uso antes de que coja polvo." },
-  { key: "juan", name: "Juan Pérez", email: "juan@revishop.test", role: ROLE.SELLER, location: "Madrid", avatar: 91, bio: "Electrónica y bicis revisadas." },
-  { key: "marta", name: "Marta Gil", email: "marta@revishop.test", role: ROLE.SELLER, location: "Zaragoza", avatar: 1027 },
+  { key: "lucia", name: "Lucía Martín", email: "lucia@revishop.test", role: ROLE.USER, location: "Valencia", avatar: 64, bio: "Vendo lo que ya no uso antes de que coja polvo." },
+  { key: "juan", name: "Juan Pérez", email: "juan@revishop.test", role: ROLE.USER, location: "Madrid", avatar: 91, bio: "Electrónica y bicis revisadas." },
+  { key: "marta", name: "Marta Gil", email: "marta@revishop.test", role: ROLE.USER, location: "Zaragoza", avatar: 1027 },
   { key: "carlos", name: "Carlos Ruiz", email: "carlos@revishop.test", role: ROLE.USER, location: "Bilbao", avatar: 1005 },
 ];
 
@@ -385,16 +385,18 @@ async function seedDatabase() {
     await seedAvatars(users);
 
     const count = (filter) => products.filter(filter).length;
+    // Totales con la papelera incluida (el plugin de soft delete la oculta por defecto).
+    const total = (Model) => Model.countDocuments().setOptions({ withDeleted: true });
     console.log("\nResumen:");
-    console.log(`  roles            ${await Role.countDocuments()}`);
-    console.log(`  users            ${await User.countDocuments()}`);
-    console.log(`  categories       ${await Category.countDocuments()}`);
+    console.log(`  roles            ${await total(Role)}`);
+    console.log(`  users            ${await total(User)}`);
+    console.log(`  categories       ${await total(Category)}`);
     console.log(
       `  products         ${products.length} (activos ${count((p) => !p.deletedAt && p.isActive)}, ` +
         `inactivos ${count((p) => !p.deletedAt && !p.isActive)}, papelera ${count((p) => p.deletedAt)})`
     );
-    console.log(`  productvariants  ${await ProductVariant.countDocuments()}`);
-    console.log(`  images           ${await Image.countDocuments()}`);
+    console.log(`  productvariants  ${await total(ProductVariant)}`);
+    console.log(`  images           ${await total(Image)}`);
 
     await mongoose.disconnect();
     process.exit(0);

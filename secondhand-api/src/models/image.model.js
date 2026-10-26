@@ -1,15 +1,15 @@
 import mongoose from "mongoose";
 import { IMAGE_KINDS, IMAGE_OWNER_TYPES, IMAGE_STATUS, IMAGE_STATUSES } from "../constants/image.constants.js";
-import { uniqueSlug } from "../utils/slugify.js";
 import { isHttpUrl } from "../utils/url.js";
-import { baseFields, baseOptions } from "./base.fields.js";
+import { DELETED_FIELDS, baseFields, baseOptions } from "./base.fields.js";
+import { slugPlugin } from "./plugins/slug.plugin.js";
+import { softDeletePlugin } from "./plugins/softDelete.plugin.js";
 
 const imageSchema = new mongoose.Schema(
   {
     ownerType: { type: String, required: true, enum: IMAGE_OWNER_TYPES },
     ownerId: { type: mongoose.Schema.Types.ObjectId, required: true, refPath: "ownerType" },
     kind: { type: String, required: true, enum: IMAGE_KINDS },
-    slug: { type: String, required: true, unique: true },
     url: {
       type: String,
       required: [true, "La URL de la imagen es obligatoria"],
@@ -34,8 +34,7 @@ const imageSchema = new mongoose.Schema(
 imageSchema.index({ ownerType: 1, ownerId: 1, order: 1 });
 imageSchema.index({ ownerType: 1, ownerId: 1, isPrimary: 1 });
 
-imageSchema.pre("validate", async function () {
-  if (!this.slug) this.slug = await uniqueSlug(this.constructor, this.alt || `${this.ownerType}-${this.kind}`, this._id);
-});
+imageSchema.plugin(slugPlugin, { source: (doc) => doc.alt || `${doc.ownerType}-${doc.kind}`, unique: true });
+imageSchema.plugin(softDeletePlugin, { deletedFields: DELETED_FIELDS });
 
 export const Image = mongoose.model("Image", imageSchema);

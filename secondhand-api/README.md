@@ -44,8 +44,8 @@ Vacía las 6 colecciones, sincroniza los índices e inserta, en orden de depende
 
 | Colección | Datos |
 |---|---|
-| `roles` | `admin`, `moderator`, `seller`, `user` (`isSystem: true`) con sus permisos |
-| `users` | 1 admin, 3 vendedores y 1 usuario (emails `@revishop.test`, contraseña de `SEED_DEFAULT_PASSWORD`, hasheada con bcryptjs) |
+| `roles` | `admin`, `moderator`, `user` (`isSystem: true`) con sus permisos. No hay rol de vendedor: cualquier usuario compra y vende |
+| `users` | 1 admin y 4 usuarios (emails `@revishop.test`, contraseña de `SEED_DEFAULT_PASSWORD`, hasheada con bcryptjs) |
 | `categories` | 8 raíz + 4 subcategorías (Móviles, Ordenadores, Chaquetas, Pádel), con `attributes` de variante |
 | `products` | 14: 8 activos, 3 inactivos y 3 en la papelera |
 | `productvariants` | 1 por defecto por producto + tallas de la chaqueta y capacidades del iPhone |
@@ -106,7 +106,7 @@ src/
 | DELETE | `/api/products/:id` | **softDelete** en cascada (204) |
 | PATCH | `/api/products/:id/restore` | **RestoreDelete** selectivo |
 | GET | `/api/categories` | Categorías publicadas (solo lectura) |
-| GET | `/api/sellers` | Vendedores, solo campos públicos (solo lectura) |
+| GET | `/api/sellers` | Quién puede publicar: usuarios activos y no suspendidos, solo campos públicos (solo lectura) |
 
 Ejemplos de petición y respuesta en [`postman.md`](postman.md).
 

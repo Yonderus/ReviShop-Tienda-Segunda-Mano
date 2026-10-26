@@ -1,15 +1,15 @@
 import mongoose from "mongoose";
-import { slugify } from "../utils/slugify.js";
 import { IMAGE_OWNER } from "../constants/image.constants.js";
 import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
-import { baseFields, baseOptions } from "./base.fields.js";
+import { DELETED_FIELDS, baseFields, baseOptions } from "./base.fields.js";
+import { slugPlugin } from "./plugins/slug.plugin.js";
+import { softDeletePlugin } from "./plugins/softDelete.plugin.js";
 
 const productSchema = new mongoose.Schema(
   {
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: [true, "El vendedor es obligatorio"] },
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: [true, "La categoría es obligatoria"] },
     title: { type: String, required: [true, "El título es obligatorio"], trim: true },
-    slug: { type: String, required: true, unique: true },
     description: { type: String, required: [true, "La descripción es obligatoria"], trim: true },
     condition: { type: String, required: true, enum: PRODUCT_CONDITIONS },
     basePrice: { type: Number, required: [true, "El precio base es obligatorio"], min: [0, "El precio no puede ser negativo"] },
@@ -40,12 +40,12 @@ productSchema.virtual("images", {
   ref: "Image",
   localField: "_id",
   foreignField: "ownerId",
-  match: { ownerType: IMAGE_OWNER.PRODUCT, deletedAt: null },
+  match: { ownerType: IMAGE_OWNER.PRODUCT },
   options: { sort: { order: 1 } },
 });
 
-productSchema.pre("validate", function () {
-  if (this.isModified("title")) this.slug = slugify(this.title);
-});
+// Sin sufijo: un título repetido es un 409 (el service lo comprueba antes para dar un mensaje claro).
+productSchema.plugin(slugPlugin, { source: (doc) => doc.title, regenerateOn: ["title"] });
+productSchema.plugin(softDeletePlugin, { deletedFields: DELETED_FIELDS });
 
 export const Product = mongoose.model("Product", productSchema);

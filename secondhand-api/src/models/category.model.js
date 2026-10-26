@@ -28,7 +28,7 @@ const categorySchema = new mongoose.Schema(
 
 categorySchema.index({ parentId: 1, order: 1 });
 
-categorySchema.plugin(slugPlugin, { source: (doc) => doc.name });
+categorySchema.plugin(slugPlugin, { source: (doc) => doc.name, regenerateOn: ["name"] });
 categorySchema.plugin(softDeletePlugin, { deletedFields: DELETED_FIELDS });
 
 export const Category = mongoose.model("Category", categorySchema);

@@ -11,10 +11,11 @@ export const imageRepository = {
   },
 
   softDeleteByOwners(ownerType, ownerIds, date) {
-    return Image.updateMany({ ...ownersFilter(ownerType, ownerIds), deletedAt: null }, { deletedAt: date, isActive: false });
+    return Image.softDeleteMany(ownersFilter(ownerType, ownerIds), date);
   },
 
+  /** Solo las que se eliminaron con esa fecha: no revive las sustituidas antes al cambiar las fotos. */
   restoreByOwners(ownerType, ownerIds, date) {
-    return Image.updateMany({ ...ownersFilter(ownerType, ownerIds), deletedAt: date }, { deletedAt: null, isActive: true });
+    return Image.restoreMany(ownersFilter(ownerType, ownerIds), date, { isActive: true });
   },
 };

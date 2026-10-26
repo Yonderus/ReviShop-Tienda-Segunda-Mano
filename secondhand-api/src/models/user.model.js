@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 import { USER_STATUS, USER_STATUSES } from "../constants/user.constants.js";
-import { uniqueSlug } from "../utils/slugify.js";
-import { baseFields, baseOptions } from "./base.fields.js";
+import { DELETED_FIELDS, baseFields, baseOptions } from "./base.fields.js";
+import { slugPlugin } from "./plugins/slug.plugin.js";
+import { softDeletePlugin } from "./plugins/softDelete.plugin.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -13,7 +14,6 @@ const userSchema = new mongoose.Schema(
       minlength: [2, "El nombre debe tener al menos 2 caracteres"],
       maxlength: [60, "El nombre no puede superar 60 caracteres"],
     },
-    slug: { type: String, required: true, unique: true },
     email: {
       type: String,
       required: [true, "El email es obligatorio"],
@@ -45,8 +45,8 @@ const userSchema = new mongoose.Schema(
 
 userSchema.virtual("role", { ref: "Role", localField: "roleId", foreignField: "_id", justOne: true });
 
-userSchema.pre("validate", async function () {
-  if (!this.slug && this.name) this.slug = await uniqueSlug(this.constructor, this.name, this._id);
-});
+// Dos personas pueden llamarse igual: el slug lleva sufijo (-2, -3…) en vez de dar error.
+userSchema.plugin(slugPlugin, { source: (doc) => doc.name, unique: true });
+userSchema.plugin(softDeletePlugin, { deletedFields: DELETED_FIELDS });
 
 export const User = mongoose.model("User", userSchema);

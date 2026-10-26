@@ -1,30 +1,71 @@
+import { IMAGE_OWNER } from "../constants/image.constants.js";
 import { Product } from "../models/product.model.js";
 
 const IMAGE_FIELDS = "url alt kind isPrimary order width height";
 
-/** Listados: lo justo para una card o una fila de tabla. */
+/** Incluye los eliminados: el plugin de soft delete los oculta en todas las consultas, populate incluidos. */
+const WITH_DELETED = { withDeleted: true };
+
+// Un producto siempre muestra su categoría y su vendedor, aunque después se eliminen.
+const CATEGORY_SUMMARY = { path: "category", select: "name slug", options: WITH_DELETED };
+const SELLER_SUMMARY = { path: "seller", select: "name slug location", options: WITH_DELETED };
+
+/**
+ * Listados: lo justo para una card o una fila de tabla.
+ * El `match` de un populate sustituye al del virtual, por eso se repite `ownerType`.
+ */
 const LIST_POPULATE = [
-  { path: "category", select: "name slug" },
-  { path: "seller", select: "name slug location" },
-  { path: "images", match: { isPrimary: true }, select: `${IMAGE_FIELDS} ownerId` },
+  CATEGORY_SUMMARY,
+  SELLER_SUMMARY,
+  { path: "images", match: { ownerType: IMAGE_OWNER.PRODUCT, isPrimary: true }, select: `${IMAGE_FIELDS} ownerId` },
 ];
 
-/** Detalle: todas las imágenes y las variantes no borradas. */
+/** Papelera: también las portadas eliminadas; `findTrashed` se queda solo con las del mismo borrado. */
+const TRASH_POPULATE = [
+  CATEGORY_SUMMARY,
+  SELLER_SUMMARY,
+  {
+    path: "images",
+    match: { ownerType: IMAGE_OWNER.PRODUCT, isPrimary: true },
+    select: `${IMAGE_FIELDS} ownerId deletedAt`,
+    options: WITH_DELETED,
+  },
+];
+
+/** Detalle: todas las imágenes y las variantes no eliminadas. */
 const DETAIL_POPULATE = [
-  { path: "category", select: "name slug parentId attributes" },
-  { path: "seller", select: "name slug location" },
+  { ...CATEGORY_SUMMARY, select: "name slug parentId attributes" },
+  SELLER_SUMMARY,
   { path: "images", select: `${IMAGE_FIELDS} ownerId` },
   {
     path: "variants",
-    match: { deletedAt: null },
     select: "-__v -deletedBy",
     populate: { path: "images", select: `${IMAGE_FIELDS} ownerId` },
   },
 ];
 
 export const productRepository = {
-  findAll(filter = {}, sort = { createdAt: -1 }) {
-    return Product.find(filter).sort(sort).populate(LIST_POPULATE);
+  findAll(filter = {}) {
+    return Product.find(filter).sort({ createdAt: -1 }).populate(LIST_POPULATE);
+  },
+
+  /**
+   * Eliminados, del más reciente al más antiguo. Cada uno muestra solo la portada que se eliminó
+   * junto a él (mismo `deletedAt`), no las que se sustituyeron antes al cambiar las fotos.
+   */
+  async findTrashed(filter = {}) {
+    const products = await Product.find({ ...filter, deletedAt: { $ne: null } })
+      .sort({ deletedAt: -1 })
+      .populate(TRASH_POPULATE);
+    for (const product of products) {
+      product.images = product.images
+        .filter((image) => +image.deletedAt === +product.deletedAt)
+        .map((image) => {
+          const { deletedAt: _deletedAt, ...fields } = image.toObject();
+          return fields;
+        });
+    }
+    return products;
   },
 
   findDetailById(id) {
@@ -35,13 +76,14 @@ export const productRepository = {
     return Product.findOne({ slug }).populate(DETAIL_POPULATE);
   },
 
-  /** Sin populate: para comprobaciones internas del service. */
+  /** Sin populate e incluyendo eliminados: el service decide qué hacer con ellos (404, 409, restaurar…). */
   findRawById(id) {
-    return Product.findById(id).lean();
+    return Product.findById(id).setOptions(WITH_DELETED).lean();
   },
 
+  /** Incluye eliminados: su slug sigue ocupado en el índice único. */
   findRawBySlug(slug) {
-    return Product.findOne({ slug }).lean();
+    return Product.findOne({ slug }).setOptions(WITH_DELETED).lean();
   },
 
   create(data) {
@@ -50,6 +92,19 @@ export const productRepository = {
 
   updateById(id, data) {
     return Product.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  },
+
+  /** Para campos calculados (estado, nº de variantes), que se mantienen también en la papelera. */
+  updateIncludingDeleted(id, data) {
+    return Product.findByIdAndUpdate(id, data, { new: true, runValidators: true }).setOptions(WITH_DELETED);
+  },
+
+  softDeleteById(id, date) {
+    return Product.softDeleteMany({ _id: id }, date);
+  },
+
+  restoreById(id, date, isActive) {
+    return Product.restoreMany({ _id: id }, date, { isActive });
   },
 
   /** Borrado físico: solo para deshacer una creación que falló a medias. */

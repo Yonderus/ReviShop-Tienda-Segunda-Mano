@@ -78,40 +78,42 @@ async function buildFilters(query) {
   return filter;
 }
 
-async function listWith(query, extra, sort) {
+// Los eliminados ya los oculta el plugin de soft delete; la papelera tiene su propia consulta.
+async function listWith(query, extra) {
   const filter = await buildFilters(query);
   if (!filter) return [];
-  return productRepository.findAll({ ...filter, ...extra }, sort);
+  return productRepository.findAll({ ...filter, ...extra });
 }
 
 export const productService = {
   async list(query = {}) {
     const isActive = query.isActive !== undefined ? query.isActive === "true" : true;
-    return listWith(query, { deletedAt: null, isActive });
+    return listWith(query, { isActive });
   },
 
   async listActives(query = {}) {
-    return listWith(query, { deletedAt: null, isActive: true });
+    return listWith(query, { isActive: true });
   },
 
   async listInactives(query = {}) {
-    return listWith(query, { deletedAt: null, isActive: false });
+    return listWith(query, { isActive: false });
   },
 
   async listTrashed(query = {}) {
-    return listWith(query, { deletedAt: { $ne: null } }, { deletedAt: -1 });
+    const filter = await buildFilters(query);
+    return filter ? productRepository.findTrashed(filter) : [];
   },
 
   async getById(id) {
     validateId(id);
     const product = await productRepository.findDetailById(id);
-    if (!product || product.deletedAt) throw new NotFoundError("Producto no encontrado");
+    if (!product) throw new NotFoundError("Producto no encontrado");
     return product;
   },
 
   async getBySlug(slug) {
     const product = await productRepository.findDetailBySlug(slug);
-    if (!product || product.deletedAt) throw new NotFoundError("Producto no encontrado");
+    if (!product) throw new NotFoundError("Producto no encontrado");
     return product;
   },
 
@@ -119,8 +121,8 @@ export const productService = {
     const input = pick(data, WRITABLE_FIELDS);
     await assertCategory(input.categoryId);
     await assertSeller(input.sellerId);
-    input.slug = slugify(input.title);
-    await assertSlugAvailable(input.slug);
+    // El slug lo pone el modelo; aquí solo se comprueba antes para dar un 409 claro.
+    await assertSlugAvailable(slugify(input.title));
 
     const product = await productRepository.create(input);
     try {
@@ -148,11 +150,9 @@ export const productService = {
     if (input.categoryId) await assertCategory(input.categoryId);
     if (input.sellerId) await assertSeller(input.sellerId);
 
+    // Si cambia el título, el modelo regenera el slug; aquí solo se comprueba que esté libre.
     const titleChanged = input.title !== undefined && input.title !== current.title;
-    if (titleChanged) {
-      input.slug = slugify(input.title);
-      await assertSlugAvailable(input.slug, id);
-    }
+    if (titleChanged) await assertSlugAvailable(slugify(input.title), id);
 
     const product = await productRepository.updateById(id, input);
 
@@ -166,7 +166,7 @@ export const productService = {
 
     if (data.images) {
       // Las imágenes se sustituyen como conjunto: las anteriores pasan a soft delete.
-      await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT,[product._id], new Date());
+      await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT, [product._id], new Date());
       if (data.images.length) await imageRepository.createMany(buildProductImages(product, data.images));
     }
 
@@ -180,7 +180,8 @@ export const productService = {
     let status = "vendido";
     if (statuses.includes("disponible") || statuses.length === 0) status = "disponible";
     else if (statuses.includes("reservado")) status = "reservado";
-    await productRepository.updateById(productId, { status, variantsCount: variants.length });
+    // También en la papelera: el seed crea productos ya eliminados y después les calcula el estado.
+    await productRepository.updateIncludingDeleted(productId, { status, variantsCount: variants.length });
     return status;
   },
 
@@ -211,7 +212,7 @@ export const productService = {
   async softDelete(id) {
     const product = await findLiveProduct(id);
     const date = new Date();
-    await productRepository.updateById(id, { deletedAt: date, isActive: false });
+    await productRepository.softDeleteById(id, date);
     await cascadeSoftDelete(product._id, date);
   },
 
@@ -223,11 +224,11 @@ export const productService = {
     if (!product.deletedAt) throw new ConflictError("El producto no está eliminado");
 
     const date = product.deletedAt;
-    await productRepository.updateById(id, { deletedAt: null, isActive });
+    await productRepository.restoreById(id, date, isActive);
     const variantIds = (await productVariantRepository.findAllByProduct(id)).map((v) => v._id);
     await productVariantRepository.restoreByProduct(id, date);
-    await imageRepository.restoreByOwners(IMAGE_OWNER.PRODUCT,[product._id], date);
-    await imageRepository.restoreByOwners(IMAGE_OWNER.PRODUCT_VARIANT,variantIds, date);
+    await imageRepository.restoreByOwners(IMAGE_OWNER.PRODUCT, [product._id], date);
+    await imageRepository.restoreByOwners(IMAGE_OWNER.PRODUCT_VARIANT, variantIds, date);
     return productRepository.findDetailById(id);
   },
 };
@@ -235,6 +236,6 @@ export const productService = {
 export async function cascadeSoftDelete(productId, date) {
   const variantIds = (await productVariantRepository.findAllByProduct(productId)).map((v) => v._id);
   await productVariantRepository.softDeleteByProduct(productId, date);
-  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT,[productId], date);
-  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT,variantIds, date);
+  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT, [productId], date);
+  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT, variantIds, date);
 }

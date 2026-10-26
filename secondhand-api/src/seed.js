@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { connectDB } from "./config/db.js";
 import { env } from "./config/env.js";
+import { IMAGE_KIND, IMAGE_OWNER, IMAGE_STATUS } from "./constants/image.constants.js";
 import { PERMISSIONS } from "./constants/permissions.js";
 import { Category } from "./models/category.model.js";
 import { Image } from "./models/image.model.js";
@@ -10,6 +11,7 @@ import { ProductVariant } from "./models/productVariant.model.js";
 import { Role } from "./models/role.model.js";
 import { User } from "./models/user.model.js";
 import { cascadeSoftDelete, productService } from "./services/product.service.js";
+import { imagePosition } from "./utils/image.utils.js";
 import { buildSku, variantSlugBase } from "./utils/productVariant.utils.js";
 import { uniqueSlug } from "./utils/slugify.js";
 
@@ -311,18 +313,16 @@ async function seedVariants(product, spec) {
 async function seedProductImages(product, images = []) {
   for (const [index, image] of images.entries()) {
     await Image.create({
-      ownerType: "Product",
+      ownerType: IMAGE_OWNER.PRODUCT,
       ownerId: product._id,
-      kind: index === 0 ? "cover" : "gallery",
       url: image.url,
       alt: image.alt,
-      order: index,
-      isPrimary: index === 0,
+      ...imagePosition(index),
       width: 800,
       height: 600,
       mimeType: "image/jpeg",
       uploadedBy: product.sellerId,
-      status: "ready",
+      status: IMAGE_STATUS.READY,
     });
   }
 }
@@ -331,9 +331,9 @@ async function seedAvatars(users) {
   for (const { key, avatar } of USERS) {
     const user = users[key];
     await Image.create({
-      ownerType: "User",
+      ownerType: IMAGE_OWNER.USER,
       ownerId: user._id,
-      kind: "avatar",
+      kind: IMAGE_KIND.AVATAR,
       url: photo(avatar, "200/200"),
       alt: `Avatar de ${user.name}`,
       isPrimary: true,
@@ -341,7 +341,7 @@ async function seedAvatars(users) {
       height: 200,
       mimeType: "image/jpeg",
       uploadedBy: user._id,
-      status: "ready",
+      status: IMAGE_STATUS.READY,
     });
   }
 }

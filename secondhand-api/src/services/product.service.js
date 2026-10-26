@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
+import { IMAGE_OWNER, IMAGE_STATUS } from "../constants/image.constants.js";
 import { categoryRepository } from "../repositories/category.repository.js";
 import { imageRepository } from "../repositories/image.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { BadRequestError, ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
+import { imagePosition } from "../utils/image.utils.js";
 import { DEFAULT_OPTIONS_KEY, buildSku, uniqueSku, variantSlugBase } from "../utils/productVariant.utils.js";
 import { slugify } from "../utils/slugify.js";
 
@@ -43,14 +45,12 @@ async function findLiveProduct(id) {
 /** Imágenes de entrada { url, alt } → documentos Image del producto; la primera es la portada. */
 function buildProductImages(product, images = []) {
   return images.map((image, index) => ({
-    ownerType: "Product",
+    ownerType: IMAGE_OWNER.PRODUCT,
     ownerId: product._id,
-    kind: index === 0 ? "cover" : "gallery",
     url: image.url,
     alt: image.alt || `${product.title} ${index + 1}`,
-    order: index,
-    isPrimary: index === 0,
-    status: "ready",
+    ...imagePosition(index),
+    status: IMAGE_STATUS.READY,
   }));
 }
 
@@ -166,7 +166,7 @@ export const productService = {
 
     if (data.images) {
       // Las imágenes se sustituyen como conjunto: las anteriores pasan a soft delete.
-      await imageRepository.softDeleteByOwners("Product", [product._id], new Date());
+      await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT,[product._id], new Date());
       if (data.images.length) await imageRepository.createMany(buildProductImages(product, data.images));
     }
 
@@ -226,8 +226,8 @@ export const productService = {
     await productRepository.updateById(id, { deletedAt: null, isActive });
     const variantIds = (await productVariantRepository.findAllByProduct(id)).map((v) => v._id);
     await productVariantRepository.restoreByProduct(id, date);
-    await imageRepository.restoreByOwners("Product", [product._id], date);
-    await imageRepository.restoreByOwners("ProductVariant", variantIds, date);
+    await imageRepository.restoreByOwners(IMAGE_OWNER.PRODUCT,[product._id], date);
+    await imageRepository.restoreByOwners(IMAGE_OWNER.PRODUCT_VARIANT,variantIds, date);
     return productRepository.findDetailById(id);
   },
 };
@@ -235,6 +235,6 @@ export const productService = {
 export async function cascadeSoftDelete(productId, date) {
   const variantIds = (await productVariantRepository.findAllByProduct(productId)).map((v) => v._id);
   await productVariantRepository.softDeleteByProduct(productId, date);
-  await imageRepository.softDeleteByOwners("Product", [productId], date);
-  await imageRepository.softDeleteByOwners("ProductVariant", variantIds, date);
+  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT,[productId], date);
+  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT,variantIds, date);
 }

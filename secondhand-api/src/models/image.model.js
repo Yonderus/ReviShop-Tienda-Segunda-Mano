@@ -1,11 +1,8 @@
 import mongoose from "mongoose";
+import { IMAGE_KINDS, IMAGE_OWNER_TYPES, IMAGE_STATUS, IMAGE_STATUSES } from "../constants/image.constants.js";
 import { uniqueSlug } from "../utils/slugify.js";
 import { isHttpUrl } from "../utils/url.js";
 import { baseFields, baseOptions } from "./base.fields.js";
-
-/** Nombres exactos de los modelos: refPath los usa para resolver la referencia. */
-export const IMAGE_OWNER_TYPES = ["User", "Category", "Product", "ProductVariant"];
-export const IMAGE_KINDS = ["avatar", "icon", "cover", "gallery"];
 
 const imageSchema = new mongoose.Schema(
   {
@@ -28,7 +25,7 @@ const imageSchema = new mongoose.Schema(
     mimeType: { type: String, enum: ["image/jpeg", "image/png", "image/webp"] },
     size: { type: Number, max: [5 * 1024 * 1024, "La imagen no puede superar 5 MB"] },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    status: { type: String, enum: ["pending", "ready", "failed"], default: "pending" },
+    status: { type: String, enum: IMAGE_STATUSES, default: IMAGE_STATUS.PENDING },
     ...baseFields,
   },
   baseOptions

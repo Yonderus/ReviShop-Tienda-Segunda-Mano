@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { slugify } from "../utils/slugify.js";
+import { IMAGE_OWNER } from "../constants/image.constants.js";
 import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
 import { baseFields, baseOptions } from "./base.fields.js";
 
@@ -39,7 +40,7 @@ productSchema.virtual("images", {
   ref: "Image",
   localField: "_id",
   foreignField: "ownerId",
-  match: { ownerType: "Product", deletedAt: null },
+  match: { ownerType: IMAGE_OWNER.PRODUCT, deletedAt: null },
   options: { sort: { order: 1 } },
 });
 

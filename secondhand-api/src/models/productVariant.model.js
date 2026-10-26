@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { baseFields, baseOptions } from "./base.fields.js";
+import { IMAGE_OWNER } from "../constants/image.constants.js";
 import { SALE_STATUSES } from "../constants/product.constants.js";
 import { buildOptionsKey } from "../utils/productVariant.utils.js";
 
@@ -35,7 +36,7 @@ productVariantSchema.virtual("images", {
   ref: "Image",
   localField: "_id",
   foreignField: "ownerId",
-  match: { ownerType: "ProductVariant", deletedAt: null },
+  match: { ownerType: IMAGE_OWNER.PRODUCT_VARIANT, deletedAt: null },
   options: { sort: { order: 1 } },
 });
 

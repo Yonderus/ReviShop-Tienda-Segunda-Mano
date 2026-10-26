@@ -1,0 +1,5 @@
+# Ignorar todos los archivos con extensión .md
+*.md
+
+# Exceptuar el archivo README.md para que sí se suba
+!README.md

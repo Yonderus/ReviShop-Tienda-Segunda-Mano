@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { PERMISSIONS } from "../constants/permissions.js";
+import { PERMISSIONS } from "../constants/role.constants.js";
 import { DELETED_FIELDS, baseFields, baseOptions } from "./base.fields.js";
 import { slugPlugin } from "./plugins/slug.plugin.js";
 import { softDeletePlugin } from "./plugins/softDelete.plugin.js";

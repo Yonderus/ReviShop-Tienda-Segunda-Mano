@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { USER_STATUS, USER_STATUSES } from "../constants/user.constants.js";
 import { uniqueSlug } from "../utils/slugify.js";
 import { baseFields, baseOptions } from "./base.fields.js";
 
@@ -27,7 +28,7 @@ const userSchema = new mongoose.Schema(
     bio: { type: String, trim: true, maxlength: [300, "La bio no puede superar 300 caracteres"] },
     lastLoginAt: { type: Date, default: null },
     emailVerifiedAt: { type: Date, default: null },
-    status: { type: String, enum: ["pending", "verified", "suspended"], default: "pending" },
+    status: { type: String, enum: USER_STATUSES, default: USER_STATUS.PENDING },
     ...baseFields,
   },
   {

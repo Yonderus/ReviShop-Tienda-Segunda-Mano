@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { CATEGORY_STATUS, CATEGORY_STATUSES } from "../constants/category.constants.js";
 import { DELETED_FIELDS, baseFields, baseOptions } from "./base.fields.js";
 import { slugPlugin } from "./plugins/slug.plugin.js";
 import { softDeletePlugin } from "./plugins/softDelete.plugin.js";
@@ -19,7 +20,7 @@ const categorySchema = new mongoose.Schema(
     parentId: { type: mongoose.Schema.Types.ObjectId, ref: "Category", default: null },
     attributes: { type: [attributeSchema], default: [] },
     order: { type: Number, default: 0 },
-    status: { type: String, enum: ["draft", "published"], default: "draft" },
+    status: { type: String, enum: CATEGORY_STATUSES, default: CATEGORY_STATUS.DRAFT },
     ...baseFields,
   },
   baseOptions

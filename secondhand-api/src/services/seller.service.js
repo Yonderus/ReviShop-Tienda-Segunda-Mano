@@ -1,6 +1,8 @@
+import { ROLE } from "../constants/role.constants.js";
 import { userRepository } from "../repositories/user.repository.js";
 
-const SELLER_ROLES = ["seller", "admin"];
+/** Roles que pueden publicar productos: son los que salen en el select de vendedor. */
+const SELLER_ROLES = [ROLE.SELLER, ROLE.ADMIN];
 
 export const sellerService = {
   /** Solo lectura y solo campos públicos: para el select de vendedor del front. */

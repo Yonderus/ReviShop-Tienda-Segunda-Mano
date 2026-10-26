@@ -2,8 +2,10 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { connectDB } from "./config/db.js";
 import { env } from "./config/env.js";
+import { CATEGORY_STATUS } from "./constants/category.constants.js";
 import { IMAGE_KIND, IMAGE_OWNER, IMAGE_STATUS } from "./constants/image.constants.js";
-import { PERMISSIONS } from "./constants/permissions.js";
+import { PERMISSIONS, ROLE } from "./constants/role.constants.js";
+import { USER_STATUS } from "./constants/user.constants.js";
 import { Category } from "./models/category.model.js";
 import { Image } from "./models/image.model.js";
 import { Product } from "./models/product.model.js";
@@ -21,28 +23,28 @@ const photo = (id, size = "800/600") => `https://picsum.photos/id/${id}/${size}`
 /* ---------- Datos ---------- */
 
 const ROLES = [
-  { name: "Administrador", slug: "admin", description: "Gestión completa de la plataforma", permissions: [...PERMISSIONS] },
+  { name: "Administrador", slug: ROLE.ADMIN, description: "Gestión completa de la plataforma", permissions: [...PERMISSIONS] },
   {
     name: "Moderador",
-    slug: "moderator",
+    slug: ROLE.MODERATOR,
     description: "Revisa, retira y restaura anuncios",
     permissions: ["products:read", "products:write", "products:delete", "products:restore"],
   },
   {
     name: "Vendedor",
-    slug: "seller",
+    slug: ROLE.SELLER,
     description: "Publica y gestiona sus anuncios",
     permissions: ["products:read", "products:write", "products:delete"],
   },
-  { name: "Usuario", slug: "user", description: "Compra y consulta anuncios", permissions: ["products:read"] },
+  { name: "Usuario", slug: ROLE.USER, description: "Compra y consulta anuncios", permissions: ["products:read"] },
 ];
 
 const USERS = [
-  { key: "admin", name: "Admin Revishop", email: "admin@revishop.test", role: "admin", location: "Valencia", avatar: 338 },
-  { key: "lucia", name: "Lucía Martín", email: "lucia@revishop.test", role: "seller", location: "Valencia", avatar: 64, bio: "Vendo lo que ya no uso antes de que coja polvo." },
-  { key: "juan", name: "Juan Pérez", email: "juan@revishop.test", role: "seller", location: "Madrid", avatar: 91, bio: "Electrónica y bicis revisadas." },
-  { key: "marta", name: "Marta Gil", email: "marta@revishop.test", role: "seller", location: "Zaragoza", avatar: 1027 },
-  { key: "carlos", name: "Carlos Ruiz", email: "carlos@revishop.test", role: "user", location: "Bilbao", avatar: 1005 },
+  { key: "admin", name: "Admin Revishop", email: "admin@revishop.test", role: ROLE.ADMIN, location: "Valencia", avatar: 338 },
+  { key: "lucia", name: "Lucía Martín", email: "lucia@revishop.test", role: ROLE.SELLER, location: "Valencia", avatar: 64, bio: "Vendo lo que ya no uso antes de que coja polvo." },
+  { key: "juan", name: "Juan Pérez", email: "juan@revishop.test", role: ROLE.SELLER, location: "Madrid", avatar: 91, bio: "Electrónica y bicis revisadas." },
+  { key: "marta", name: "Marta Gil", email: "marta@revishop.test", role: ROLE.SELLER, location: "Zaragoza", avatar: 1027 },
+  { key: "carlos", name: "Carlos Ruiz", email: "carlos@revishop.test", role: ROLE.USER, location: "Bilbao", avatar: 1005 },
 ];
 
 const CATEGORIES = [
@@ -267,7 +269,7 @@ async function seedUsers(roles) {
       ...data,
       roleId: roles[role]._id,
       passwordHash,
-      status: "verified",
+      status: USER_STATUS.VERIFIED,
       emailVerifiedAt: new Date(),
     });
   }
@@ -276,9 +278,9 @@ async function seedUsers(roles) {
 
 async function seedCategories() {
   const categories = {};
-  for (const data of CATEGORIES) categories[data.slug] = await Category.create({ ...data, status: "published" });
+  for (const data of CATEGORIES) categories[data.slug] = await Category.create({ ...data, status: CATEGORY_STATUS.PUBLISHED });
   for (const { parent, ...data } of SUBCATEGORIES) {
-    categories[data.slug] = await Category.create({ ...data, parentId: categories[parent]._id, status: "published" });
+    categories[data.slug] = await Category.create({ ...data, parentId: categories[parent]._id, status: CATEGORY_STATUS.PUBLISHED });
   }
   return categories;
 }

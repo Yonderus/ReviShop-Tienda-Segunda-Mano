@@ -1,4 +1,5 @@
-import { ValidationErrors } from '@angular/forms';
+import { AbstractControl, ValidationErrors } from '@angular/forms';
+import { ApiFieldError } from '../../core/models/api-error.model';
 
 type Describer = (label: string, value: Record<string, unknown>) => string;
 
@@ -11,7 +12,6 @@ const DESCRIBERS: Record<string, Describer> = {
   greaterThan: (label, v) => `${label} debe ser mayor que ${v['min']}.`,
   oneOf: () => 'Selecciona una de las opciones disponibles.',
   url: () => 'Introduce una URL válida que empiece por http:// o https://.',
-  duplicate: () => 'Ya existe un producto con ese título. Prueba con otro.',
   server: (_label, v) => String(v['message'] ?? 'Este valor no es válido.'),
 };
 
@@ -22,4 +22,23 @@ export function describeError(errors: ValidationErrors | null, label: string): s
   if (!key) return null;
   const describe = DESCRIBERS[key];
   return describe ? describe(label, typeof value === 'object' && value ? value : {}) : `${label} no es válido.`;
+}
+
+/**
+ * Pinta cada error del backend junto a su control (`form.get` acepta rutas como "images.0.url") y
+ * devuelve los que no tienen dónde mostrarse, para el aviso general del formulario. El error desaparece
+ * solo en cuanto se edita el campo, porque los validadores vuelven a calcular sus errores.
+ */
+export function applyServerErrors(form: AbstractControl, errors: readonly ApiFieldError[]): ApiFieldError[] {
+  const unplaced: ApiFieldError[] = [];
+  for (const error of errors) {
+    const control = error.field ? form.get(error.field) : null;
+    if (!control) {
+      unplaced.push(error);
+      continue;
+    }
+    control.setErrors({ ...control.errors, server: { message: error.message } });
+    control.markAsTouched();
+  }
+  return unplaced;
 }

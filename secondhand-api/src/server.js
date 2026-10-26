@@ -5,8 +5,10 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { connectDB } from "./config/db.js";
+import { swaggerSpec } from "./config/swagger.js";
 import productRoutes from "./routes/product.routes.js";
 import { categoryRoutes, sellerRoutes } from "./routes/catalog.routes.js";
 import { NotFoundError } from "./utils/AppError.js";
@@ -25,6 +27,7 @@ app.use(morgan("dev"));
 const accessLogStream = createWriteStream(join(__dirname, "..", "logs", "access.log"), { flags: "a" });
 app.use(morgan("combined", { stream: accessLogStream }));
 
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle: "Revishop API" }));
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/sellers", sellerRoutes);

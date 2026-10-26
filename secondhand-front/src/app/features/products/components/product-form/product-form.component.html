@@ -2,10 +2,10 @@
   @if (generalError(); as error) {
     <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
       <p class="font-semibold">{{ error.message }}</p>
-      @if (error.details.length) {
+      @if (error.items.length) {
         <ul class="mt-2 list-disc space-y-1 pl-5">
-          @for (detail of error.details; track $index) {
-            <li>{{ detail }}</li>
+          @for (item of error.items; track $index) {
+            <li>{{ item.message }}</li>
           }
         </ul>
       }

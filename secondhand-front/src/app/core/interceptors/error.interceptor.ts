@@ -10,7 +10,7 @@ import { TimeoutError, catchError, map, throwError, timeout } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { INLINE_ERROR_STATUSES, SKIP_ERROR_ALERT } from '../config/api.tokens';
 import { ApiError } from '../models/api-error.model';
-import { isApiFailure, isApiSuccess } from '../models/api-response.model';
+import { failureErrors, isApiFailure, isApiSuccess } from '../models/api-response.model';
 import { AlertService } from '../services/alert.service';
 
 const MESSAGES = {
@@ -19,7 +19,7 @@ const MESSAGES = {
   invalidResponse: 'Hemos recibido una respuesta inesperada del servidor. Inténtalo de nuevo.',
   validation: 'Algunos datos no son válidos. Revísalos e inténtalo de nuevo.',
   notFound: 'No hemos encontrado lo que buscabas.',
-  conflict: 'Ya existe un producto con ese título.',
+  conflict: 'Ya existe un registro con esos datos.',
   server: 'Algo ha fallado en el servidor. Inténtalo de nuevo más tarde.',
   generic: 'No hemos podido completar la operación. Inténtalo de nuevo.',
 } as const;
@@ -35,14 +35,18 @@ function assertValidEnvelope(req: HttpRequest<unknown>, event: HttpEvent<unknown
 
 function fromHttpError(error: HttpErrorResponse): ApiError {
   const { status } = error;
-  const backendMessage = isApiFailure(error.error) ? error.error.message : undefined;
+  const failure = isApiFailure(error.error) ? error.error : undefined;
+  const errors = failure ? failureErrors(failure) : [];
 
   if (status === 0) return new ApiError('network', MESSAGES.network, 0);
   if (status === 400 || status === 422) {
-    return new ApiError('validation', MESSAGES.validation, status, backendMessage ? [backendMessage] : []);
+    // Sin errores por campo, el mensaje del backend se conserva como error general.
+    const details = errors.length || !failure ? errors : [{ field: null, message: failure.message }];
+    return new ApiError('validation', MESSAGES.validation, status, details);
   }
   if (status === 404) return new ApiError('http', MESSAGES.notFound, status);
-  if (status === 409) return new ApiError('http', MESSAGES.conflict, status);
+  // Hay 409 de varios tipos (título repetido, registro en la papelera…): el mensaje del backend es el preciso.
+  if (status === 409) return new ApiError('http', failure?.message ?? MESSAGES.conflict, status, errors);
   if (status >= 500) return new ApiError('http', MESSAGES.server, status);
   return new ApiError('http', MESSAGES.generic, status);
 }
@@ -69,7 +73,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
       const handledInline =
         req.context.get(SKIP_ERROR_ALERT) || req.context.get(INLINE_ERROR_STATUSES).includes(error.status);
-      if (!handledInline) void alert.error(error.message, error.details);
+      if (!handledInline) {
+        const details = error.errors.map((e) => e.message).filter((message) => message !== error.message);
+        void alert.error(error.message, details);
+      }
 
       return throwError(() => error);
     }),

@@ -1,12 +1,10 @@
 import { Injectable, inject } from '@angular/core';
+import { INLINE_FORM_STATUSES } from '../../../core/config/app.constants';
 import { ApiRequestOptions, ApiService } from '../../../core/services/api.service';
 import { Product, ProductInput, ProductStatus, ProductUpdate } from '../models/product.model';
 
 /** Las cargas pintan skeleton y ErrorState propios: sin loader global ni modal. */
 const READ_OPTIONS: ApiRequestOptions = { skipErrorAlert: true, skipGlobalLoader: true };
-
-/** Errores que el formulario pinta en línea; el resto los muestra el errorInterceptor en un modal. */
-export const INLINE_FORM_STATUSES: readonly number[] = [400, 409, 422];
 
 const FORM_OPTIONS: ApiRequestOptions = { inlineErrorStatuses: INLINE_FORM_STATUSES, blocking: true };
 

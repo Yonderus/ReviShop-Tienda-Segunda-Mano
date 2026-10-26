@@ -14,13 +14,14 @@ import {
 } from '@angular/core';
 import { FormArray, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiError } from '../../../../core/models/api-error.model';
+import { ApiError, ApiFieldError } from '../../../../core/models/api-error.model';
 import { FormFieldErrorComponent } from '../../../../shared/components/form-field-error/form-field-error.component';
 import { SkeletonComponent } from '../../../../shared/components/skeleton/skeleton.component';
 import { ErrorStateComponent } from '../../../../shared/components/error-state/error-state.component';
 import { BadgeComponent } from '../../../../shared/ui/badge.component';
 import { LevelMeterComponent } from '../../../../shared/ui/level-meter.component';
-import { PRICE_PATTERN, greaterThan, notBlank, oneOf } from '../../../../shared/utils/validators';
+import { applyServerErrors } from '../../../../shared/utils/form-errors';
+import { PRICE_PATTERN, greaterThan, notBlank, oneOf, uniqueField } from '../../../../shared/utils/validators';
 import { CatalogStore } from '../../../catalog/store/catalog.store';
 import {
   CONDITION_LABELS,
@@ -78,9 +79,16 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
   protected readonly submitAttempted = signal(false);
   protected readonly isEdit = computed(() => this.product() !== null);
+
+  /** Errores del backend que no tienen un campo donde pintarse. */
+  private readonly unplacedErrors = signal<readonly ApiFieldError[]>([]);
+
+  /** El aviso general solo sale si queda algo que no se ha podido mostrar junto a un campo. */
   protected readonly generalError = computed(() => {
     const error = this.serverError();
-    return error && !error.isConflict ? error : null;
+    const items = this.unplacedErrors();
+    if (!error || (error.errors.length > 0 && items.length === 0)) return null;
+    return { message: error.message, items };
   });
 
   /** Variantes reales (edición): no hay CRUD de variantes, solo se muestran de forma informativa. */
@@ -99,7 +107,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
     sellerId: ['', [Validators.required]],
     condition: this.fb.control<ProductCondition | ''>('', [Validators.required, oneOf(PRODUCT_CONDITIONS)]),
     location: ['', [Validators.maxLength(100)]],
-    images: this.fb.array<ImageGroup>([], [Validators.maxLength(5)]),
+    images: this.fb.array<ImageGroup>([], [Validators.maxLength(5), uniqueField('url')]),
   });
 
   protected readonly f = this.form.controls;
@@ -115,11 +123,12 @@ export class ProductFormComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['serverError'] && this.serverError()?.isConflict) {
-      this.f.title.setErrors({ ...this.f.title.errors, duplicate: true });
-      this.f.title.markAsTouched();
-      this.focus('pf-title');
-    }
+    if (!changes['serverError']) return;
+    const errors = this.serverError()?.errors ?? [];
+    const unplaced = applyServerErrors(this.form, errors);
+    this.unplacedErrors.set(unplaced);
+    const firstPlaced = errors.find((error) => !unplaced.includes(error));
+    if (firstPlaced?.field) this.focusField(firstPlaced.field);
   }
 
   protected showError(name: FieldName): boolean {
@@ -164,9 +173,16 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
   private focusFirstInvalid(): void {
     const name = FIELD_ORDER.find((field) => this.f[field].invalid);
-    if (!name) return;
-    if (name === 'condition') return this.focus('pf-condition-0');
-    this.focus(`pf-${name}`);
+    if (name) this.focusField(name);
+  }
+
+  /** Lleva el foco al campo de una ruta del formulario ("title", "images.0.url"…). */
+  private focusField(path: string): void {
+    const image = /^images\.(\d+)\.(url|alt)$/.exec(path);
+    if (image) return this.focus(image[2] === 'url' ? `pf-image-${image[1]}` : `pf-image-alt-${image[1]}`);
+    if (path === 'images') return this.focus('pf-add-image');
+    if (path === 'condition') return this.focus('pf-condition-0');
+    this.focus(`pf-${path}`);
   }
 
   private focus(id: string): void {

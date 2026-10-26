@@ -20,18 +20,19 @@ const pick = (data, fields) => Object.fromEntries(Object.entries(data).filter(([
 
 async function assertCategory(categoryId) {
   const category = await categoryRepository.findPublishedById(categoryId);
-  if (!category) throw new ValidationError("categoryId: la categoría no existe, no está publicada o está inactiva");
+  if (!category) throw ValidationError.forField("categoryId", "La categoría no existe, no está publicada o está inactiva");
 }
 
 async function assertSeller(sellerId) {
   const seller = await userRepository.findActiveById(sellerId);
-  if (!seller) throw new ValidationError("sellerId: el vendedor no existe o está inactivo");
+  if (!seller) throw ValidationError.forField("sellerId", "El vendedor no existe, está inactivo o está suspendido");
 }
 
+/** El slug sale del título: si ya existe, el que hay que cambiar es el título. */
 async function assertSlugAvailable(slug, excludeId) {
   const existing = await productRepository.findRawBySlug(slug);
   if (existing && String(existing._id) !== String(excludeId)) {
-    throw new ConflictError(`Ya existe un producto con el slug "${slug}"`);
+    throw ConflictError.forField("title", "Ya existe un producto con ese título. Prueba con otro");
   }
 }
 

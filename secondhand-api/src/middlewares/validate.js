@@ -1,7 +1,8 @@
 import { ValidationError } from "../utils/AppError.js";
 
+/** Valida params, query y body con Zod. Cada fallo va a `errors` con la ruta de su campo ("images.0.url"). */
 export const validate = (schemas) => (req, _res, next) => {
-  const messages = [];
+  const errors = [];
 
   for (const key of ["params", "query", "body"]) {
     if (!schemas[key]) continue;
@@ -9,10 +10,12 @@ export const validate = (schemas) => (req, _res, next) => {
     if (result.success) {
       req[key] = result.data;
     } else {
-      messages.push(...result.error.issues.map((issue) => issue.message));
+      for (const issue of result.error.issues) {
+        errors.push({ field: issue.path.join(".") || key, message: issue.message });
+      }
     }
   }
 
-  if (messages.length) return next(new ValidationError(messages.join(", ")));
+  if (errors.length) return next(new ValidationError(undefined, errors));
   next();
 };

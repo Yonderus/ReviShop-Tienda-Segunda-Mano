@@ -9,7 +9,7 @@ import { BadgeComponent } from '../../../shared/ui/badge.component';
 import { ProductFormComponent } from '../../products/components/product-form/product-form.component';
 import { Product, ProductInput } from '../../products/models/product.model';
 import { diffProduct } from '../../products/models/product.utils';
-import { INLINE_FORM_STATUSES } from '../../products/services/products.service';
+import { INLINE_FORM_STATUSES } from '../../../core/config/app.constants';
 import { ProductsStore } from '../../products/store/products.store';
 
 @Component({

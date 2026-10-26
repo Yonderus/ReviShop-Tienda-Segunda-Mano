@@ -5,7 +5,7 @@ import { AlertService } from '../../../../core/services/alert.service';
 import { ProductFormComponent } from '../../components/product-form/product-form.component';
 import { ProductInput } from '../../models/product.model';
 import { ProductsStore } from '../../store/products.store';
-import { INLINE_FORM_STATUSES } from '../../services/products.service';
+import { INLINE_FORM_STATUSES } from '../../../../core/config/app.constants';
 
 @Component({
   selector: 'app-product-create-page',

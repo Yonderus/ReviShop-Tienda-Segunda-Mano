@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, ElementRef, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, inject, input } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { switchMap } from 'rxjs';
 import { FormFieldErrorComponent } from '../../../../shared/components/form-field-error/form-field-error.component';
 import { IconComponent } from '../../../../shared/ui/icon.component';
 import { httpUrl, notBlank } from '../../../../shared/utils/validators';
@@ -93,6 +95,8 @@ export function createImageGroup(fb: NonNullableFormBuilder, image: Partial<Prod
 
     @if (images().errors?.['duplicateValues']) {
       <p class="mt-2 text-sm font-medium text-red-700" role="alert">Hay fotos repetidas: cada URL solo puede aparecer una vez.</p>
+    } @else if (images().errors?.['server']) {
+      <p class="mt-2 text-sm font-medium text-red-700" role="alert">{{ images().errors?.['server'].message }}</p>
     }
 
     <button id="pf-add-image" type="button" class="btn btn-secondary mt-4" [disabled]="images().length >= max" (click)="add()">
@@ -109,6 +113,18 @@ export class ProductImagesFieldComponent {
   readonly submitAttempted = input(false);
 
   protected readonly max = MAX_IMAGES;
+
+  constructor() {
+    // Con OnPush este componente solo se repinta si cambian sus entradas, y un error del servidor que el
+    // formulario coloca en una foto no cambia ninguna: se repinta cuando cambia la validez de la lista.
+    const cdr = inject(ChangeDetectorRef);
+    toObservable(this.images)
+      .pipe(
+        switchMap((images) => images.statusChanges),
+        takeUntilDestroyed(),
+      )
+      .subscribe(() => cdr.markForCheck());
+  }
 
   protected show(control: FormControl<string>): boolean {
     return control.invalid && (control.touched || this.submitAttempted());

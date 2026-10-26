@@ -4,7 +4,7 @@ import { ApiError } from '../../../core/models/api-error.model';
 import { AlertService } from '../../../core/services/alert.service';
 import { ProductFormComponent } from '../../products/components/product-form/product-form.component';
 import { ProductInput } from '../../products/models/product.model';
-import { INLINE_FORM_STATUSES } from '../../products/services/products.service';
+import { INLINE_FORM_STATUSES } from '../../../core/config/app.constants';
 import { ProductsStore } from '../../products/store/products.store';
 
 @Component({

@@ -9,7 +9,7 @@ import { ProductFormComponent } from '../../components/product-form/product-form
 import { Product, ProductInput } from '../../models/product.model';
 import { ProductsStore } from '../../store/products.store';
 import { diffProduct } from '../../models/product.utils';
-import { INLINE_FORM_STATUSES } from '../../services/products.service';
+import { INLINE_FORM_STATUSES } from '../../../../core/config/app.constants';
 
 @Component({
   selector: 'app-product-edit-page',

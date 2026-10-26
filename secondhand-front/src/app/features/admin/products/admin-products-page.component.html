@@ -8,32 +8,7 @@
     </div>
   </header>
 
-  <nav class="mb-5 flex gap-1 border-b border-line" aria-label="Secciones de productos">
-    <a
-      routerLink="/admin/products"
-      class="tab"
-      [class.is-current]="isActiveView()"
-      [attr.aria-current]="isActiveView() ? 'page' : null"
-    >
-      <app-icon name="checkCircle" [size]="17" />
-      Activos
-      @if (countsReady()) {
-        <span class="tab-count">{{ activeCount() }}</span>
-      }
-    </a>
-    <a
-      routerLink="/admin/products/inactive"
-      class="tab"
-      [class.is-current]="!isActiveView()"
-      [attr.aria-current]="!isActiveView() ? 'page' : null"
-    >
-      <app-icon name="eyeOff" [size]="17" />
-      Inactivos
-      @if (countsReady()) {
-        <span class="tab-count">{{ inactiveCount() }}</span>
-      }
-    </a>
-  </nav>
+  <app-admin-tabs label="Secciones de productos" [tabs]="tabs()" />
 
   @if (list().loading() && !list().loaded()) {
     <app-skeleton variant="table" [count]="6" label="Cargando productos…" />

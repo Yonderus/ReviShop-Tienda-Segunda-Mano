@@ -68,7 +68,7 @@ export class ProductDetailPageComponent implements OnChanges, OnDestroy {
   protected readonly statusLabels = STATUS_LABELS;
   protected readonly statusTones = STATUS_TONES;
 
-  protected readonly product = this.store.selectedProduct;
+  protected readonly product = this.store.selected;
 
   /** La foto visible; el índice puede quedar fuera de rango al cambiar de producto. */
   protected readonly activePhoto = computed(() => this.product()?.images[this.activeImage()]);

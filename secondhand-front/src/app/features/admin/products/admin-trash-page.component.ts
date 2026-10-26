@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiError } from '../../../core/models/api-error.model';
 import { AlertService } from '../../../core/services/alert.service';
@@ -13,7 +13,9 @@ import { Product } from '../../products/models/product.model';
 import { primaryImage } from '../../products/models/product.utils';
 import { ProductsStore } from '../../products/store/products.store';
 import { prefersReducedMotion, rowLeave } from '../admin.animations';
+import { AdminTabsComponent } from '../components/admin-tabs/admin-tabs.component';
 import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.component';
+import { productsTabs } from './products-tabs';
 
 @Component({
   selector: 'app-admin-trash-page',
@@ -27,19 +29,22 @@ import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.compo
     SkeletonComponent,
     EmptyStateComponent,
     ErrorStateComponent,
+    AdminTabsComponent,
     AdminThumbComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [rowLeave],
   template: `
-    <div class="mx-auto max-w-5xl" [@.disabled]="reducedMotion">
+    <div class="mx-auto max-w-6xl" [@.disabled]="reducedMotion">
       <header class="mb-5">
-        <h1 class="text-2xl font-semibold tracking-tight text-ink">Papelera</h1>
+        <h1 class="text-2xl font-semibold tracking-tight text-ink">Productos</h1>
         <p class="mt-1 max-w-2xl text-sm text-ink-muted">
-          Productos borrados con soft delete. No aparecen en la tienda ni en las listas, pero no se pierden:
+          Borrados con soft delete. No aparecen en la tienda ni en las listas, pero no se pierden:
           restáuralos como activos o como inactivos.
         </p>
       </header>
+
+      <app-admin-tabs label="Secciones de productos" [tabs]="tabs()" />
 
       @if (trash.loading() && !trash.loaded()) {
         <app-skeleton variant="table" [count]="4" label="Cargando papelera…" />
@@ -110,11 +115,13 @@ export class AdminTrashPageComponent implements OnInit {
   private readonly alert = inject(AlertService);
 
   protected readonly trash = this.store.collection('trash');
+  protected readonly tabs = computed(() => productsTabs(this.store.counts()));
   protected readonly primaryImage = primaryImage;
   protected readonly reducedMotion = prefersReducedMotion();
 
   ngOnInit(): void {
-    void this.store.loadCollection('trash');
+    // Las tres: la papelera y los contadores de las otras dos pestañas.
+    void this.store.loadCollections();
   }
 
   protected retry(): void {

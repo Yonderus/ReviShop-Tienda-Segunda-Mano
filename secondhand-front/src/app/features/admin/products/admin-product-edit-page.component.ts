@@ -26,7 +26,7 @@ import { ProductsStore } from '../../products/store/products.store';
             title="Producto no encontrado"
             message="No existe o está en la papelera. Los productos de la papelera hay que restaurarlos antes de editarlos."
           >
-            <a routerLink="/admin/trash" class="btn btn-secondary">Ir a la papelera</a>
+            <a routerLink="/admin/products/trash" class="btn btn-secondary">Ir a la papelera</a>
             <a routerLink="/admin/products" class="btn btn-primary">Volver a productos</a>
           </app-empty-state>
         }
@@ -34,7 +34,7 @@ import { ProductsStore } from '../../products/store/products.store';
           <app-error-state title="No hemos podido cargar el producto" [error]="store.detailError()" (retry)="load()" />
         }
         @default {
-          @if (store.selectedProduct(); as product) {
+          @if (store.selected(); as product) {
             <div class="flex flex-wrap items-center gap-3">
               <h1 class="text-2xl font-semibold tracking-tight text-ink">Editar producto</h1>
               <app-badge [tone]="product.isActive ? 'success' : 'neutral'">{{ product.isActive ? 'Activo' : 'Inactivo' }}</app-badge>

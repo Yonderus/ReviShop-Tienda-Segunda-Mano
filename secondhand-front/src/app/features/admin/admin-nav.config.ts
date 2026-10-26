@@ -5,7 +5,6 @@ export interface AdminNavLink {
   icon: IconName;
   path: string;
   exact?: boolean;
-  counter?: 'trash';
 }
 
 /** Módulo de la plataforma sin API todavía: solo nombre, sin ruta, datos ni servicios. */
@@ -28,10 +27,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     title: 'Catálogo',
-    links: [
-      { label: 'Productos', icon: 'package', path: '/admin/products' },
-      { label: 'Papelera', icon: 'trash', path: '/admin/trash', counter: 'trash' },
-    ],
+    // La papelera de cada sección es una pestaña dentro de ella (Activos · Inactivos · Papelera).
+    links: [{ label: 'Productos', icon: 'package', path: '/admin/products' }],
   },
 ];
 

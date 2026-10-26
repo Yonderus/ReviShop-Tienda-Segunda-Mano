@@ -24,7 +24,9 @@ import { primaryImage } from '../../products/models/product.utils';
 import { STATUS_BY_VARIANT_STATUS } from '../../products/services/products.service';
 import { ProductsStore } from '../../products/store/products.store';
 import { prefersReducedMotion, rowLeave } from '../admin.animations';
+import { AdminTabsComponent } from '../components/admin-tabs/admin-tabs.component';
 import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.component';
+import { productsTabs } from './products-tabs';
 
 export type ProductsView = 'active' | 'inactive';
 
@@ -42,31 +44,13 @@ export type ProductsView = 'active' | 'inactive';
     SkeletonComponent,
     EmptyStateComponent,
     ErrorStateComponent,
+    AdminTabsComponent,
     AdminThumbComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [rowLeave],
   templateUrl: './admin-products-page.component.html',
   styles: `
-    .tab {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: -1px;
-      padding: 0.625rem 0.75rem;
-      border-bottom: 2px solid transparent;
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: rgb(var(--color-ink-muted));
-      transition: color 150ms ease-out, border-color 150ms ease-out;
-    }
-    .tab:hover {
-      color: rgb(var(--color-ink));
-    }
-    .tab.is-current {
-      color: rgb(var(--color-primary-700));
-      border-color: rgb(var(--color-primary-600));
-    }
     .status-select {
       appearance: none;
       border-radius: 9999px;
@@ -101,19 +85,6 @@ export type ProductsView = 'active' | 'inactive';
       border-color: rgb(100 116 139 / 0.25);
       color: #334155;
     }
-    .tab-count {
-      border-radius: 9999px;
-      background: rgb(var(--color-canvas));
-      padding: 0 0.5rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      color: rgb(var(--color-ink-muted));
-    }
-    .tab.is-current .tab-count {
-      background: rgb(var(--color-primary-50));
-      color: rgb(var(--color-primary-700));
-    }
   `,
 })
 export class AdminProductsPageComponent implements OnChanges {
@@ -133,15 +104,11 @@ export class AdminProductsPageComponent implements OnChanges {
 
   protected readonly isActiveView = computed(() => this.view() !== 'inactive');
   protected readonly list = computed(() => this.store.collection(this.isActiveView() ? 'active' : 'inactive'));
-  protected readonly activeCount = computed(() => this.store.products().length);
-  protected readonly inactiveCount = computed(() => this.store.inactiveProducts().length);
-  protected readonly countsReady = computed(
-    () => this.store.collection('active').loaded() && this.store.collection('inactive').loaded(),
-  );
+  protected readonly tabs = computed(() => productsTabs(this.store.counts()));
 
   ngOnChanges(): void {
-    void this.store.loadCollection('active');
-    void this.store.loadCollection('inactive');
+    // Las tres: la lista que se ve y los contadores de las otras dos pestañas.
+    void this.store.loadCollections();
   }
 
   protected retry(): void {
@@ -156,7 +123,7 @@ export class AdminProductsPageComponent implements OnChanges {
       if (error instanceof ApiError && error.isConflict) {
         void this.alert.error('Este producto está en la papelera. Restáuralo antes de activarlo.');
         // Nuestra caché estaba desfasada: se recargan las tres colecciones.
-        void this.store.loadDashboard({ force: true });
+        void this.store.loadCollections({ force: true });
       }
     }
   }

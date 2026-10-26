@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { APP_NAME } from '../../../../core/config/app.constants';
 import { IconComponent } from '../../../../shared/ui/icon.component';
@@ -34,11 +34,6 @@ import { ADMIN_NAV, PLATFORM_MODULES } from '../../admin-nav.config';
                 <span class="nav-indicator absolute inset-y-2 left-0 w-[3px] rounded-full bg-accent opacity-0 transition-opacity" aria-hidden="true"></span>
                 <app-icon [name]="link.icon" [size]="19" />
                 <span class="flex-1">{{ link.label }}</span>
-                @if (link.counter === 'trash' && trashCount() > 0) {
-                  <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-white" [attr.aria-label]="trashCount() + ' en la papelera'">
-                    {{ trashCount() }}
-                  </span>
-                }
               </a>
             </li>
           }
@@ -81,7 +76,6 @@ import { ADMIN_NAV, PLATFORM_MODULES } from '../../admin-nav.config';
   `,
 })
 export class AdminSidebarComponent {
-  readonly trashCount = input(0);
   /** Para que el drawer móvil se cierre al navegar. */
   readonly navigate = output<void>();
 

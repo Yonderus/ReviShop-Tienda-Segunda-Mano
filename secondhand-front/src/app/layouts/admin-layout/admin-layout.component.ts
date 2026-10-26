@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  OnInit,
   inject,
   signal,
   viewChild,
@@ -13,7 +12,6 @@ import { filter, map } from 'rxjs';
 import { LoaderComponent } from '../../shared/components/loader/loader.component';
 import { IconComponent } from '../../shared/ui/icon.component';
 import { AdminSidebarComponent } from '../../features/admin/components/admin-sidebar/admin-sidebar.component';
-import { ProductsStore } from '../../features/products/store/products.store';
 
 export interface AdminCrumb {
   label: string;
@@ -43,7 +41,7 @@ function deepestData(root: ActivatedRouteSnapshot): AdminRouteMeta {
     <app-loader />
 
     <aside class="fixed inset-y-0 left-0 z-40 hidden w-64 lg:block">
-      <app-admin-sidebar [trashCount]="store.trashCount()" />
+      <app-admin-sidebar />
     </aside>
 
     <dialog
@@ -54,7 +52,7 @@ function deepestData(root: ActivatedRouteSnapshot): AdminRouteMeta {
       (close)="drawerOpen.set(false)"
       (click)="closeOnBackdrop($event)"
     >
-      <app-admin-sidebar [trashCount]="store.trashCount()" (navigate)="closeDrawer()" />
+      <app-admin-sidebar (navigate)="closeDrawer()" />
     </dialog>
 
     <div class="lg:pl-64">
@@ -132,8 +130,7 @@ function deepestData(root: ActivatedRouteSnapshot): AdminRouteMeta {
     }
   `,
 })
-export class AdminLayoutComponent implements OnInit {
-  protected readonly store = inject(ProductsStore);
+export class AdminLayoutComponent {
   private readonly router = inject(Router);
   private readonly drawer = viewChild.required<ElementRef<HTMLDialogElement>>('drawer');
 
@@ -145,11 +142,6 @@ export class AdminLayoutComponent implements OnInit {
     ),
     { initialValue: deepestData(this.router.routerState.snapshot.root) },
   );
-
-  ngOnInit(): void {
-    // El contador de la papelera del sidebar necesita la colección aunque no se visite la página.
-    void this.store.loadCollection('trash');
-  }
 
   protected openDrawer(): void {
     this.drawer().nativeElement.showModal();

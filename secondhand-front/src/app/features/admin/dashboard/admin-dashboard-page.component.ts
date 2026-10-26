@@ -76,10 +76,10 @@ export class AdminDashboardPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    void this.store.loadDashboard();
+    void this.store.loadCollections();
   }
 
   protected retry(): void {
-    void this.store.loadDashboard({ force: true });
+    void this.store.loadCollections({ force: true });
   }
 }

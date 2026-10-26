@@ -28,7 +28,7 @@ import { INLINE_FORM_STATUSES } from '../../../../core/config/app.constants';
       }
       @default {
         <div class="container-page max-w-3xl py-6 sm:py-10">
-          @if (store.selectedProduct(); as product) {
+          @if (store.selected(); as product) {
             <nav aria-label="Ruta de navegación" class="mb-4 text-sm text-ink-muted">
               <a routerLink="/" class="hover:text-primary-700 hover:underline">Catálogo</a>
               <span aria-hidden="true"> / </span>

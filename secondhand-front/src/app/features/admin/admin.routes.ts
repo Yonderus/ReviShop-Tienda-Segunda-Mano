@@ -44,11 +44,13 @@ const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./products/admin-product-edit-page.component').then((m) => m.AdminProductEditPageComponent),
       },
       {
-        path: 'trash',
-        title: title('Papelera'),
-        data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, { label: 'Papelera' }] }),
+        path: 'products/trash',
+        title: title('Papelera de productos'),
+        data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, PRODUCTS_CRUMB, { label: 'Papelera' }] }),
         loadComponent: () => import('./products/admin-trash-page.component').then((m) => m.AdminTrashPageComponent),
       },
+      // La papelera era una sección suelta; ahora es una pestaña de Productos.
+      { path: 'trash', redirectTo: 'products/trash', pathMatch: 'full' },
     ],
   },
 ];

@@ -28,7 +28,7 @@
         <app-stat-card label="Publicados" [value]="store.stats().published" tone="primary" hint="Activos e inactivos" />
         <app-stat-card label="Activos" [value]="store.stats().active" tone="success" hint="Visibles en la tienda" link="/admin/products" />
         <app-stat-card label="Inactivos" [value]="store.stats().inactive" tone="neutral" hint="Ocultos, sin borrar" link="/admin/products/inactive" />
-        <app-stat-card label="En papelera" [value]="store.stats().trashed" tone="retired" hint="Se pueden restaurar" link="/admin/trash" />
+        <app-stat-card label="En papelera" [value]="store.stats().trashed" tone="retired" hint="Se pueden restaurar" link="/admin/products/trash" />
       </div>
       <div class="px-5 pb-5">
         <div class="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-canvas" role="img" [attr.aria-label]="inventorySplit().label">

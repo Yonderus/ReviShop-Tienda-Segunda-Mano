@@ -40,6 +40,33 @@ export function uniqueField(field: string): ValidatorFn {
   };
 }
 
+export const integer: ValidatorFn = (control) => {
+  const value = control.value;
+  if (value === null || value === '' || value === undefined) return null;
+  return Number.isInteger(Number(value)) ? null : { integer: true };
+};
+
+/** Identificadores internos ("talla", "talla_zapato"): minúsculas sin acentos, números y guiones bajos. */
+export const lowerSnakeCase: ValidatorFn = (control) => {
+  const value = String(control.value ?? '').trim();
+  return !value || /^[a-z0-9_]+$/.test(value) ? null : { lowerSnakeCase: true };
+};
+
+/** Un texto con elementos separados por comas: sin repetidos y cada uno de `max` caracteres como mucho. */
+export function commaList(max: number): ValidatorFn {
+  return (control) => {
+    const items = splitList(String(control.value ?? ''));
+    if (items.some((item) => item.length > max)) return { itemMaxLength: { max } };
+    return new Set(items).size === items.length ? null : { duplicateValues: true };
+  };
+}
+
+export const splitList = (text: string): string[] =>
+  text
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 export function oneOf(allowed: readonly string[]): ValidatorFn {
   return (control) => (!control.value || allowed.includes(control.value) ? null : { oneOf: true });
 }

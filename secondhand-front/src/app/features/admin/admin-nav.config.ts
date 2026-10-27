@@ -28,7 +28,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     title: 'Catálogo',
     // La papelera de cada sección es una pestaña dentro de ella (Activos · Inactivos · Papelera).
-    links: [{ label: 'Productos', icon: 'package', path: '/admin/products' }],
+    links: [
+      { label: 'Productos', icon: 'package', path: '/admin/products' },
+      { label: 'Categorías', icon: 'tag', path: '/admin/categories' },
+    ],
   },
 ];
 

@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
 import { isHttpUrl } from "../utils/url.js";
+import { objectId } from "./common.validator.js";
 
 const INVALID_IMAGE_URL = "Cada imagen debe tener una URL http(s) válida";
-
-const objectId = (field) => z.string().regex(/^[0-9a-fA-F]{24}$/, `${field} no es un ID válido`);
 
 const imageInputSchema = z.object({
   url: z.string({ error: INVALID_IMAGE_URL }).refine(isHttpUrl, INVALID_IMAGE_URL),
@@ -39,20 +38,6 @@ export const updateProductSchema = createProductSchema.partial();
 
 export const changeStatusSchema = z.object({
   status: z.enum(SALE_STATUSES, { error: `status debe ser: ${SALE_STATUSES.join(", ")}` }),
-});
-
-export const setActiveSchema = z.object({
-  isActive: z.boolean({ error: "isActive es obligatorio y debe ser true o false" }),
-});
-
-export const restoreSchema = z.object({
-  isActive: z.boolean({ error: "isActive debe ser true o false" }).optional(),
-});
-
-export const idParamsSchema = z.object({ id: objectId("id") });
-
-export const slugParamsSchema = z.object({
-  slug: z.string().trim().min(1, "El slug es obligatorio"),
 });
 
 export const listQuerySchema = z.object({

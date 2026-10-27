@@ -8,7 +8,8 @@ import {
   updateVariant,
 } from "../controllers/productVariant.controller.js";
 import { validate } from "../middlewares/validate.js";
-import { changeStatusSchema, idParamsSchema, setActiveSchema } from "../validators/product.validator.js";
+import { idParamsSchema, setActiveSchema } from "../validators/common.validator.js";
+import { changeStatusSchema } from "../validators/product.validator.js";
 import { createVariantSchema, updateVariantSchema } from "../validators/productVariant.validator.js";
 
 /** Las variantes de un producto: se monta en /api/products/:id/variants (mergeParams para leer el :id). */

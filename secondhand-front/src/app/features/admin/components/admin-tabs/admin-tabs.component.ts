@@ -10,6 +10,18 @@ export interface AdminTab {
   count: number | null;
 }
 
+/** Las tres pestañas de una sección con CRUD: `<base>`, `<base>/inactive` y `<base>/trash`. */
+export function sectionTabs(
+  basePath: string,
+  counts: { active: number | null; inactive: number | null; trash: number | null },
+): AdminTab[] {
+  return [
+    { label: 'Activos', icon: 'checkCircle', link: basePath, count: counts.active },
+    { label: 'Inactivos', icon: 'eyeOff', link: `${basePath}/inactive`, count: counts.inactive },
+    { label: 'Papelera', icon: 'trash', link: `${basePath}/trash`, count: counts.trash },
+  ];
+}
+
 /** Pestañas de una sección del panel (Activos · Inactivos · Papelera). La actual la marca el router. */
 @Component({
   selector: 'app-admin-tabs',

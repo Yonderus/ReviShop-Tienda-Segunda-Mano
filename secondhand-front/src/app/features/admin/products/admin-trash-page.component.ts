@@ -13,9 +13,8 @@ import { Product } from '../../products/models/product.model';
 import { primaryImage } from '../../products/models/product.utils';
 import { ProductsStore } from '../../products/store/products.store';
 import { prefersReducedMotion, rowLeave } from '../admin.animations';
-import { AdminTabsComponent } from '../components/admin-tabs/admin-tabs.component';
+import { AdminTabsComponent, sectionTabs } from '../components/admin-tabs/admin-tabs.component';
 import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.component';
-import { productsTabs } from './products-tabs';
 
 @Component({
   selector: 'app-admin-trash-page',
@@ -115,7 +114,7 @@ export class AdminTrashPageComponent implements OnInit {
   private readonly alert = inject(AlertService);
 
   protected readonly trash = this.store.collection('trash');
-  protected readonly tabs = computed(() => productsTabs(this.store.counts()));
+  protected readonly tabs = computed(() => sectionTabs('/admin/products', this.store.counts()));
   protected readonly primaryImage = primaryImage;
   protected readonly reducedMotion = prefersReducedMotion();
 

@@ -40,6 +40,7 @@ Proyecto de 2º de DAW formado por una **API REST** (Express + MongoDB) y una **
 - Cambios **optimistas**: activar, desactivar o cambiar el estado se ve al instante y **vuelve atrás** si la API falla.
 - **Papelera** (soft delete): restaurar como activo o como inactivo, con sus variantes y fotos.
 - **Editor de variantes**: precio, stock, estado y visibilidad de cada una, y alta de variantes nuevas con los atributos de la categoría.
+- **Categorías** en árbol (principales y subcategorías) con las mismas pestañas, filtro **Publicada · Borrador**, nº de productos y subcategorías, y formulario con los **atributos de variante** (clave, nombre y valores). No deja borrar una categoría con productos o subcategorías y avisa de cuántos tiene.
 
 ---
 
@@ -154,7 +155,7 @@ Role 1 ── N User 1 ── N Product N ── 1 Category (árbol de 2 niveles
 |---|---|
 | `roles` | `admin`, `moderator`, `user`, con sus permisos |
 | `users` | `roleId`, email único, `passwordHash` (nunca sale en las respuestas), estado `pending · verified · suspended` |
-| `categories` | `parentId` y `attributes` (p. ej. talla o capacidad), que heredan las subcategorías |
+| `categories` | `parentId` (dos niveles como máximo), `status` `draft · published` y `attributes` (p. ej. talla o capacidad), que heredan las subcategorías que no tienen los suyos |
 | `products` | `sellerId`, `categoryId`, `basePrice` y `status` **calculado** a partir de sus variantes |
 | `productVariants` | Opciones, SKU único, precio propio (o el base) y stock |
 | `images` | `ownerType` + `ownerId` (`refPath`); la primera es la portada |
@@ -171,7 +172,10 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 |---|---|
 | **Productos** | `GET /products` · `/actives` · `/inactives` · `/trash` · `/slug/:slug` · `/:id` · `POST /products` · `PATCH /:id` · `PATCH /:id/status` · `PATCH /:id/active` · `PATCH /:id/restore` · `DELETE /:id` |
 | **Variantes** | `GET` y `POST /products/:id/variants` · `PATCH /variants/:id` · `/:id/status` · `/:id/active` · `DELETE /variants/:id` |
-| **Catálogo** | `GET /categories` · `GET /sellers` |
+| **Categorías** | `GET /categories` (pública: publicadas y activas) · `/actives` · `/inactives` · `/trash` (con `?status=`) · `/slug/:slug` · `/:id` · `POST /categories` · `PATCH /:id` · `PATCH /:id/active` · `PATCH /:id/restore` · `DELETE /:id` |
+| **Catálogo** | `GET /sellers` |
+
+**Reglas de las categorías:** el nombre es único (también frente a las de la papelera, porque su slug sigue ocupado); solo se puede colgar de una categoría principal; una con subcategorías no puede pasar a ser hija; no se borra si tiene productos o subcategorías (`409` con cuántos); una subcategoría no se restaura si su padre sigue en la papelera; y un producto solo puede ir a una categoría **publicada y activa**.
 
 **Formato de respuesta único:**
 
@@ -188,7 +192,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 |---|---|
 | `200` · `201` · `204` | Lectura o edición · creación · borrado |
 | `404` | No existe o está en la papelera |
-| `409` | Choca con otro registro (título repetido) o con el estado (activar uno borrado) |
+| `409` | Choca con otro registro (título repetido) o con el estado (activar uno borrado, borrar una categoría con productos) |
 | `422` | Datos no válidos (Zod, reglas del service o Mongoose) |
 
 ---
@@ -196,7 +200,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 ## 🅰️ Frontend
 
 - **Angular 18** con componentes standalone, **Signals**, `OnPush` en todos los componentes, Reactive Forms y lazy loading con code splitting.
-- **Store genérico** (`EntityStore`): colecciones, detalle, escrituras y visibilidad optimista. Cada entidad hereda y solo añade lo suyo.
+- **Store genérico** (`EntityStore`): colecciones, detalle, escrituras y visibilidad optimista. Cada entidad hereda y solo añade lo suyo (`ProductsStore`, `CategoriesStore`); el hook `afterWrite` permite refrescar lo que depende de ella (al cambiar una categoría se recargan los select de la tienda).
 - **Interceptores:** traducen los errores a mensajes en español y gestionan un loader global con retardo para que no parpadee.
 - **UX:** skeletons, estados vacíos y de error con "Reintentar", View Transitions, sin scroll horizontal desde 375 px y accesibilidad (labels, `aria-*` y foco al primer error).
 
@@ -212,6 +216,8 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | La **ubicación** es texto | Suficiente mientras no haga falta filtrar por ciudad |
 | **`isActive` y `deletedAt` independientes** | Ocultar un anuncio no es lo mismo que borrarlo |
 | El **estado del producto se calcula** a partir de sus variantes | Un solo origen de verdad: disponible, reservado o vendido |
+| Categorías con **borrador** además de `isActive` | Se puede preparar una categoría (atributos, subcategorías) antes de que salga en la tienda |
+| Borrar una categoría con productos da **409** en vez de borrar en cascada | Borrar una categoría no debería hacer desaparecer anuncios de otros usuarios |
 
 ---
 
@@ -224,7 +230,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | Errores por campo + Swagger | ✅ |
 | Store genérico + panel con pestañas | ✅ |
 | CRUD de variantes + editor en el panel | ✅ |
-| CRUD de categorías en el panel | ⏳ |
+| CRUD de categorías + panel en árbol | ✅ |
 | CRUD de usuarios + roles, y seed con 20 o más productos | ⏳ |
 | JWT: login, roles USER/ADMIN y perfil | 🔜 |
 | Carrito, reservas y pagos | 🔜 |

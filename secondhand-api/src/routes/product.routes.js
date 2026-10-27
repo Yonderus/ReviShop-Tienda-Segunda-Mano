@@ -14,14 +14,11 @@ import {
   updateProduct,
 } from "../controllers/product.controller.js";
 import { validate } from "../middlewares/validate.js";
+import { idParamsSchema, restoreSchema, setActiveSchema, slugParamsSchema } from "../validators/common.validator.js";
 import {
   changeStatusSchema,
   createProductSchema,
-  idParamsSchema,
   listQuerySchema,
-  restoreSchema,
-  setActiveSchema,
-  slugParamsSchema,
   stateListQuerySchema,
   updateProductSchema,
 } from "../validators/product.validator.js";

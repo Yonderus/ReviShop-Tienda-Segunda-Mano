@@ -1,6 +1,7 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import swaggerJSDoc from "swagger-jsdoc";
+import { CATEGORY_STATUSES } from "../constants/category.constants.js";
 import { IMAGE_KINDS } from "../constants/image.constants.js";
 import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
 
@@ -14,6 +15,18 @@ const success = (data) => ({
   type: "object",
   properties: { success: { type: "boolean", example: true }, data },
 });
+const categoryAttributes = {
+  type: "array",
+  description: "Opciones que pueden tener las variantes de sus productos. Las subcategorías sin atributos heredan los del padre.",
+  items: {
+    type: "object",
+    properties: {
+      key: { type: "string", pattern: "^[a-z0-9_]+$", example: "almacenamiento" },
+      label: { type: "string", example: "Almacenamiento" },
+      values: { type: "array", items: { type: "string" }, example: ["64 GB", "128 GB"] },
+    },
+  },
+};
 const errorResponse = (description, example) => ({
   description,
   content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" }, example } },
@@ -33,6 +46,7 @@ export const swaggerSpec = swaggerJSDoc({
     tags: [
       { name: "Productos", description: "CRUD de productos, visibilidad, papelera y estado de venta" },
       { name: "Variantes", description: "Opciones de un producto (talla, capacidad…) con su precio, stock y estado" },
+      { name: "Categorías", description: "Árbol de dos niveles, atributos de variante, visibilidad y papelera" },
       { name: "Catálogo", description: "Datos de referencia para los select del front (solo lectura)" },
     ],
     components: {
@@ -103,17 +117,38 @@ export const swaggerSpec = swaggerJSDoc({
             description: { type: "string" },
             parentId: { ...objectId, nullable: true },
             order: { type: "integer" },
-            attributes: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  key: { type: "string", example: "almacenamiento" },
-                  label: { type: "string", example: "Almacenamiento" },
-                  values: { type: "array", items: { type: "string" } },
-                },
+            attributes: categoryAttributes,
+          },
+        },
+        CategoryAdmin: {
+          description: "Como Category, con lo que solo ve el panel.",
+          allOf: [
+            { $ref: "#/components/schemas/Category" },
+            {
+              type: "object",
+              properties: {
+                status: { type: "string", enum: CATEGORY_STATUSES, description: "Solo las publicadas salen en la tienda" },
+                isActive: { type: "boolean" },
+                deletedAt: nullableDate,
+                productsCount: { type: "integer", description: "Productos no eliminados" },
+                childrenCount: { type: "integer", description: "Subcategorías no eliminadas" },
+                createdAt: { type: "string", format: "date-time" },
+                updatedAt: { type: "string", format: "date-time" },
               },
             },
+          ],
+        },
+        CategoryInput: {
+          type: "object",
+          required: ["name"],
+          description: "En un PATCH todos los campos son opcionales.",
+          properties: {
+            name: { type: "string", minLength: 2, maxLength: 60, example: "Tablets" },
+            description: { type: "string", maxLength: 300 },
+            parentId: { ...objectId, nullable: true, description: "Una categoría principal; null para que lo sea ella" },
+            attributes: { ...categoryAttributes, maxItems: 10 },
+            order: { type: "integer", minimum: 0 },
+            status: { type: "string", enum: CATEGORY_STATUSES },
           },
         },
         Seller: {
@@ -219,11 +254,15 @@ export const swaggerSpec = swaggerJSDoc({
         ProductResponse: success({ $ref: "#/components/schemas/ProductDetail" }),
         ProductListResponse: success({ type: "array", items: { $ref: "#/components/schemas/Product" } }),
         CategoryListResponse: success({ type: "array", items: { $ref: "#/components/schemas/Category" } }),
+        CategoryResponse: success({ $ref: "#/components/schemas/CategoryAdmin" }),
+        CategoryAdminListResponse: success({ type: "array", items: { $ref: "#/components/schemas/CategoryAdmin" } }),
         SellerListResponse: success({ type: "array", items: { $ref: "#/components/schemas/Seller" } }),
       },
       parameters: {
         ProductId: { name: "id", in: "path", required: true, schema: objectId },
         VariantId: { name: "id", in: "path", required: true, schema: objectId },
+        CategoryId: { name: "id", in: "path", required: true, schema: objectId },
+        CategoryStatus: { name: "status", in: "query", schema: { type: "string", enum: CATEGORY_STATUSES } },
         ProductSlug: { name: "slug", in: "path", required: true, schema: { type: "string", example: "iphone-13-pro" } },
         Category: { name: "category", in: "query", description: "Slug; incluye sus subcategorías", schema: { type: "string" } },
         Seller: { name: "seller", in: "query", description: "Slug del vendedor", schema: { type: "string" } },

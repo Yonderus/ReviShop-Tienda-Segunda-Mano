@@ -6,8 +6,12 @@ const title = (section: string) => `${section} · Admin · ${APP_NAME}`;
 const meta = (data: AdminRouteMeta) => data;
 
 const PRODUCTS_CRUMB = { label: 'Productos', link: '/admin/products' };
+const CATEGORIES_CRUMB = { label: 'Categorías', link: '/admin/categories' };
 
-/** `products/new` va antes que `products/:slug/edit` y `products/inactive` no choca con él (distinta longitud). */
+/**
+ * En cada sección, `<x>/new` va antes que `<x>/:slug/edit`, y `<x>/inactive` y `<x>/trash` no chocan con él
+ * (distinta longitud).
+ */
 const ADMIN_ROUTES: Routes = [
   {
     path: '',
@@ -48,6 +52,36 @@ const ADMIN_ROUTES: Routes = [
         title: title('Papelera de productos'),
         data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, PRODUCTS_CRUMB, { label: 'Papelera' }] }),
         loadComponent: () => import('./products/admin-trash-page.component').then((m) => m.AdminTrashPageComponent),
+      },
+      {
+        path: 'categories',
+        title: title('Categorías activas'),
+        data: { ...meta({ crumbs: [{ label: 'Admin', link: '/admin' }, { label: 'Categorías' }] }), view: 'active' },
+        loadComponent: () => import('./categories/admin-categories-page.component').then((m) => m.AdminCategoriesPageComponent),
+      },
+      {
+        path: 'categories/inactive',
+        title: title('Categorías inactivas'),
+        data: { ...meta({ crumbs: [{ label: 'Admin', link: '/admin' }, CATEGORIES_CRUMB, { label: 'Inactivas' }] }), view: 'inactive' },
+        loadComponent: () => import('./categories/admin-categories-page.component').then((m) => m.AdminCategoriesPageComponent),
+      },
+      {
+        path: 'categories/new',
+        title: title('Nueva categoría'),
+        data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, CATEGORIES_CRUMB, { label: 'Nueva' }] }),
+        loadComponent: () => import('./categories/admin-category-create-page.component').then((m) => m.AdminCategoryCreatePageComponent),
+      },
+      {
+        path: 'categories/:slug/edit',
+        title: title('Editar categoría'),
+        data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, CATEGORIES_CRUMB, { label: 'Editar' }] }),
+        loadComponent: () => import('./categories/admin-category-edit-page.component').then((m) => m.AdminCategoryEditPageComponent),
+      },
+      {
+        path: 'categories/trash',
+        title: title('Papelera de categorías'),
+        data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, CATEGORIES_CRUMB, { label: 'Papelera' }] }),
+        loadComponent: () => import('./categories/admin-categories-trash-page.component').then((m) => m.AdminCategoriesTrashPageComponent),
       },
       // La papelera era una sección suelta; ahora es una pestaña de Productos.
       { path: 'trash', redirectTo: 'products/trash', pathMatch: 'full' },

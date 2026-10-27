@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { IMAGE_OWNER } from "../constants/image.constants.js";
 import { Product } from "../models/product.model.js";
 
@@ -105,6 +106,16 @@ export const productRepository = {
 
   restoreById(id, date, isActive) {
     return Product.restoreMany({ _id: id }, date, { isActive });
+  },
+
+  /** Productos no eliminados (activos o no) de cada categoría: { [categoryId]: número }. */
+  async countByCategories(categoryIds) {
+    // aggregate no pasa por el plugin de soft delete: el filtro de eliminados va a mano.
+    const rows = await Product.aggregate([
+      { $match: { categoryId: { $in: categoryIds.map((id) => new mongoose.Types.ObjectId(id)) }, deletedAt: null } },
+      { $group: { _id: "$categoryId", count: { $sum: 1 } } },
+    ]);
+    return Object.fromEntries(rows.map((row) => [String(row._id), row.count]));
   },
 
   /** Borrado físico: solo para deshacer una creación que falló a medias. */

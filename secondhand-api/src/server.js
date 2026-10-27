@@ -11,7 +11,8 @@ import { connectDB } from "./config/db.js";
 import { swaggerSpec } from "./config/swagger.js";
 import productRoutes from "./routes/product.routes.js";
 import { productVariantRoutes, productVariantsOfProductRoutes } from "./routes/productVariant.routes.js";
-import { categoryRoutes, sellerRoutes } from "./routes/catalog.routes.js";
+import categoryRoutes from "./routes/category.routes.js";
+import { sellerRoutes } from "./routes/catalog.routes.js";
 import { NotFoundError } from "./utils/AppError.js";
 import { errorHandler } from "./utils/errorHandler.js";
 

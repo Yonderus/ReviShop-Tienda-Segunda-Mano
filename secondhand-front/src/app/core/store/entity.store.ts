@@ -18,7 +18,7 @@ const byDeletedNewest = (a: EntityRecord, b: EntityRecord) => (b.deletedAt ?? ''
  * Para una entidad nueva basta con heredar y declarar `api`:
  *
  *   @Injectable({ providedIn: 'root' })
- *   export class CategoriesStore extends EntityStore<Category, CategoryInput> {
+ *   export class CategoriesStore extends EntityStore<AdminCategory, CategoryInput> {
  *     protected readonly api = inject(CategoriesService);
  *   }
  */
@@ -134,6 +134,13 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
   }
 
   /**
+   * Se llama tras cada escritura correcta (crear, editar, visibilidad, borrar, restaurar). Para stores cuyos
+   * datos se usan en otro sitio (p. ej. las categorías en los select del catálogo) o cuyos campos calculados
+   * dependen de otros registros (el nº de subcategorías del padre).
+   */
+  protected afterWrite(): void {}
+
+  /**
    * Vuelve a pedir un registro a la API, sin caché, y lo pone al día en su lista y en `selected`. Para cuando
    * algo que la API calcula (p. ej. el estado de un producto según sus variantes) ha cambiado por otro camino.
    */
@@ -150,6 +157,7 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
       const entity = await this.api.create(input);
       this.placeLive(entity);
       this.select(entity);
+      this.afterWrite();
       return entity;
     } catch (raw) {
       throw toApiError(raw);
@@ -165,6 +173,7 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
       this.detailCache.delete(entity.slug);
       this.placeLive(updated);
       this.select(updated);
+      this.afterWrite();
       return updated;
     } catch (raw) {
       throw toApiError(raw);
@@ -183,6 +192,7 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
     try {
       const updated = await this.api.setActive(entity._id, isActive);
       this.placeLive(updated);
+      this.afterWrite();
       return updated;
     } catch (raw) {
       this.placeLive(entity);
@@ -202,6 +212,7 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
       this.collections.trash.upsert({ ...entity, isActive: false, deletedAt: new Date().toISOString() });
       this.detailCache.delete(entity.slug);
       if (this._selected()?._id === entity._id) this.clearSelected();
+      this.afterWrite();
     } catch (raw) {
       throw toApiError(raw);
     } finally {
@@ -215,6 +226,7 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
       const restored = await this.api.restore(entity._id, isActive);
       this.collections.trash.remove(entity._id);
       this.placeLive(restored);
+      this.afterWrite();
       return restored;
     } catch (raw) {
       throw toApiError(raw);

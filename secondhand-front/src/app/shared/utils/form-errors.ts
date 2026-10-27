@@ -12,6 +12,11 @@ const DESCRIBERS: Record<string, Describer> = {
   greaterThan: (label, v) => `${label} debe ser mayor que ${v['min']}.`,
   oneOf: () => 'Selecciona una de las opciones disponibles.',
   url: () => 'Introduce una URL válida que empiece por http:// o https://.',
+  lowerSnakeCase: () => 'Usa solo minúsculas sin acentos, números y guiones bajos (ej.: talla_zapato).',
+  duplicateValues: (label) => `${label} no puede tener elementos repetidos.`,
+  itemMaxLength: (label, v) => `Cada elemento de ${label.toLowerCase()} puede tener como mucho ${v['max']} caracteres.`,
+  min: (label, v) => `${label} debe ser mayor o igual que ${v['min']}.`,
+  integer: (label) => `${label} debe ser un número entero.`,
   server: (_label, v) => String(v['message'] ?? 'Este valor no es válido.'),
 };
 

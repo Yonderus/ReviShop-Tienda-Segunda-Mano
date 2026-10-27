@@ -24,9 +24,8 @@ import { primaryImage } from '../../products/models/product.utils';
 import { STATUS_BY_VARIANT_STATUS } from '../../products/services/products.service';
 import { ProductsStore } from '../../products/store/products.store';
 import { prefersReducedMotion, rowLeave } from '../admin.animations';
-import { AdminTabsComponent } from '../components/admin-tabs/admin-tabs.component';
+import { AdminTabsComponent, sectionTabs } from '../components/admin-tabs/admin-tabs.component';
 import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.component';
-import { productsTabs } from './products-tabs';
 
 export type ProductsView = 'active' | 'inactive';
 
@@ -104,7 +103,7 @@ export class AdminProductsPageComponent implements OnChanges {
 
   protected readonly isActiveView = computed(() => this.view() !== 'inactive');
   protected readonly list = computed(() => this.store.collection(this.isActiveView() ? 'active' : 'inactive'));
-  protected readonly tabs = computed(() => productsTabs(this.store.counts()));
+  protected readonly tabs = computed(() => sectionTabs('/admin/products', this.store.counts()));
 
   ngOnChanges(): void {
     // Las tres: la lista que se ve y los contadores de las otras dos pestañas.

@@ -1,3 +1,4 @@
+import { changedFields } from '../../../shared/utils/diff';
 import { ProductImage } from './image.model';
 import { ProductVariant } from './product-variant.model';
 import { Product, ProductInput, ProductUpdate } from './product.model';
@@ -41,13 +42,5 @@ export function productToInput(product: Product): ProductInput {
 
 /** Solo los campos que han cambiado respecto al producto cargado (PATCH parcial). */
 export function diffProduct(product: Product, input: ProductInput): ProductUpdate {
-  const original = productToInput(product);
-  const changes: ProductUpdate = {};
-  for (const key of Object.keys(input) as (keyof ProductInput)[]) {
-    const next = input[key];
-    const prev = original[key];
-    const same = Array.isArray(next) ? JSON.stringify(next) === JSON.stringify(prev) : (next ?? '') === (prev ?? '');
-    if (!same) Object.assign(changes, { [key]: next });
-  }
-  return changes;
+  return changedFields(productToInput(product), input);
 }

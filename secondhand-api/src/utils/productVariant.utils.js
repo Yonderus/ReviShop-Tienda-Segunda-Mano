@@ -33,16 +33,6 @@ export function buildSku(productSlug, optionValues = []) {
 }
 
 /**
- * SKU libre a partir de `base`: añade -2, -3… mientras `exists` diga que está ocupado.
- * Recibe la comprobación como función para no depender de la base de datos.
- */
-export async function uniqueSku(base, exists) {
-  let candidate = base;
-  for (let n = 2; await exists(candidate); n++) candidate = `${base}-${n}`;
-  return candidate;
-}
-
-/**
  * Texto del que sale el slug de una variante; `uniqueSlug` lo normaliza y le añade sufijo si hace falta.
  *
  *   variantSlugBase("iphone-13-pro", ["256GB"]) → "iphone-13-pro-256GB"

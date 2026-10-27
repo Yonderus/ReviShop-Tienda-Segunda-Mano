@@ -6,8 +6,8 @@ import { productVariantRepository } from "../repositories/productVariant.reposit
 import { userRepository } from "../repositories/user.repository.js";
 import { ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
 import { imagePosition } from "../utils/image.utils.js";
-import { DEFAULT_OPTIONS_KEY, buildSku, uniqueSku, variantSlugBase } from "../utils/productVariant.utils.js";
-import { slugify } from "../utils/slugify.js";
+import { DEFAULT_OPTIONS_KEY, buildSku, variantSlugBase } from "../utils/productVariant.utils.js";
+import { slugify, withNumericSuffix } from "../utils/slugify.js";
 
 const WRITABLE_FIELDS = ["title", "description", "basePrice", "condition", "location", "categoryId", "sellerId"];
 
@@ -122,7 +122,7 @@ export const productService = {
     try {
       await productVariantRepository.create({
         productId: product._id,
-        sku: await uniqueSku(buildSku(product.slug), (sku) => productVariantRepository.existsSku(sku)),
+        sku: await withNumericSuffix(buildSku(product.slug), (sku) => productVariantRepository.existsSku(sku)),
         slug: await productVariantRepository.uniqueSlug(variantSlugBase(product.slug)),
         options: [],
         optionsKey: DEFAULT_OPTIONS_KEY,
@@ -130,7 +130,8 @@ export const productService = {
       });
       if (data.images?.length) await imageRepository.createMany(buildProductImages(product, data.images));
     } catch (error) {
-      // Sin variante el producto quedaría huérfano: se deshace la creación completa.
+      // Sin variante el producto quedaría huérfano: se deshace la creación completa, imágenes incluidas.
+      await imageRepository.hardDeleteByOwners(IMAGE_OWNER.PRODUCT, [product._id]);
       await productVariantRepository.hardDeleteByProduct(product._id);
       await productRepository.hardDeleteById(product._id);
       throw error;
@@ -159,9 +160,11 @@ export const productService = {
     }
 
     if (data.images) {
-      // Las imágenes se sustituyen como conjunto: las anteriores pasan a soft delete.
-      await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT, [product._id], new Date());
+      // Las imágenes se sustituyen como conjunto. Primero se crean las nuevas (todo o nada) y solo después
+      // pasan a soft delete las anteriores, por id: si la creación falla, el producto conserva sus fotos.
+      const previousIds = await imageRepository.findIdsByOwner(IMAGE_OWNER.PRODUCT, product._id);
       if (data.images.length) await imageRepository.createMany(buildProductImages(product, data.images));
+      if (previousIds.length) await imageRepository.softDeleteByIds(previousIds, new Date());
     }
 
     return productRepository.findDetailById(id);

@@ -7,16 +7,21 @@ export const slugify = (text) =>
     .replace(/^-|-$/g, "");
 
 /**
- * Slug libre en la colección del modelo: añade -2, -3… si ya existe (ignora el propio documento).
- * Cuenta también los eliminados: su slug sigue ocupado en el índice único.
+ * Primer valor libre a partir de `base`: base, base-2, base-3… mientras `isTaken` diga que está ocupado.
+ * Sirve para slugs y SKU. Recibe la comprobación como función para no depender de la base de datos.
  */
-export async function uniqueSlug(Model, base, excludeId = null) {
-  const root = slugify(base) || "item";
-  let candidate = root;
-  for (let n = 2; ; n++) {
-    const filter = { slug: candidate };
-    if (excludeId) filter._id = { $ne: excludeId };
-    if (!(await Model.exists(filter).setOptions({ withDeleted: true }))) return candidate;
-    candidate = `${root}-${n}`;
-  }
+export async function withNumericSuffix(base, isTaken) {
+  let candidate = base;
+  for (let n = 2; await isTaken(candidate); n++) candidate = `${base}-${n}`;
+  return candidate;
+}
+
+/**
+ * Slug libre en la colección del modelo (ignora el propio documento). Cuenta también los eliminados: su
+ * slug sigue ocupado en el índice único.
+ */
+export function uniqueSlug(Model, base, excludeId = null) {
+  const exclude = excludeId ? { _id: { $ne: excludeId } } : {};
+  const isTaken = (slug) => Model.exists({ slug, ...exclude }).setOptions({ withDeleted: true });
+  return withNumericSuffix(slugify(base) || "item", isTaken);
 }

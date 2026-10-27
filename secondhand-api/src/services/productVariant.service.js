@@ -3,7 +3,8 @@ import { imageRepository } from "../repositories/image.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
 import { ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
-import { DEFAULT_OPTIONS_KEY, buildOptionsKey, buildSku, uniqueSku, variantSlugBase } from "../utils/productVariant.utils.js";
+import { DEFAULT_OPTIONS_KEY, buildOptionsKey, buildSku, variantSlugBase } from "../utils/productVariant.utils.js";
+import { withNumericSuffix } from "../utils/slugify.js";
 import { categoryService } from "./category.service.js";
 import { productService } from "./product.service.js";
 
@@ -81,7 +82,7 @@ export const productVariantService = {
     } else {
       variant = await productVariantRepository.create({
         productId,
-        sku: await uniqueSku(buildSku(product.slug, values), (sku) => productVariantRepository.existsSku(sku)),
+        sku: await withNumericSuffix(buildSku(product.slug, values), (sku) => productVariantRepository.existsSku(sku)),
         slug: await productVariantRepository.uniqueSlug(variantSlugBase(product.slug, values)),
         options,
         price,

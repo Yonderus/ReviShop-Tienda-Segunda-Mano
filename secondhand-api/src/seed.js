@@ -45,6 +45,8 @@ const USERS = [
   { key: "juan", name: "Juan Pérez", email: "juan@revishop.test", role: ROLE.USER, location: "Madrid", avatar: 91, bio: "Electrónica y bicis revisadas." },
   { key: "marta", name: "Marta Gil", email: "marta@revishop.test", role: ROLE.USER, location: "Zaragoza", avatar: 1027 },
   { key: "carlos", name: "Carlos Ruiz", email: "carlos@revishop.test", role: ROLE.USER, location: "Bilbao", avatar: 1005 },
+  // Suspendido: no puede vender ni sale en el select de vendedor.
+  { key: "pablo", name: "Pablo Sanz", email: "pablo@revishop.test", role: ROLE.USER, location: "Sevilla", avatar: 1012, status: USER_STATUS.SUSPENDED },
 ];
 
 const CATEGORIES = [
@@ -72,6 +74,14 @@ const CATEGORIES = [
   { name: "Libros", slug: "libros", order: 6 },
   { name: "Juguetes", slug: "juguetes", order: 7 },
   { name: "Otros", slug: "otros", order: 8 },
+  // En borrador: se está preparando y aún no sale en la tienda ni admite productos.
+  {
+    name: "Instrumentos musicales",
+    slug: "instrumentos-musicales",
+    order: 9,
+    status: CATEGORY_STATUS.DRAFT,
+    attributes: [{ key: "tipo", label: "Tipo", values: ["Guitarra", "Teclado", "Batería", "Viento"] }],
+  },
 ];
 
 /** Las subcategorías sin `attributes` heredan los del padre. */
@@ -178,6 +188,77 @@ const PRODUCTS = [
     condition: "nuevo",
     location: "Valencia",
   },
+  {
+    title: "Sudadera Adidas Originals",
+    description: "Algodón grueso, lavada pocas veces. Sin bolitas ni manchas.",
+    basePrice: 30,
+    category: "ropa",
+    seller: "lucia",
+    condition: "como_nuevo",
+    location: "Valencia",
+    variants: [
+      { options: [{ key: "talla", value: "S" }, { key: "color", value: "Azul" }] },
+      { options: [{ key: "talla", value: "M" }, { key: "color", value: "Azul" }] },
+      { options: [{ key: "talla", value: "L" }, { key: "color", value: "Verde" }], price: 25 },
+    ],
+    images: [{ url: photo(1059), alt: "Sudadera doblada sobre una silla" }],
+  },
+  {
+    title: "Portátil Lenovo ThinkPad T14",
+    description: "Procesador i5, SSD de 512 GB. Batería que aguanta una jornada.",
+    basePrice: 380,
+    category: "ordenadores",
+    seller: "juan",
+    condition: "bueno",
+    location: "Madrid",
+    variants: [
+      { options: [{ key: "memoria", value: "8 GB" }], price: 380 },
+      { options: [{ key: "memoria", value: "16 GB" }], price: 430, status: "reservado" },
+    ],
+    images: [{ url: photo(2), alt: "Portátil abierto sobre un escritorio" }],
+  },
+  {
+    title: "Samsung Galaxy S21",
+    description: "Pantalla sin arañazos, siempre con funda. Libre de operador.",
+    basePrice: 260,
+    category: "moviles",
+    seller: "carlos",
+    condition: "bueno",
+    location: "Bilbao",
+    variants: [
+      { options: [{ key: "capacidad", value: "128 GB" }, { key: "color", value: "Negro" }], price: 260 },
+      { options: [{ key: "capacidad", value: "256 GB" }, { key: "color", value: "Plata" }], price: 300 },
+    ],
+  },
+  {
+    title: "Sofá de dos plazas gris",
+    description: "Tela lavable, 160 cm de ancho. Hay que recogerlo en Bilbao.",
+    basePrice: 150,
+    category: "hogar",
+    seller: "carlos",
+    condition: "aceptable",
+    location: "Bilbao",
+    images: [{ url: photo(1080), alt: "Sofá gris en un salón luminoso" }],
+  },
+  {
+    title: "Patines en línea Oxelo",
+    description: "Talla 40, ruedas cambiadas hace un mes. Incluye protecciones.",
+    basePrice: 40,
+    category: "deportes",
+    seller: "marta",
+    condition: "bueno",
+    location: "Zaragoza",
+  },
+  {
+    title: "Trilogía El Señor de los Anillos",
+    description: "Edición de bolsillo, los tres tomos. Lomos algo gastados.",
+    basePrice: 22,
+    category: "libros",
+    seller: "carlos",
+    condition: "aceptable",
+    location: "Bilbao",
+    status: "vendido",
+  },
   // Inactivos
   {
     title: "Despertador vintage de cuerda",
@@ -264,13 +345,13 @@ async function seedUsers(roles) {
   }
   const passwordHash = await hashPassword(env.SEED_DEFAULT_PASSWORD);
   const users = {};
-  for (const { key, role, avatar: _avatar, ...data } of USERS) {
+  for (const { key, role, avatar: _avatar, status = USER_STATUS.VERIFIED, ...data } of USERS) {
     users[key] = await User.create({
       ...data,
       roleId: roles[role]._id,
       passwordHash,
-      status: USER_STATUS.VERIFIED,
-      emailVerifiedAt: new Date(),
+      status,
+      emailVerifiedAt: status === USER_STATUS.VERIFIED ? new Date() : null,
     });
   }
   return users;
@@ -278,7 +359,9 @@ async function seedUsers(roles) {
 
 async function seedCategories() {
   const categories = {};
-  for (const data of CATEGORIES) categories[data.slug] = await Category.create({ ...data, status: CATEGORY_STATUS.PUBLISHED });
+  for (const { status = CATEGORY_STATUS.PUBLISHED, ...data } of CATEGORIES) {
+    categories[data.slug] = await Category.create({ ...data, status });
+  }
   for (const { parent, ...data } of SUBCATEGORIES) {
     categories[data.slug] = await Category.create({ ...data, parentId: categories[parent]._id, status: CATEGORY_STATUS.PUBLISHED });
   }

@@ -87,7 +87,7 @@ npm start               # http://localhost:4200
 
 ### Datos de prueba
 
-`npm run seed` vacía la base y crea: **3 roles, 5 usuarios, 12 categorías** (8 principales y 4 subcategorías con atributos), **14 productos** (8 activos, 3 inactivos y 3 en la papelera), **17 variantes** y **12 imágenes**.
+`npm run seed` vacía la base y crea: **3 roles, 6 usuarios** (uno suspendido), **13 categorías** (9 principales, una de ellas en **borrador**, y 4 subcategorías con atributos), **20 productos** (14 activos, 3 inactivos y 3 en la papelera; 5 con variantes reales), **27 variantes** y **16 imágenes**. Así se pueden probar todos los filtros del panel.
 
 | Usuario | Email | Rol |
 |---|---|---|
@@ -96,6 +96,7 @@ npm start               # http://localhost:4200
 | Juan Pérez | `juan@revishop.test` | user |
 | Marta Gil | `marta@revishop.test` | user |
 | Carlos Ruiz | `carlos@revishop.test` | user |
+| Pablo Sanz | `pablo@revishop.test` | user · **suspendido** (no puede vender) |
 
 Todos usan la contraseña de `SEED_DEFAULT_PASSWORD`, guardada con hash bcrypt.
 
@@ -223,6 +224,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | Categorías con **borrador** además de `isActive` | Se puede preparar una categoría (atributos, subcategorías) antes de que salga en la tienda |
 | Borrar una categoría con productos da **409** en vez de borrar en cascada | Borrar una categoría no debería hacer desaparecer anuncios de otros usuarios |
 | **Siempre queda un admin activo** | Si no, nadie podría volver a entrar al panel cuando llegue el login |
+| Al cambiar las fotos, **primero se crean las nuevas** y luego se retiran las anteriores | Sin transacciones (necesitan *replica set*), es la forma de que un fallo no deje un producto sin fotos. Si falla una nueva, se borran las ya creadas |
 
 ---
 
@@ -237,7 +239,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | CRUD de variantes + editor en el panel | ✅ |
 | CRUD de categorías + panel en árbol | ✅ |
 | CRUD de usuarios + `GET /roles` + panel | ✅ |
-| Seed con 20 o más productos y correcciones de fotos | ⏳ |
+| Seed con 20 productos + fotos sin pérdidas ni huérfanas | ✅ |
 | JWT: login, roles USER/ADMIN y perfil | 🔜 |
 | Carrito, reservas y pagos | 🔜 |
 

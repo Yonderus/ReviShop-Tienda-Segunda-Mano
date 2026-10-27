@@ -4,6 +4,7 @@ import swaggerJSDoc from "swagger-jsdoc";
 import { CATEGORY_STATUSES } from "../constants/category.constants.js";
 import { IMAGE_KINDS } from "../constants/image.constants.js";
 import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, USER_STATUSES } from "../constants/user.constants.js";
 
 // Cada ruta se documenta con un comentario @openapi en su archivo de rutas. swagger-jsdoc usa globs,
 // que en Windows necesitan barras normales.
@@ -47,7 +48,7 @@ export const swaggerSpec = swaggerJSDoc({
       { name: "Productos", description: "CRUD de productos, visibilidad, papelera y estado de venta" },
       { name: "Variantes", description: "Opciones de un producto (talla, capacidad…) con su precio, stock y estado" },
       { name: "Categorías", description: "Árbol de dos niveles, atributos de variante, visibilidad y papelera" },
-      { name: "Catálogo", description: "Datos de referencia para los select del front (solo lectura)" },
+      { name: "Usuarios", description: "Cuentas (cualquiera compra y vende), roles, visibilidad y papelera" },
     ],
     components: {
       schemas: {
@@ -160,6 +161,53 @@ export const swaggerSpec = swaggerJSDoc({
             location: { type: "string", example: "Valencia" },
           },
         },
+        Role: {
+          type: "object",
+          properties: {
+            _id: objectId,
+            name: { type: "string", example: "Administrador" },
+            slug: { type: "string", example: "admin" },
+            description: { type: "string" },
+          },
+        },
+        User: {
+          type: "object",
+          description: "Nunca incluye la contraseña ni su hash.",
+          properties: {
+            _id: objectId,
+            name: { type: "string", example: "Lucía Martín" },
+            slug: { type: "string", example: "lucia-martin" },
+            email: { type: "string", format: "email", example: "lucia@revishop.test" },
+            roleId: objectId,
+            role: { type: "object", properties: { _id: objectId, name: { type: "string" }, slug: { type: "string" } } },
+            phone: { type: "string" },
+            location: { type: "string", example: "Valencia" },
+            bio: { type: "string" },
+            status: { type: "string", enum: USER_STATUSES, description: "suspended = no puede vender" },
+            isActive: { type: "boolean" },
+            deletedAt: nullableDate,
+            lastLoginAt: nullableDate,
+            emailVerifiedAt: nullableDate,
+            productsCount: { type: "integer", description: "Productos no eliminados" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        UserInput: {
+          type: "object",
+          required: ["name", "email", "password", "roleId"],
+          description: "En un PATCH todos los campos son opcionales; password solo si se quiere cambiar.",
+          properties: {
+            name: { type: "string", minLength: 2, maxLength: 60, example: "Ana López" },
+            email: { type: "string", format: "email", example: "ana@revishop.test" },
+            password: { type: "string", format: "password", minLength: PASSWORD_MIN_LENGTH, maxLength: PASSWORD_MAX_LENGTH },
+            roleId: objectId,
+            phone: { type: "string", maxLength: 20, example: "+34 600 000 000" },
+            location: { type: "string", maxLength: 100, example: "Valencia" },
+            bio: { type: "string", maxLength: 300 },
+            status: { type: "string", enum: USER_STATUSES },
+          },
+        },
         Product: {
           type: "object",
           description: "En los listados, `images` solo trae la portada.",
@@ -257,12 +305,18 @@ export const swaggerSpec = swaggerJSDoc({
         CategoryResponse: success({ $ref: "#/components/schemas/CategoryAdmin" }),
         CategoryAdminListResponse: success({ type: "array", items: { $ref: "#/components/schemas/CategoryAdmin" } }),
         SellerListResponse: success({ type: "array", items: { $ref: "#/components/schemas/Seller" } }),
+        UserResponse: success({ $ref: "#/components/schemas/User" }),
+        UserListResponse: success({ type: "array", items: { $ref: "#/components/schemas/User" } }),
+        RoleListResponse: success({ type: "array", items: { $ref: "#/components/schemas/Role" } }),
       },
       parameters: {
         ProductId: { name: "id", in: "path", required: true, schema: objectId },
         VariantId: { name: "id", in: "path", required: true, schema: objectId },
         CategoryId: { name: "id", in: "path", required: true, schema: objectId },
         CategoryStatus: { name: "status", in: "query", schema: { type: "string", enum: CATEGORY_STATUSES } },
+        UserId: { name: "id", in: "path", required: true, schema: objectId },
+        UserStatus: { name: "status", in: "query", schema: { type: "string", enum: USER_STATUSES } },
+        UserRole: { name: "role", in: "query", description: "Slug del rol", schema: { type: "string", example: "admin" } },
         ProductSlug: { name: "slug", in: "path", required: true, schema: { type: "string", example: "iphone-13-pro" } },
         Category: { name: "category", in: "query", description: "Slug; incluye sus subcategorías", schema: { type: "string" } },
         Seller: { name: "seller", in: "query", description: "Slug del vendedor", schema: { type: "string" } },

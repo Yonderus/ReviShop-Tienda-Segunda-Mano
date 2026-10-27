@@ -9,6 +9,13 @@ export const ROLE = Object.freeze({
   USER: "user",
 });
 
+/** Un rol obsoleto se conserva para los usuarios que ya lo tienen, pero no se puede asignar. */
+export const ROLE_STATUS = Object.freeze({
+  ACTIVE: "active",
+  DEPRECATED: "deprecated",
+});
+export const ROLE_STATUSES = Object.freeze(Object.values(ROLE_STATUS));
+
 export const PERMISSIONS = Object.freeze([
   "products:read",
   "products:write",

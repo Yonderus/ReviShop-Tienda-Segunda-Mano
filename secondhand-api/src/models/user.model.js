@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { USER_STATUS, USER_STATUSES } from "../constants/user.constants.js";
+import { isEmail } from "../utils/email.js";
 import { DELETED_FIELDS, baseFields, baseOptions } from "./base.fields.js";
 import { slugPlugin } from "./plugins/slug.plugin.js";
 import { softDeletePlugin } from "./plugins/softDelete.plugin.js";
@@ -20,7 +21,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "El email no es válido"],
+      validate: { validator: isEmail, message: "El email no es válido" },
     },
     passwordHash: { type: String, required: true, select: false },
     phone: { type: String, trim: true },
@@ -45,8 +46,8 @@ const userSchema = new mongoose.Schema(
 
 userSchema.virtual("role", { ref: "Role", localField: "roleId", foreignField: "_id", justOne: true });
 
-// Dos personas pueden llamarse igual: el slug lleva sufijo (-2, -3…) en vez de dar error.
-userSchema.plugin(slugPlugin, { source: (doc) => doc.name, unique: true });
+// Dos personas pueden llamarse igual: el slug lleva sufijo (-2, -3…) en vez de dar error. Sigue al nombre.
+userSchema.plugin(slugPlugin, { source: (doc) => doc.name, regenerateOn: ["name"], unique: true });
 userSchema.plugin(softDeletePlugin, { deletedFields: DELETED_FIELDS });
 
 export const User = mongoose.model("User", userSchema);

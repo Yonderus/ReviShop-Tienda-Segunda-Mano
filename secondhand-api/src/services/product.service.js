@@ -1,20 +1,15 @@
-import mongoose from "mongoose";
 import { IMAGE_OWNER, IMAGE_STATUS } from "../constants/image.constants.js";
 import { categoryRepository } from "../repositories/category.repository.js";
 import { imageRepository } from "../repositories/image.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { BadRequestError, ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
+import { ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
 import { imagePosition } from "../utils/image.utils.js";
 import { DEFAULT_OPTIONS_KEY, buildSku, uniqueSku, variantSlugBase } from "../utils/productVariant.utils.js";
 import { slugify } from "../utils/slugify.js";
 
 const WRITABLE_FIELDS = ["title", "description", "basePrice", "condition", "location", "categoryId", "sellerId"];
-
-function validateId(id) {
-  if (!mongoose.isValidObjectId(id)) throw new BadRequestError("ID de producto no válido");
-}
 
 const pick = (data, fields) => Object.fromEntries(Object.entries(data).filter(([key]) => fields.includes(key)));
 
@@ -37,7 +32,6 @@ async function assertSlugAvailable(slug, excludeId) {
 }
 
 async function findLiveProduct(id) {
-  validateId(id);
   const product = await productRepository.findRawById(id);
   if (!product || product.deletedAt) throw new NotFoundError("Producto no encontrado");
   return product;
@@ -106,7 +100,6 @@ export const productService = {
   },
 
   async getById(id) {
-    validateId(id);
     const product = await productRepository.findDetailById(id);
     if (!product) throw new NotFoundError("Producto no encontrado");
     return product;
@@ -199,7 +192,6 @@ export const productService = {
   },
 
   async setActive(id, isActive) {
-    validateId(id);
     const product = await productRepository.findRawById(id);
     if (!product) throw new NotFoundError("Producto no encontrado");
     if (product.deletedAt) {
@@ -219,7 +211,6 @@ export const productService = {
 
   /** Restaura el producto y solo los hijos que se borraron con él (misma fecha). */
   async restore(id, isActive = false) {
-    validateId(id);
     const product = await productRepository.findRawById(id);
     if (!product) throw new NotFoundError("Producto no encontrado");
     if (!product.deletedAt) throw new ConflictError("El producto no está eliminado");

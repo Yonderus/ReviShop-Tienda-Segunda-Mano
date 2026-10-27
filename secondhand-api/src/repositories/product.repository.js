@@ -45,6 +45,16 @@ const DETAIL_POPULATE = [
   },
 ];
 
+/** Cuántos productos no eliminados tiene cada valor de `field`: { [id]: número }. */
+async function countLiveBy(field, ids) {
+  // aggregate no pasa por el plugin de soft delete: el filtro de eliminados va a mano.
+  const rows = await Product.aggregate([
+    { $match: { [field]: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) }, deletedAt: null } },
+    { $group: { _id: `$${field}`, count: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((row) => [String(row._id), row.count]));
+}
+
 export const productRepository = {
   findAll(filter = {}) {
     return Product.find(filter).sort({ createdAt: -1 }).populate(LIST_POPULATE);
@@ -109,13 +119,13 @@ export const productRepository = {
   },
 
   /** Productos no eliminados (activos o no) de cada categoría: { [categoryId]: número }. */
-  async countByCategories(categoryIds) {
-    // aggregate no pasa por el plugin de soft delete: el filtro de eliminados va a mano.
-    const rows = await Product.aggregate([
-      { $match: { categoryId: { $in: categoryIds.map((id) => new mongoose.Types.ObjectId(id)) }, deletedAt: null } },
-      { $group: { _id: "$categoryId", count: { $sum: 1 } } },
-    ]);
-    return Object.fromEntries(rows.map((row) => [String(row._id), row.count]));
+  countByCategories(categoryIds) {
+    return countLiveBy("categoryId", categoryIds);
+  },
+
+  /** Productos no eliminados (activos o no) de cada vendedor: { [sellerId]: número }. */
+  countBySellers(sellerIds) {
+    return countLiveBy("sellerId", sellerIds);
   },
 
   /** Borrado físico: solo para deshacer una creación que falló a medias. */

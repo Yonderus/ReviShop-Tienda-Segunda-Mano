@@ -46,6 +46,10 @@ export const integer: ValidatorFn = (control) => {
   return Number.isInteger(Number(value)) ? null : { integer: true };
 };
 
+/** Teléfono escrito a mano: números, espacios y + ( ) -. */
+export const phoneNumber: ValidatorFn = (control) =>
+  /^[\d\s+()-]*$/.test(String(control.value ?? '')) ? null : { phoneNumber: true };
+
 /** Identificadores internos ("talla", "talla_zapato"): minúsculas sin acentos, números y guiones bajos. */
 export const lowerSnakeCase: ValidatorFn = (control) => {
   const value = String(control.value ?? '').trim();

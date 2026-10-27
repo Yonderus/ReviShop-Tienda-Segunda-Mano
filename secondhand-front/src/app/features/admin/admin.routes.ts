@@ -7,6 +7,7 @@ const meta = (data: AdminRouteMeta) => data;
 
 const PRODUCTS_CRUMB = { label: 'Productos', link: '/admin/products' };
 const CATEGORIES_CRUMB = { label: 'Categorías', link: '/admin/categories' };
+const USERS_CRUMB = { label: 'Usuarios', link: '/admin/users' };
 
 /**
  * En cada sección, `<x>/new` va antes que `<x>/:slug/edit`, y `<x>/inactive` y `<x>/trash` no chocan con él
@@ -82,6 +83,36 @@ const ADMIN_ROUTES: Routes = [
         title: title('Papelera de categorías'),
         data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, CATEGORIES_CRUMB, { label: 'Papelera' }] }),
         loadComponent: () => import('./categories/admin-categories-trash-page.component').then((m) => m.AdminCategoriesTrashPageComponent),
+      },
+      {
+        path: 'users',
+        title: title('Usuarios activos'),
+        data: { ...meta({ crumbs: [{ label: 'Admin', link: '/admin' }, { label: 'Usuarios' }] }), view: 'active' },
+        loadComponent: () => import('./users/admin-users-page.component').then((m) => m.AdminUsersPageComponent),
+      },
+      {
+        path: 'users/inactive',
+        title: title('Usuarios inactivos'),
+        data: { ...meta({ crumbs: [{ label: 'Admin', link: '/admin' }, USERS_CRUMB, { label: 'Inactivos' }] }), view: 'inactive' },
+        loadComponent: () => import('./users/admin-users-page.component').then((m) => m.AdminUsersPageComponent),
+      },
+      {
+        path: 'users/new',
+        title: title('Nuevo usuario'),
+        data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, USERS_CRUMB, { label: 'Nuevo' }] }),
+        loadComponent: () => import('./users/admin-user-create-page.component').then((m) => m.AdminUserCreatePageComponent),
+      },
+      {
+        path: 'users/:slug/edit',
+        title: title('Editar usuario'),
+        data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, USERS_CRUMB, { label: 'Editar' }] }),
+        loadComponent: () => import('./users/admin-user-edit-page.component').then((m) => m.AdminUserEditPageComponent),
+      },
+      {
+        path: 'users/trash',
+        title: title('Papelera de usuarios'),
+        data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, USERS_CRUMB, { label: 'Papelera' }] }),
+        loadComponent: () => import('./users/admin-users-trash-page.component').then((m) => m.AdminUsersTrashPageComponent),
       },
       // La papelera era una sección suelta; ahora es una pestaña de Productos.
       { path: 'trash', redirectTo: 'products/trash', pathMatch: 'full' },

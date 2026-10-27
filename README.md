@@ -41,6 +41,7 @@ Proyecto de 2º de DAW formado por una **API REST** (Express + MongoDB) y una **
 - **Papelera** (soft delete): restaurar como activo o como inactivo, con sus variantes y fotos.
 - **Editor de variantes**: precio, stock, estado y visibilidad de cada una, y alta de variantes nuevas con los atributos de la categoría.
 - **Categorías** en árbol (principales y subcategorías) con las mismas pestañas, filtro **Publicada · Borrador**, nº de productos y subcategorías, y formulario con los **atributos de variante** (clave, nombre y valores). No deja borrar una categoría con productos o subcategorías y avisa de cuántos tiene.
+- **Usuarios** con las mismas pestañas, filtros por estado de cuenta y rol, y formulario con contraseña (obligatoria al crear, opcional al editar y con botón para verla). Nunca se precarga ni se devuelve. Siempre queda al menos un administrador activo.
 
 ---
 
@@ -122,7 +123,7 @@ routes → validate (Zod) → controllers → services → repositories → mode
 | `services/` | **Reglas de negocio** (lo único que decide) |
 | `repositories/` | Las únicas que tocan Mongo: consultas y populate |
 | `models/` | Esquemas, relaciones y los plugins de soft delete y slug |
-| `constants/` · `utils/` | Valores fijos y funciones puras, sin base de datos |
+| `constants/` · `utils/` | Valores fijos y funciones puras, sin base de datos (p. ej. `isEmail`, `isHttpUrl` y `hashPassword`, compartidas por validadores, modelos y seed) |
 
 ### Frontend: por features
 
@@ -133,7 +134,7 @@ componente → store (signals) → service → ApiService → interceptores → 
 | Carpeta | Contenido |
 |---|---|
 | `core/` | Infraestructura sin dominio: `ApiService`, interceptores de errores y carga, `AlertService` (SweetAlert2) y el **store genérico** `EntityStore` |
-| `features/products` · `catalog` · `admin` | Cada dominio con sus modelos, services, store, componentes y páginas |
+| `features/products` · `catalog` · `users` · `admin` | Cada dominio con sus modelos, services y store; las páginas del panel van en `admin/` |
 | `layouts/` | Tienda (navbar) y panel (sidebar vertical) |
 | `shared/` | Piezas reutilizables: skeleton, estados de error y vacío, badges, pipes y validadores |
 
@@ -173,9 +174,12 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | **Productos** | `GET /products` · `/actives` · `/inactives` · `/trash` · `/slug/:slug` · `/:id` · `POST /products` · `PATCH /:id` · `PATCH /:id/status` · `PATCH /:id/active` · `PATCH /:id/restore` · `DELETE /:id` |
 | **Variantes** | `GET` y `POST /products/:id/variants` · `PATCH /variants/:id` · `/:id/status` · `/:id/active` · `DELETE /variants/:id` |
 | **Categorías** | `GET /categories` (pública: publicadas y activas) · `/actives` · `/inactives` · `/trash` (con `?status=`) · `/slug/:slug` · `/:id` · `POST /categories` · `PATCH /:id` · `PATCH /:id/active` · `PATCH /:id/restore` · `DELETE /:id` |
-| **Catálogo** | `GET /sellers` |
+| **Usuarios** | `GET /users` (`?isActive=`) · `/actives` · `/inactives` · `/trash` (con `?status=` y `?role=`) · `/slug/:slug` · `/:id` · `POST /users` · `PATCH /:id` · `PATCH /:id/active` · `PATCH /:id/restore` · `DELETE /:id` |
+| **Roles y vendedores** | `GET /roles` (los asignables, sin CRUD) · `GET /sellers` (público: activos y no suspendidos) |
 
 **Reglas de las categorías:** el nombre es único (también frente a las de la papelera, porque su slug sigue ocupado); solo se puede colgar de una categoría principal; una con subcategorías no puede pasar a ser hija; no se borra si tiene productos o subcategorías (`409` con cuántos); una subcategoría no se restaura si su padre sigue en la papelera; y un producto solo puede ir a una categoría **publicada y activa**.
+
+**Reglas de los usuarios:** el email es único (si es de uno de la papelera, el `409` dice que lo restaures); la contraseña tiene 8 caracteres como mínimo, se guarda con **bcrypt** y no sale en ninguna respuesta; el rol tiene que existir y poder asignarse; **siempre queda al menos un administrador activo** (al último no se le puede borrar, desactivar, suspender ni cambiar el rol); y no se borra un usuario con productos (sí se puede desactivar o suspender).
 
 **Formato de respuesta único:**
 
@@ -192,7 +196,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 |---|---|
 | `200` · `201` · `204` | Lectura o edición · creación · borrado |
 | `404` | No existe o está en la papelera |
-| `409` | Choca con otro registro (título repetido) o con el estado (activar uno borrado, borrar una categoría con productos) |
+| `409` | Choca con otro registro (título o email repetido) o con el estado (activar uno borrado, borrar una categoría con productos, quitar al último admin) |
 | `422` | Datos no válidos (Zod, reglas del service o Mongoose) |
 
 ---
@@ -200,7 +204,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 ## 🅰️ Frontend
 
 - **Angular 18** con componentes standalone, **Signals**, `OnPush` en todos los componentes, Reactive Forms y lazy loading con code splitting.
-- **Store genérico** (`EntityStore`): colecciones, detalle, escrituras y visibilidad optimista. Cada entidad hereda y solo añade lo suyo (`ProductsStore`, `CategoriesStore`); el hook `afterWrite` permite refrescar lo que depende de ella (al cambiar una categoría se recargan los select de la tienda).
+- **Store genérico** (`EntityStore`): colecciones, detalle, escrituras y visibilidad optimista. Cada entidad hereda y solo añade lo suyo (`ProductsStore`, `CategoriesStore`, `UsersStore`); el hook `afterWrite` permite refrescar lo que depende de ella (al cambiar una categoría o un usuario se recargan los select de categoría y vendedor).
 - **Interceptores:** traducen los errores a mensajes en español y gestionan un loader global con retardo para que no parpadee.
 - **UX:** skeletons, estados vacíos y de error con "Reintentar", View Transitions, sin scroll horizontal desde 375 px y accesibilidad (labels, `aria-*` y foco al primer error).
 
@@ -218,6 +222,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | El **estado del producto se calcula** a partir de sus variantes | Un solo origen de verdad: disponible, reservado o vendido |
 | Categorías con **borrador** además de `isActive` | Se puede preparar una categoría (atributos, subcategorías) antes de que salga en la tienda |
 | Borrar una categoría con productos da **409** en vez de borrar en cascada | Borrar una categoría no debería hacer desaparecer anuncios de otros usuarios |
+| **Siempre queda un admin activo** | Si no, nadie podría volver a entrar al panel cuando llegue el login |
 
 ---
 
@@ -231,7 +236,8 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | Store genérico + panel con pestañas | ✅ |
 | CRUD de variantes + editor en el panel | ✅ |
 | CRUD de categorías + panel en árbol | ✅ |
-| CRUD de usuarios + roles, y seed con 20 o más productos | ⏳ |
+| CRUD de usuarios + `GET /roles` + panel | ✅ |
+| Seed con 20 o más productos y correcciones de fotos | ⏳ |
 | JWT: login, roles USER/ADMIN y perfil | 🔜 |
 | Carrito, reservas y pagos | 🔜 |
 

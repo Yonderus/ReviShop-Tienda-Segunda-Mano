@@ -33,11 +33,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: 'Categorías', icon: 'tag', path: '/admin/categories' },
     ],
   },
+  {
+    title: 'Personas',
+    links: [{ label: 'Usuarios', icon: 'users', path: '/admin/users' }],
+  },
 ];
 
 /** Para activar un módulo: crear features/<entidad>/, añadir su ruta y moverlo a ADMIN_NAV. */
 export const PLATFORM_MODULES: PlatformModule[] = [
-  { label: 'Usuarios', icon: 'users', description: 'Perfiles de compradores y vendedores', enabled: false },
   { label: 'Mensajes', icon: 'message', description: 'Conversaciones entre usuarios', enabled: false },
   { label: 'Reservas', icon: 'calendarCheck', description: 'Productos apartados para un comprador', enabled: false },
   { label: 'Valoraciones', icon: 'star', description: 'Opiniones tras cada venta', enabled: false },

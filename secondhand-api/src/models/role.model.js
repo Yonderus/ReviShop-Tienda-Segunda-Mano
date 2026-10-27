@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { PERMISSIONS } from "../constants/role.constants.js";
+import { PERMISSIONS, ROLE_STATUS, ROLE_STATUSES } from "../constants/role.constants.js";
 import { DELETED_FIELDS, baseFields, baseOptions } from "./base.fields.js";
 import { slugPlugin } from "./plugins/slug.plugin.js";
 import { softDeletePlugin } from "./plugins/softDelete.plugin.js";
@@ -17,7 +17,7 @@ const roleSchema = new mongoose.Schema(
       },
     },
     isSystem: { type: Boolean, default: false },
-    status: { type: String, enum: ["active", "deprecated"], default: "active" },
+    status: { type: String, enum: ROLE_STATUSES, default: ROLE_STATUS.ACTIVE },
     ...baseFields,
   },
   baseOptions

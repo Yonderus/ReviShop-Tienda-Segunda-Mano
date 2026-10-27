@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { z } from "zod";
+import { PASSWORD_MIN_LENGTH } from "../constants/user.constants.js";
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -7,7 +8,10 @@ const envSchema = z.object({
   MONGODB_URI: z.string().min(1, "MONGODB_URI es obligatoria"),
   CORS_ORIGIN: z.string().optional(),
   // Solo la usa el seed; el servidor arranca sin ella.
-  SEED_DEFAULT_PASSWORD: z.string().min(8, "SEED_DEFAULT_PASSWORD debe tener al menos 8 caracteres").optional(),
+  SEED_DEFAULT_PASSWORD: z
+    .string()
+    .min(PASSWORD_MIN_LENGTH, `SEED_DEFAULT_PASSWORD debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`)
+    .optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

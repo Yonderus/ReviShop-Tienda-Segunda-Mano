@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { connectDB } from "./config/db.js";
 import { env } from "./config/env.js";
@@ -14,6 +13,7 @@ import { Role } from "./models/role.model.js";
 import { User } from "./models/user.model.js";
 import { cascadeSoftDelete, productService } from "./services/product.service.js";
 import { imagePosition } from "./utils/image.utils.js";
+import { hashPassword } from "./utils/password.js";
 import { buildSku, variantSlugBase } from "./utils/productVariant.utils.js";
 import { uniqueSlug } from "./utils/slugify.js";
 
@@ -262,7 +262,7 @@ async function seedUsers(roles) {
   if (!env.SEED_DEFAULT_PASSWORD) {
     throw new Error("Define SEED_DEFAULT_PASSWORD en .env (mínimo 8 caracteres) para crear los usuarios de prueba");
   }
-  const passwordHash = await bcrypt.hash(env.SEED_DEFAULT_PASSWORD, 10);
+  const passwordHash = await hashPassword(env.SEED_DEFAULT_PASSWORD);
   const users = {};
   for (const { key, role, avatar: _avatar, ...data } of USERS) {
     users[key] = await User.create({

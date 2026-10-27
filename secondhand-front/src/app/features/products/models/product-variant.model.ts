@@ -6,6 +6,14 @@ export interface VariantOption {
   value: string;
 }
 
+/** Lo que se envía al crear una variante; en un PATCH solo se aceptan `price` y `stock`. */
+export interface VariantInput {
+  options: VariantOption[];
+  /** null = usa el basePrice del producto. */
+  price?: number | null;
+  stock?: number;
+}
+
 export interface ProductVariant {
   _id: string;
   productId: string;

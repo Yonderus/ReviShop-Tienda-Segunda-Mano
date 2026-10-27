@@ -78,6 +78,14 @@
                     <option [value]="s" [selected]="s === product.status">{{ statusLabels[s] }}</option>
                   }
                 </select>
+                @if (product.variantsCount > 1) {
+                  <a
+                    [routerLink]="['/admin/products', product.slug, 'edit']"
+                    fragment="variantes"
+                    class="mt-1 block text-xs font-medium text-primary-700 hover:underline"
+                    [attr.aria-label]="'Gestionar las variantes de ' + product.title"
+                  >Gestionar variantes</a>
+                }
               </td>
               <td class="hidden px-3 xl:table-cell">
                 <app-level-meter [value]="conditionLevel[product.condition]" [label]="conditionLabels[product.condition]" caption="Condición" [showLabel]="false" [attr.title]="conditionLabels[product.condition]" />
@@ -143,7 +151,10 @@
               }
             </select>
             @if (product.variantsCount > 1) {
-              <p class="field-hint">Se gestiona por variante.</p>
+              <p class="field-hint">
+                Se gestiona por variante:
+                <a [routerLink]="['/admin/products', product.slug, 'edit']" fragment="variantes" class="font-medium text-primary-700 hover:underline">gestionar variantes</a>.
+              </p>
             }
           </div>
           <div class="mt-3 flex items-center justify-between border-t border-line pt-3">

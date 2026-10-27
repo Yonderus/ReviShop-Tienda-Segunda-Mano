@@ -32,6 +32,7 @@ export const swaggerSpec = swaggerJSDoc({
     servers: [{ url: "/api" }],
     tags: [
       { name: "Productos", description: "CRUD de productos, visibilidad, papelera y estado de venta" },
+      { name: "Variantes", description: "Opciones de un producto (talla, capacidad…) con su precio, stock y estado" },
       { name: "Catálogo", description: "Datos de referencia para los select del front (solo lectura)" },
     ],
     components: {
@@ -182,6 +183,29 @@ export const swaggerSpec = swaggerJSDoc({
             },
           },
         },
+        VariantInput: {
+          type: "object",
+          required: ["options"],
+          properties: {
+            options: {
+              type: "array",
+              minItems: 1,
+              items: {
+                type: "object",
+                required: ["key", "value"],
+                properties: { key: { type: "string", example: "capacidad" }, value: { type: "string", example: "512 GB" } },
+              },
+            },
+            price: { type: "number", minimum: 0, nullable: true, description: "null o sin enviar = precio base del producto" },
+            stock: { type: "integer", minimum: 0, example: 1 },
+          },
+        },
+        VariantUpdate: {
+          type: "object",
+          properties: { price: { type: "number", minimum: 0, nullable: true }, stock: { type: "integer", minimum: 0 } },
+        },
+        VariantResponse: success({ $ref: "#/components/schemas/Variant" }),
+        VariantListResponse: success({ type: "array", items: { $ref: "#/components/schemas/Variant" } }),
         StatusInput: {
           type: "object",
           required: ["status"],
@@ -199,6 +223,7 @@ export const swaggerSpec = swaggerJSDoc({
       },
       parameters: {
         ProductId: { name: "id", in: "path", required: true, schema: objectId },
+        VariantId: { name: "id", in: "path", required: true, schema: objectId },
         ProductSlug: { name: "slug", in: "path", required: true, schema: { type: "string", example: "iphone-13-pro" } },
         Category: { name: "category", in: "query", description: "Slug; incluye sus subcategorías", schema: { type: "string" } },
         Seller: { name: "seller", in: "query", description: "Slug del vendedor", schema: { type: "string" } },

@@ -7,6 +7,7 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { BadgeComponent } from '../../../shared/ui/badge.component';
 import { ProductFormComponent } from '../../products/components/product-form/product-form.component';
+import { ProductVariantsEditorComponent } from '../../products/components/product-variants-editor/product-variants-editor.component';
 import { Product, ProductInput } from '../../products/models/product.model';
 import { diffProduct } from '../../products/models/product.utils';
 import { INLINE_FORM_STATUSES } from '../../../core/config/app.constants';
@@ -15,7 +16,15 @@ import { ProductsStore } from '../../products/store/products.store';
 @Component({
   selector: 'app-admin-product-edit-page',
   standalone: true,
-  imports: [RouterLink, ProductFormComponent, SkeletonComponent, ErrorStateComponent, EmptyStateComponent, BadgeComponent],
+  imports: [
+    RouterLink,
+    ProductFormComponent,
+    ProductVariantsEditorComponent,
+    SkeletonComponent,
+    ErrorStateComponent,
+    EmptyStateComponent,
+    BadgeComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-3xl">
@@ -34,7 +43,7 @@ import { ProductsStore } from '../../products/store/products.store';
           <app-error-state title="No hemos podido cargar el producto" [error]="store.detailError()" (retry)="load()" />
         }
         @default {
-          @if (store.selected(); as product) {
+          @if (store.selectedComplete(); as product) {
             <div class="flex flex-wrap items-center gap-3">
               <h1 class="text-2xl font-semibold tracking-tight text-ink">Editar producto</h1>
               <app-badge [tone]="product.isActive ? 'success' : 'neutral'">{{ product.isActive ? 'Activo' : 'Inactivo' }}</app-badge>
@@ -46,8 +55,12 @@ import { ProductsStore } from '../../products/store/products.store';
                 [saving]="store.saving()"
                 [serverError]="serverError()"
                 [cancelLink]="listLink(product)"
+                [showVariants]="false"
                 (submitted)="save(product, $event)"
               />
+            </div>
+            <div class="mt-6">
+              <app-product-variants-editor [product]="product" />
             </div>
           } @else {
             <app-skeleton variant="form" [count]="5" label="Cargando producto…" />

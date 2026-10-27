@@ -1,4 +1,4 @@
-import { Injectable, Signal, computed, inject } from '@angular/core';
+import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { EntityStore, byNewest } from '../../../core/store/entity.store';
 import { toApiError } from '../../../core/models/api-error.model';
 import {
@@ -9,7 +9,9 @@ import {
   ProductStatus,
   STATUS_LABELS,
 } from '../models/product.model';
+import { ProductVariant, VariantInput } from '../models/product-variant.model';
 import { ProductsService } from '../services/products.service';
+import { VariantsService } from '../services/variants.service';
 
 export interface Breakdown<K extends string> {
   key: K;
@@ -45,6 +47,7 @@ export function applyFilters(
 @Injectable({ providedIn: 'root' })
 export class ProductsStore extends EntityStore<Product, ProductInput> {
   protected readonly api = inject(ProductsService);
+  private readonly variants = inject(VariantsService);
 
   // Catálogo público (colección de activos).
   readonly products = this.collections.active.items;
@@ -96,6 +99,11 @@ export class ProductsStore extends EntityStore<Product, ProductInput> {
 
   readonly recentProducts = computed(() => [...this.liveProducts()].sort(byNewest).slice(0, 5));
 
+  /** Los listados traen un resumen (solo la portada y sin variantes); el detalle trae `variants`. */
+  protected override isComplete(product: Product): boolean {
+    return product.variants !== undefined;
+  }
+
   /** El catálogo público solo necesita los activos. */
   loadAll(options: { force?: boolean } = {}): Promise<void> {
     return this.loadCollection('active', options);
@@ -103,6 +111,50 @@ export class ProductsStore extends EntityStore<Product, ProductInput> {
 
   filteredBy(filters: Signal<ProductFilters>, categoryScope?: Signal<ReadonlySet<string> | null>): Signal<Product[]> {
     return computed(() => applyFilters(this.products(), filters(), categoryScope?.() ?? null));
+  }
+
+  // Variantes. Después de cada cambio se vuelve a pedir el producto: su estado y su nº de variantes los
+  // calcula la API a partir de ellas.
+
+  private readonly _variantPendingIds = signal<ReadonlySet<string>>(new Set());
+  /** Variantes con una operación en curso (para deshabilitar su fila). */
+  readonly variantPendingIds = this._variantPendingIds.asReadonly();
+
+  createVariant(product: Product, input: VariantInput): Promise<Product> {
+    return this.withVariant(product, null, () => this.variants.create(product._id, input));
+  }
+
+  updateVariant(product: Product, variant: ProductVariant, changes: Pick<VariantInput, 'price' | 'stock'>): Promise<Product> {
+    return this.withVariant(product, variant._id, () => this.variants.update(variant._id, changes));
+  }
+
+  changeVariantStatus(product: Product, variant: ProductVariant, status: ProductStatus): Promise<Product> {
+    return this.withVariant(product, variant._id, () => this.variants.changeStatus(variant._id, status));
+  }
+
+  setVariantActive(product: Product, variant: ProductVariant, isActive: boolean): Promise<Product> {
+    return this.withVariant(product, variant._id, () => this.variants.setActive(variant._id, isActive));
+  }
+
+  removeVariant(product: Product, variant: ProductVariant): Promise<Product> {
+    return this.withVariant(product, variant._id, () => this.variants.remove(variant._id));
+  }
+
+  private async withVariant(product: Product, variantId: string | null, call: () => Promise<unknown>): Promise<Product> {
+    const key = variantId ?? 'new';
+    this._variantPendingIds.update((ids) => new Set(ids).add(key));
+    try {
+      await call();
+      return await this.reload(product.slug);
+    } catch (raw) {
+      throw toApiError(raw);
+    } finally {
+      this._variantPendingIds.update((ids) => {
+        const next = new Set(ids);
+        next.delete(key);
+        return next;
+      });
+    }
   }
 
   /** Optimista: el estado de venta cambia al instante y se revierte si la API falla. */

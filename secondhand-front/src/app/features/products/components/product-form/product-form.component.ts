@@ -69,6 +69,8 @@ export class ProductFormComponent implements OnInit, OnChanges {
   readonly saving = input(false);
   readonly serverError = input<ApiError | null>(null);
   readonly cancelLink = input('/');
+  /** Lista de variantes de solo lectura. El panel la oculta porque tiene su propio editor de variantes. */
+  readonly showVariants = input(true);
   readonly submitted = output<ProductInput>();
 
   protected readonly conditions = PRODUCT_CONDITIONS;

@@ -48,6 +48,15 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
   /** Registros con una mutación optimista o de restauración en curso. */
   readonly pendingIds = this._pendingIds.asReadonly();
 
+  /**
+   * El registro abierto solo cuando ya está completo (no el resumen de un listado). Los formularios de
+   * edición usan este: se rellenan una sola vez y no pueden partir de un resumen.
+   */
+  readonly selectedComplete = computed(() => {
+    const entity = this._selected();
+    return entity && this.isComplete(entity) ? entity : null;
+  });
+
   readonly trashCount = computed(() => this.collections.trash.items().length);
   /** Recuento por pestaña; null mientras esa colección no se haya cargado. */
   readonly counts = computed(() => ({
@@ -75,17 +84,21 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
     return Promise.all((Object.keys(this.collections) as CollectionKey[]).map((key) => this.loadCollection(key, options)));
   }
 
+  /**
+   * Abre un registro por slug. Si ya está en memoria se pinta al instante; si lo que hay es el resumen de un
+   * listado (ver `isComplete`), se pide además el detalle y se sustituye cuando llega.
+   */
   async loadBySlug(slug: string): Promise<T | null> {
     this.currentSlug = slug;
     const cached = this.findCached(slug);
     if (cached) {
       this.select(cached);
-      return cached;
+      if (this.isComplete(cached)) return cached;
+    } else {
+      this._selected.set(null);
+      this._detailError.set(null);
+      this._detailStatus.set('loading');
     }
-
-    this._selected.set(null);
-    this._detailError.set(null);
-    this._detailStatus.set('loading');
 
     let request = this.detailInFlight.get(slug);
     if (!request) {
@@ -99,6 +112,8 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
       if (this.currentSlug === slug) this.select(entity);
       return entity;
     } catch (raw) {
+      // Si ya se estaba enseñando el resumen, se queda: es mejor que una pantalla de error.
+      if (cached) return cached;
       const error = toApiError(raw);
       if (this.currentSlug === slug) {
         this._detailError.set(error);
@@ -108,6 +123,25 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
     } finally {
       this.detailInFlight.delete(slug);
     }
+  }
+
+  /**
+   * ¿Tiene este registro todo lo que necesita su página de detalle? Los listados de algunas entidades traen
+   * un resumen (p. ej. productos sin variantes); esos stores lo indican aquí para que se pida el detalle.
+   */
+  protected isComplete(_entity: T): boolean {
+    return true;
+  }
+
+  /**
+   * Vuelve a pedir un registro a la API, sin caché, y lo pone al día en su lista y en `selected`. Para cuando
+   * algo que la API calcula (p. ej. el estado de un producto según sus variantes) ha cambiado por otro camino.
+   */
+  async reload(slug: string): Promise<T> {
+    const entity = await this.api.getBySlug(slug);
+    this.detailCache.set(entity.slug, entity);
+    this.placeLive(entity);
+    return entity;
   }
 
   async create(input: TInput): Promise<T> {

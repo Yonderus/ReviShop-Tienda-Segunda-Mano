@@ -33,7 +33,8 @@ export const appConfig: ApplicationConfig = {
         },
       }),
       withPreloading(PreloadAllModules),
-      withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),
+      // anchorScrolling: los enlaces con #fragmento (p. ej. …/edit#variantes) bajan hasta esa sección.
+      withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' }),
     ),
     // El futuro authInterceptor (cabecera Authorization) se añadirá al principio de esta lista.
     provideHttpClient(withFetch(), withInterceptors([loadingInterceptor, errorInterceptor])),

@@ -190,7 +190,7 @@ export const productService = {
     await findLiveProduct(id);
     const variants = await productVariantRepository.findLiveByProduct(id);
     if (variants.length > 1) {
-      throw new ValidationError("El producto tiene varias variantes: el estado se cambia por variante");
+      throw new ValidationError("El producto tiene varias variantes: cambia el estado de cada una con PATCH /api/variants/:id/status");
     }
     if (variants.length === 1) await productVariantRepository.updateById(variants[0]._id, { status });
     else await productRepository.updateById(id, { status });

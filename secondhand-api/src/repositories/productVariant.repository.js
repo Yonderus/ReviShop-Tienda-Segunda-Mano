@@ -17,6 +17,19 @@ export const productVariantRepository = {
     return ProductVariant.create(data);
   },
 
+  findById(id) {
+    return ProductVariant.findById(id).populate({ path: "images", select: "url alt kind isPrimary order" });
+  },
+
+  /** Para recuperar una variante eliminada al volver a crearla con las mismas opciones. */
+  restoreById(id, data) {
+    return ProductVariant.findByIdAndUpdate(id, { ...data, deletedAt: null }, { new: true, runValidators: true }).setOptions(WITH_DELETED);
+  },
+
+  softDeleteByIds(ids, date) {
+    return ProductVariant.softDeleteMany({ _id: { $in: ids } }, date);
+  },
+
   findLiveByProduct(productId) {
     return ProductVariant.find({ productId }).sort({ order: 1 });
   },

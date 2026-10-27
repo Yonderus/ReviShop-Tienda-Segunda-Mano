@@ -9,6 +9,11 @@ export const categoryRepository = {
     return Category.findOne({ _id: id, ...ACTIVE, status: CATEGORY_STATUS.PUBLISHED }).lean();
   },
 
+  /** Solo atributos y padre, incluyendo eliminadas: un producto puede seguir en una categoría ya borrada. */
+  findAttributesById(id) {
+    return Category.findById(id).setOptions({ withDeleted: true }).select("attributes parentId").lean();
+  },
+
   findBySlug(slug) {
     return Category.findOne({ slug }).lean();
   },

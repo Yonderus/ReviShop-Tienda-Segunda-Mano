@@ -41,16 +41,28 @@ export const swaggerSpec = swaggerJSDoc({
       version: "1.0.0",
       description:
         "API REST del marketplace de segunda mano Revishop. Todas las respuestas correctas van en " +
-        "`{ success: true, data }` y los errores en `{ success: false, message, errors? }`.",
+        "`{ success: true, data }` y los errores en `{ success: false, message, errors? }`.\n\n" +
+        "**Sesión:** `POST /auth/login` devuelve un token; pulsa **Authorize** y pégalo para probar las rutas " +
+        "protegidas. Cada ruta indica si es pública, con sesión, del dueño (o un admin) o solo de admin.",
     },
     servers: [{ url: "/api" }],
     tags: [
+      { name: "Auth", description: "Login con JWT, usuario de la sesión y logout (blacklist)" },
+      { name: "Perfil", description: "Mi perfil: teléfono, ubicación, bio y avatar" },
       { name: "Productos", description: "CRUD de productos, visibilidad, papelera y estado de venta" },
       { name: "Variantes", description: "Opciones de un producto (talla, capacidad…) con su precio, stock y estado" },
       { name: "Categorías", description: "Árbol de dos niveles, atributos de variante, visibilidad y papelera" },
       { name: "Usuarios", description: "Cuentas (cualquiera compra y vende), roles, visibilidad y papelera" },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description: "El `token` de `POST /auth/login` (sin la palabra Bearer: la añade Swagger).",
+        },
+      },
       schemas: {
         ErrorResponse: {
           type: "object",
@@ -260,7 +272,7 @@ export const swaggerSpec = swaggerJSDoc({
         },
         ProductInput: {
           type: "object",
-          required: ["title", "description", "basePrice", "condition", "categoryId", "sellerId"],
+          required: ["title", "description", "basePrice", "condition", "categoryId"],
           properties: {
             title: { type: "string", minLength: 3, maxLength: 80, example: "Silla de madera" },
             description: { type: "string", minLength: 10, maxLength: 2000, example: "Silla maciza, sin marcas." },
@@ -268,7 +280,10 @@ export const swaggerSpec = swaggerJSDoc({
             condition: { type: "string", enum: PRODUCT_CONDITIONS },
             location: { type: "string", maxLength: 100, example: "Valencia" },
             categoryId: objectId,
-            sellerId: objectId,
+            sellerId: {
+              ...objectId,
+              description: "Solo para un admin (publicar o pasar el producto a otro vendedor). Para el resto se ignora: el vendedor es el de la sesión",
+            },
             images: {
               type: "array",
               maxItems: 5,
@@ -323,6 +338,57 @@ export const swaggerSpec = swaggerJSDoc({
         UserResponse: success({ $ref: "#/components/schemas/User" }),
         UserListResponse: success({ type: "array", items: { $ref: "#/components/schemas/User" } }),
         RoleListResponse: success({ type: "array", items: { $ref: "#/components/schemas/Role" } }),
+        LoginInput: {
+          type: "object",
+          required: ["email", "password"],
+          properties: {
+            email: { type: "string", format: "email", example: "admin@revishop.test" },
+            password: { type: "string", format: "password", maxLength: PASSWORD_MAX_LENGTH },
+          },
+        },
+        Profile: {
+          type: "object",
+          description: "Solo aparecen los campos que tenga.",
+          properties: {
+            phone: { type: "string", example: "+34 600 000 000" },
+            location: { type: "string", example: "Valencia" },
+            bio: { type: "string" },
+            avatarUrl: { type: "string", format: "uri" },
+          },
+        },
+        ProfileInput: {
+          type: "object",
+          description: "Todo opcional; solo cambia lo que llegue. Cualquier otro campo (userId, role…) se ignora.",
+          properties: {
+            phone: { type: "string", maxLength: 20 },
+            location: { type: "string", maxLength: 100 },
+            bio: { type: "string", maxLength: 300 },
+            avatarUrl: { type: "string", format: "uri", nullable: true, description: "null quita el avatar" },
+          },
+        },
+        Me: {
+          type: "object",
+          description: "El usuario de la sesión. Nunca la contraseña.",
+          properties: {
+            _id: objectId,
+            name: { type: "string", example: "Admin Revishop" },
+            slug: { type: "string", example: "admin-revishop" },
+            email: { type: "string", format: "email" },
+            status: { type: "string", enum: USER_STATUSES },
+            role: { type: "object", properties: { name: { type: "string" }, slug: { type: "string", example: "admin" } } },
+            avatarUrl: { type: "string", format: "uri" },
+            profile: { type: "object", properties: { phone: { type: "string" }, location: { type: "string" }, bio: { type: "string" } } },
+          },
+        },
+        LoginResponse: success({
+          type: "object",
+          properties: {
+            token: { type: "string", description: "JWT. Va en `Authorization: Bearer <token>`. Caduca según JWT_EXPIRES_IN" },
+            user: { $ref: "#/components/schemas/Me" },
+          },
+        }),
+        MeResponse: success({ $ref: "#/components/schemas/Me" }),
+        ProfileResponse: success({ $ref: "#/components/schemas/Profile" }),
       },
       parameters: {
         ProductId: { name: "id", in: "path", required: true, schema: objectId },
@@ -341,6 +407,18 @@ export const swaggerSpec = swaggerJSDoc({
         MaxPrice: { name: "maxPrice", in: "query", schema: { type: "number", minimum: 0 } },
       },
       responses: {
+        Unauthorized: errorResponse("Sin sesión, o con un token caducado, revocado (logout) o no válido", {
+          success: false,
+          message: "Necesitas iniciar sesión",
+        }),
+        Forbidden: errorResponse("Con sesión, pero sin permiso: no es admin, o el recurso no es suyo", {
+          success: false,
+          message: "No tienes permiso para esto",
+        }),
+        BadCredentials: errorResponse("Email o contraseña incorrectos (el mismo mensaje en los dos casos)", {
+          success: false,
+          message: "Email o contraseña incorrectos",
+        }),
         NotFound: errorResponse("No existe (o está en la papelera)", { success: false, message: "Producto no encontrado" }),
         ValidationError: errorResponse("Datos no válidos", {
           success: false,

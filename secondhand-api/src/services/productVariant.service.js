@@ -20,6 +20,13 @@ async function findLiveVariant(id) {
   return variant;
 }
 
+/** ABAC: una variante la modifica el vendedor de su producto o un admin (la regla es la del producto). */
+async function findVariantToModify(id, actor) {
+  const variant = await findLiveVariant(id);
+  productService.assertCanModify(actor, await productRepository.findRawById(variant.productId));
+  return variant;
+}
+
 /**
  * Cada opción tiene que ser un atributo de la categoría del producto (los suyos o los de su padre) y, si el
  * atributo define valores, uno de ellos. Sin atributos repetidos en la misma variante.
@@ -63,8 +70,9 @@ export const productVariantService = {
    * - si coinciden con una variante eliminada, se recupera esa (mismo SKU y slug) en vez de chocar con el índice único;
    * - la primera variante con opciones sustituye a la "Única" (la de sin opciones), que pasa a la papelera.
    */
-  async create(productId, { options, price = null, stock = 1 }) {
+  async create(productId, { options, price = null, stock = 1 }, actor) {
     const product = await findLiveProduct(productId);
+    productService.assertCanModify(actor, product);
     await assertOptions(product, options);
 
     const optionsKey = buildOptionsKey(options);
@@ -103,29 +111,29 @@ export const productVariantService = {
     return productVariantRepository.findById(variant._id);
   },
 
-  async update(id, { price, stock }) {
-    await findLiveVariant(id);
+  async update(id, { price, stock }, actor) {
+    await findVariantToModify(id, actor);
     const changes = Object.fromEntries(Object.entries({ price, stock }).filter(([, v]) => v !== undefined));
     await productVariantRepository.updateById(id, changes);
     return productVariantRepository.findById(id);
   },
 
-  async changeStatus(id, status) {
-    const variant = await findLiveVariant(id);
+  async changeStatus(id, status, actor) {
+    const variant = await findVariantToModify(id, actor);
     await productVariantRepository.updateById(id, { status });
     await productService.recalculateStatus(variant.productId);
     return productVariantRepository.findById(id);
   },
 
-  async setActive(id, isActive) {
-    await findLiveVariant(id);
+  async setActive(id, isActive, actor) {
+    await findVariantToModify(id, actor);
     await productVariantRepository.updateById(id, { isActive });
     return productVariantRepository.findById(id);
   },
 
   /** Soft delete con sus imágenes. Un producto necesita al menos una variante. */
-  async softDelete(id) {
-    const variant = await findLiveVariant(id);
+  async softDelete(id, actor) {
+    const variant = await findVariantToModify(id, actor);
     const live = await productVariantRepository.findLiveByProduct(variant.productId);
     if (live.length <= 1) {
       throw new ConflictError("Un producto necesita al menos una variante: si quieres quitarla, borra el producto");

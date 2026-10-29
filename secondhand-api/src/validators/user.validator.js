@@ -1,13 +1,12 @@
 import { z } from "zod";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, USER_STATUSES } from "../constants/user.constants.js";
 import { isEmail } from "../utils/email.js";
-import { isHttpUrl } from "../utils/url.js";
 import { objectId } from "./common.validator.js";
-
-const AVATAR_URL_ERROR = "El avatar debe ser una URL http(s) válida";
+import { profileFieldsSchema } from "./profile.validator.js";
 
 const status = z.enum(USER_STATUSES, { error: `status debe ser: ${USER_STATUSES.join(", ")}` });
 
+/** La cuenta y, en el mismo formulario del panel, los campos de su perfil (con las reglas del perfil). */
 export const createUserSchema = z.object({
   name: z
     .string({ error: "El nombre es obligatorio" })
@@ -25,19 +24,8 @@ export const createUserSchema = z.object({
     .min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`)
     .max(PASSWORD_MAX_LENGTH, `La contraseña no puede superar ${PASSWORD_MAX_LENGTH} caracteres`),
   roleId: objectId("roleId"),
-  // Vacío = sin teléfono (así se puede borrar en un PATCH).
-  phone: z
-    .string()
-    .trim()
-    .max(20, "El teléfono no puede superar 20 caracteres")
-    .regex(/^[\d\s+()-]*$/, "El teléfono solo puede tener números, espacios y + ( ) -")
-    .optional(),
-  location: z.string().trim().max(100, "La ubicación no puede superar 100 caracteres").optional(),
-  bio: z.string().trim().max(300, "La bio no puede superar 300 caracteres").optional(),
-  // URL de la foto del perfil; null la quita. Misma regla que las fotos de producto.
-  avatarUrl: z.string().trim().refine(isHttpUrl, AVATAR_URL_ERROR).nullable().optional(),
   status: status.optional(),
-});
+}).extend(profileFieldsSchema.shape);
 
 /** En un PATCH todo es opcional; si llega `password`, se cambia. */
 export const updateUserSchema = createUserSchema.partial();

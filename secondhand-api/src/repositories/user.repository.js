@@ -73,6 +73,14 @@ export const userRepository = {
     return User.findById(id).setOptions(WITH_DELETED).lean();
   },
 
+  /**
+   * Para el login: el **único** método que trae `passwordHash`. Incluye la papelera, para responder 403
+   * (y no 401) a quien sabe la contraseña de una cuenta borrada.
+   */
+  findForLogin(email) {
+    return User.findOne({ email }).select("+passwordHash").setOptions(WITH_DELETED).lean();
+  },
+
   /** Incluye eliminados: su email sigue ocupado en el índice único. */
   findRawByEmail(email) {
     return User.findOne({ email }).setOptions(WITH_DELETED).lean();

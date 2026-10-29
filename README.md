@@ -102,7 +102,7 @@ npm start               # http://localhost:4200
 | Carlos Ruiz | `carlos@revishop.test` | user |
 | Pablo Sanz | `pablo@revishop.test` | user · **suspendido** (no puede vender) |
 
-Todos usan la contraseña de `SEED_DEFAULT_PASSWORD`, guardada con hash **Argon2id**.
+Todos usan la contraseña de `SEED_DEFAULT_PASSWORD`, guardada con hash **Argon2id**. Para entrar al panel desde Swagger: `POST /auth/login` con `admin@revishop.test` y esa contraseña, y pega el `token` en **Authorize**.
 
 ---
 
@@ -180,15 +180,29 @@ Role 1 ── N User 1 ── N Product N ── 1 Category (árbol de 2 niveles
 
 ## 🔌 API
 
-Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`**.
+Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`** (botón **Authorize** para probar con sesión).
+
+### Sesión con JWT
+
+1. `POST /api/auth/login` con `{ email, password }` devuelve `{ token, user }`.
+2. Las demás peticiones llevan la cabecera `Authorization: Bearer <token>`.
+3. `POST /api/auth/logout` apunta el token en la blacklist (`revoked_tokens`): desde ese momento da `401`, aunque no haya caducado.
+
+En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`), que no esté en la blacklist, que el usuario siga activo y no suspendido y que no se haya cambiado su contraseña después. El rol se lee de la base de datos, no del token: si se lo cambian, manda el nuevo.
+
+**Quién puede usar cada endpoint:** 🌐 público · 🔑 con sesión · 👤 su dueño o un admin · 🛡️ solo admin.
 
 | Recurso | Endpoints |
 |---|---|
-| **Productos** | `GET /products` · `/actives` · `/inactives` · `/trash` · `/slug/:slug` · `/:id` · `POST /products` · `PATCH /:id` · `PATCH /:id/status` · `PATCH /:id/active` · `PATCH /:id/restore` · `DELETE /:id` |
-| **Variantes** | `GET` y `POST /products/:id/variants` · `PATCH /variants/:id` · `/:id/status` · `/:id/active` · `DELETE /variants/:id` |
-| **Categorías** | `GET /categories` (pública: publicadas y activas) · `/actives` · `/inactives` · `/trash` (con `?status=`) · `/slug/:slug` · `/:id` · `POST /categories` · `PATCH /:id` · `PATCH /:id/active` · `PATCH /:id/restore` · `DELETE /:id` |
-| **Usuarios** | `GET /users` (`?isActive=`) · `/actives` · `/inactives` · `/trash` (con `?status=` y `?role=`) · `/slug/:slug` · `/:id` · `POST /users` · `PATCH /:id` · `PATCH /:id/active` · `PATCH /:id/restore` · `DELETE /:id` |
-| **Roles y vendedores** | `GET /roles` (los asignables, sin CRUD) · `GET /sellers` (público: activos y no suspendidos) |
+| **Auth** | 🌐 `POST /auth/login` · 🔑 `GET /auth/me` · 🔑 `POST /auth/logout` |
+| **Perfil** | 🔑 `GET /profile/me` · 🔑 `PATCH /profile/me` (teléfono, ubicación, bio y avatar; solo el suyo) |
+| **Productos** | 🌐 `GET /products` (solo activos) · 🌐 `/slug/:slug` · 🛡️ `/actives` · `/inactives` · `/trash` · `/:id` · 🔑 `POST /products` (el vendedor es el de la sesión; un admin puede indicar otro) · 👤 `PATCH /:id` · `/:id/status` · `/:id/active` · `DELETE /:id` · 🛡️ `PATCH /:id/restore` |
+| **Variantes** | 🌐 `GET /products/:id/variants` · 👤 `POST /products/:id/variants` · `PATCH /variants/:id` · `/:id/status` · `/:id/active` · `DELETE /variants/:id` (el dueño es el del producto) |
+| **Categorías** | 🌐 `GET /categories` (publicadas y activas) · 🛡️ todo lo demás: `/actives` · `/inactives` · `/trash` (con `?status=`) · `/slug/:slug` · `/:id` · `POST` · `PATCH /:id` · `/:id/active` · `/:id/restore` · `DELETE /:id` |
+| **Usuarios** | 🛡️ todo: `GET /users` (`?isActive=`) · `/actives` · `/inactives` · `/trash` (con `?status=` y `?role=`) · `/slug/:slug` · `/:id` · `POST` · `PATCH /:id` · `/:id/active` · `/:id/restore` · `DELETE /:id` |
+| **Roles y vendedores** | 🛡️ `GET /roles` (los asignables, sin CRUD) · 🌐 `GET /sellers` (activos y no suspendidos) |
+
+**Reglas del login:** email inexistente o contraseña mala dan el mismo `401` ("Email o contraseña incorrectos"), para no revelar qué emails existen; una cuenta inactiva, suspendida o eliminada da `403` aunque la contraseña sea buena.
 
 **Reglas de las categorías:** el nombre es único (también frente a las de la papelera, porque su slug sigue ocupado); solo se puede colgar de una categoría principal; una con subcategorías no puede pasar a ser hija; no se borra si tiene productos o subcategorías (`409` con cuántos); una subcategoría no se restaura si su padre sigue en la papelera; y un producto solo puede ir a una categoría **publicada y activa**.
 
@@ -208,6 +222,8 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | Código | Cuándo |
 |---|---|
 | `200` · `201` · `204` | Lectura o edición · creación · borrado |
+| `401` | Sin sesión, o con un token caducado, revocado (logout) o no válido · login con credenciales incorrectas |
+| `403` | Con sesión pero sin permiso: no es admin, o el recurso no es suyo · login de una cuenta que no puede entrar |
 | `404` | No existe o está en la papelera |
 | `409` | Choca con otro registro (título o email repetido) o con el estado (activar uno borrado, borrar una categoría con productos, quitar al último admin) |
 | `422` | Datos no válidos (Zod, reglas del service o Mongoose) |
@@ -254,7 +270,8 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | Seed con 20 productos + fotos sin pérdidas ni huérfanas | ✅ |
 | Perfil separado del usuario (con avatar) + integridad referencial | ✅ |
 | Base del login: Argon2, JWT, blacklist del logout e integridad en los services | ✅ |
-| JWT: login, roles USER/ADMIN y perfil | 🔜 |
+| JWT en la API: login, `/me`, logout, `/profile/me`, roles (RBAC) y propiedad (ABAC) | ✅ |
+| JWT en el front: login, sesión, guards e interceptor | 🔜 |
 | Carrito, reservas y pagos | 🔜 |
 
 Cada proyecto tiene su README con más detalle: [`secondhand-api`](secondhand-api/README.md) · [`secondhand-front`](secondhand-front/README.md).

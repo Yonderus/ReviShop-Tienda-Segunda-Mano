@@ -13,6 +13,7 @@ import {
   softDeleteUser,
   updateUser,
 } from "../controllers/user.controller.js";
+import { adminOnly } from "../middlewares/admin.middleware.js";
 import { validate } from "../middlewares/validate.js";
 import { idParamsSchema, restoreSchema, setActiveSchema, slugParamsSchema } from "../validators/common.validator.js";
 import { allUsersQuerySchema, createUserSchema, updateUserSchema, userListQuerySchema } from "../validators/user.validator.js";
@@ -23,6 +24,7 @@ import { allUsersQuerySchema, createUserSchema, updateUserSchema, userListQueryS
  *   get:
  *     tags: [Usuarios]
  *     summary: Público — quién puede publicar
+ *     security: []
  *     description: Usuarios activos y no suspendidos (en Revishop cualquier usuario compra y vende). Solo campos públicos.
  *     responses:
  *       200:
@@ -39,17 +41,20 @@ const router = Router();
  *   get:
  *     tags: [Usuarios]
  *     summary: Panel — todos los no eliminados
+ *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - { name: isActive, in: query, schema: { type: string, enum: ['true', 'false'] } }
  *       - $ref: '#/components/parameters/UserStatus'
  *       - $ref: '#/components/parameters/UserRole'
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Con su rol y su nº de productos
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserListResponse' } } }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/", validate({ query: allUsersQuerySchema }), getUsers);
+router.get("/", adminOnly, validate({ query: allUsersQuerySchema }), getUsers);
 
 /**
  * @openapi
@@ -57,14 +62,17 @@ router.get("/", validate({ query: allUsersQuerySchema }), getUsers);
  *   get:
  *     tags: [Usuarios]
  *     summary: Panel — activos
+ *     security: [{ bearerAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/UserStatus' }, { $ref: '#/components/parameters/UserRole' }]
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Con su rol y su nº de productos
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserListResponse' } } }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/actives", validate({ query: userListQuerySchema }), getActiveUsers);
+router.get("/actives", adminOnly, validate({ query: userListQuerySchema }), getActiveUsers);
 
 /**
  * @openapi
@@ -72,14 +80,17 @@ router.get("/actives", validate({ query: userListQuerySchema }), getActiveUsers)
  *   get:
  *     tags: [Usuarios]
  *     summary: Panel — inactivos (no pueden vender)
+ *     security: [{ bearerAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/UserStatus' }, { $ref: '#/components/parameters/UserRole' }]
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Con su rol y su nº de productos
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserListResponse' } } }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/inactives", validate({ query: userListQuerySchema }), getInactiveUsers);
+router.get("/inactives", adminOnly, validate({ query: userListQuerySchema }), getInactiveUsers);
 
 /**
  * @openapi
@@ -87,14 +98,17 @@ router.get("/inactives", validate({ query: userListQuerySchema }), getInactiveUs
  *   get:
  *     tags: [Usuarios]
  *     summary: Panel — papelera, del eliminado más reciente al más antiguo
+ *     security: [{ bearerAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/UserStatus' }, { $ref: '#/components/parameters/UserRole' }]
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Usuarios eliminados
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserListResponse' } } }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/trash", validate({ query: userListQuerySchema }), getTrashedUsers);
+router.get("/trash", adminOnly, validate({ query: userListQuerySchema }), getTrashedUsers);
 
 /**
  * @openapi
@@ -102,14 +116,17 @@ router.get("/trash", validate({ query: userListQuerySchema }), getTrashedUsers);
  *   get:
  *     tags: [Usuarios]
  *     summary: Detalle por slug
+ *     security: [{ bearerAuth: [] }]
  *     parameters: [{ name: slug, in: path, required: true, schema: { type: string, example: lucia-martin } }]
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Usuario con su rol y su nº de productos
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.get("/slug/:slug", validate({ params: slugParamsSchema }), getUserBySlug);
+router.get("/slug/:slug", adminOnly, validate({ params: slugParamsSchema }), getUserBySlug);
 
 /**
  * @openapi
@@ -117,15 +134,18 @@ router.get("/slug/:slug", validate({ params: slugParamsSchema }), getUserBySlug)
  *   get:
  *     tags: [Usuarios]
  *     summary: Detalle por id
+ *     security: [{ bearerAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Usuario con su rol y su nº de productos
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/:id", validate({ params: idParamsSchema }), getUserById);
+router.get("/:id", adminOnly, validate({ params: idParamsSchema }), getUserById);
 
 /**
  * @openapi
@@ -133,18 +153,21 @@ router.get("/:id", validate({ params: idParamsSchema }), getUserById);
  *   post:
  *     tags: [Usuarios]
  *     summary: Crear un usuario
+ *     security: [{ bearerAuth: [] }]
  *     description: La contraseña se guarda con hash bcrypt y no sale nunca en las respuestas. Nace en estado pending salvo que se envíe otro.
  *     requestBody:
  *       required: true
  *       content: { application/json: { schema: { $ref: '#/components/schemas/UserInput' } } }
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       201:
  *         description: Creado
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } }
  *       409: { $ref: '#/components/responses/Conflict' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.post("/", validate({ body: createUserSchema }), createUser);
+router.post("/", adminOnly, validate({ body: createUserSchema }), createUser);
 
 /**
  * @openapi
@@ -152,12 +175,15 @@ router.post("/", validate({ body: createUserSchema }), createUser);
  *   patch:
  *     tags: [Usuarios]
  *     summary: Actualización parcial
+ *     security: [{ bearerAuth: [] }]
  *     description: password es opcional; si llega, se cambia. Al último administrador activo no se le puede cambiar el rol ni suspender (409).
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     requestBody:
  *       required: true
  *       content: { application/json: { schema: { $ref: '#/components/schemas/UserInput' } } }
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Actualizado
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } }
@@ -165,7 +191,7 @@ router.post("/", validate({ body: createUserSchema }), createUser);
  *       409: { $ref: '#/components/responses/Conflict' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.patch("/:id", validate({ params: idParamsSchema, body: updateUserSchema }), updateUser);
+router.patch("/:id", adminOnly, validate({ params: idParamsSchema, body: updateUserSchema }), updateUser);
 
 /**
  * @openapi
@@ -173,19 +199,22 @@ router.patch("/:id", validate({ params: idParamsSchema, body: updateUserSchema }
  *   patch:
  *     tags: [Usuarios]
  *     summary: Activar o desactivar
+ *     security: [{ bearerAuth: [] }]
  *     description: Un usuario inactivo no puede vender. Al último administrador activo no se le puede desactivar (409).
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     requestBody:
  *       required: true
  *       content: { application/json: { schema: { $ref: '#/components/schemas/ActiveInput' } } }
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Visibilidad cambiada
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/Conflict' }
  */
-router.patch("/:id/active", validate({ params: idParamsSchema, body: setActiveSchema }), setUserActive);
+router.patch("/:id/active", adminOnly, validate({ params: idParamsSchema, body: setActiveSchema }), setUserActive);
 
 /**
  * @openapi
@@ -193,18 +222,21 @@ router.patch("/:id/active", validate({ params: idParamsSchema, body: setActiveSc
  *   patch:
  *     tags: [Usuarios]
  *     summary: Restaurar desde la papelera
+ *     security: [{ bearerAuth: [] }]
  *     description: Vuelve inactivo salvo isActive true, con su avatar.
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     requestBody:
  *       content: { application/json: { schema: { $ref: '#/components/schemas/RestoreInput' } } }
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Restaurado
  *         content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/Conflict' }
  */
-router.patch("/:id/restore", validate({ params: idParamsSchema, body: restoreSchema }), restoreUser);
+router.patch("/:id/restore", adminOnly, validate({ params: idParamsSchema, body: restoreSchema }), restoreUser);
 
 /**
  * @openapi
@@ -212,13 +244,16 @@ router.patch("/:id/restore", validate({ params: idParamsSchema, body: restoreSch
  *   delete:
  *     tags: [Usuarios]
  *     summary: Mover a la papelera (soft delete)
+ *     security: [{ bearerAuth: [] }]
  *     description: 409 si tiene productos o si es el último administrador activo.
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       204: { description: Eliminado }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/Conflict' }
  */
-router.delete("/:id", validate({ params: idParamsSchema }), softDeleteUser);
+router.delete("/:id", adminOnly, validate({ params: idParamsSchema }), softDeleteUser);
 
 export default router;

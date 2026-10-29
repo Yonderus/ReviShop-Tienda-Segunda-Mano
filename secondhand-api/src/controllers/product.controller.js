@@ -57,7 +57,7 @@ export const getProductBySlug = async (req, res, next) => {
 
 export const createProduct = async (req, res, next) => {
   try {
-    const product = await productService.create(req.body);
+    const product = await productService.create(req.body, req.user);
     sendCreated(res, product);
   } catch (error) {
     next(error);
@@ -66,7 +66,7 @@ export const createProduct = async (req, res, next) => {
 
 export const updateProduct = async (req, res, next) => {
   try {
-    const product = await productService.update(req.params.id, req.body);
+    const product = await productService.update(req.params.id, req.body, req.user);
     sendSuccess(res, product);
   } catch (error) {
     next(error);
@@ -75,7 +75,7 @@ export const updateProduct = async (req, res, next) => {
 
 export const changeProductStatus = async (req, res, next) => {
   try {
-    const product = await productService.changeStatus(req.params.id, req.body.status);
+    const product = await productService.changeStatus(req.params.id, req.body.status, req.user);
     sendSuccess(res, product);
   } catch (error) {
     next(error);
@@ -84,7 +84,7 @@ export const changeProductStatus = async (req, res, next) => {
 
 export const setProductActive = async (req, res, next) => {
   try {
-    const product = await productService.setActive(req.params.id, req.body.isActive);
+    const product = await productService.setActive(req.params.id, req.body.isActive, req.user);
     sendSuccess(res, product);
   } catch (error) {
     next(error);
@@ -102,7 +102,7 @@ export const restoreProduct = async (req, res, next) => {
 
 export const softDeleteProduct = async (req, res, next) => {
   try {
-    await productService.softDelete(req.params.id);
+    await productService.softDelete(req.params.id, req.user);
     sendNoContent(res);
   } catch (error) {
     next(error);

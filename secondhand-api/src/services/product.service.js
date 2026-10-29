@@ -4,7 +4,9 @@ import { imageRepository } from "../repositories/image.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
+import { AUTH_MESSAGES } from "../constants/auth.constants.js";
+import { isAdmin, isOwnerOrAdmin } from "../utils/access.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/AppError.js";
 import { imagePosition } from "../utils/image.utils.js";
 import { DEFAULT_OPTIONS_KEY, buildSku, variantSlugBase } from "../utils/productVariant.utils.js";
 import { slugify, withNumericSuffix } from "../utils/slugify.js";
@@ -14,6 +16,14 @@ import { userService } from "./user.service.js";
 const WRITABLE_FIELDS = ["title", "description", "basePrice", "condition", "location", "categoryId", "sellerId"];
 
 const pick = (data, fields) => Object.fromEntries(Object.entries(data).filter(([key]) => fields.includes(key)));
+
+/**
+ * ABAC: un producto solo lo modifica su vendedor o un admin. `actor` es el usuario de la sesión (`req.user`);
+ * sin él no se deja, así que un camino nuevo que olvide pasarlo falla en vez de saltarse la regla.
+ */
+function assertCanModify(actor, product) {
+  if (!isOwnerOrAdmin(actor, product.sellerId)) throw new ForbiddenError(AUTH_MESSAGES.FORBIDDEN);
+}
 
 /** Integridad: la categoría y el vendedor los vigila su propio service (422 `categoryId` / `sellerId`). */
 async function assertReferences({ categoryId, sellerId }) {
@@ -79,9 +89,12 @@ async function listWith(query, extra) {
 }
 
 export const productService = {
+  /** Para las variantes: un producto (y sus variantes) solo lo modifica su vendedor o un admin. */
+  assertCanModify,
+
+  /** Público: solo los activos. Los inactivos solo los ve el panel (`/products/inactives`, admin). */
   async list(query = {}) {
-    const isActive = query.isActive !== undefined ? query.isActive === "true" : true;
-    return listWith(query, { isActive });
+    return listWith(query, { isActive: true });
   },
 
   async listActives(query = {}) {
@@ -109,8 +122,11 @@ export const productService = {
     return product;
   },
 
-  async create(data) {
+  /** El vendedor es el de la sesión. Solo un admin puede publicar en nombre de otro (con `sellerId`). */
+  async create(data, actor) {
+    if (!actor) throw new ForbiddenError(AUTH_MESSAGES.FORBIDDEN);
     const input = pick(data, WRITABLE_FIELDS);
+    input.sellerId = isAdmin(actor) && input.sellerId ? input.sellerId : actor.id;
     await assertReferences(input);
     // El slug lo pone el modelo; aquí solo se comprueba antes para dar un 409 claro.
     await assertSlugAvailable(slugify(input.title));
@@ -136,9 +152,12 @@ export const productService = {
     return productRepository.findDetailById(product._id);
   },
 
-  async update(id, data) {
+  /** Solo su vendedor o un admin. Y solo un admin puede pasárselo a otro vendedor. */
+  async update(id, data, actor) {
     const current = await findLiveProduct(id);
+    assertCanModify(actor, current);
     const input = pick(data, WRITABLE_FIELDS);
+    if (!isAdmin(actor)) delete input.sellerId;
     await assertReferences(input);
 
     // Si cambia el título, el modelo regenera el slug; aquí solo se comprueba que esté libre.
@@ -178,8 +197,8 @@ export const productService = {
     return status;
   },
 
-  async changeStatus(id, status) {
-    await findLiveProduct(id);
+  async changeStatus(id, status, actor) {
+    assertCanModify(actor, await findLiveProduct(id));
     const variants = await productVariantRepository.findLiveByProduct(id);
     if (variants.length > 1) {
       throw new ValidationError("El producto tiene varias variantes: cambia el estado de cada una con PATCH /api/variants/:id/status");
@@ -190,9 +209,10 @@ export const productService = {
     return productRepository.findDetailById(id);
   },
 
-  async setActive(id, isActive) {
+  async setActive(id, isActive, actor) {
     const product = await productRepository.findRawById(id);
     if (!product) throw new NotFoundError("Producto no encontrado");
+    assertCanModify(actor, product);
     if (product.deletedAt) {
       throw new ConflictError("El producto está eliminado. Restáuralo antes de cambiar su visibilidad");
     }
@@ -201,8 +221,9 @@ export const productService = {
   },
 
   /** Soft delete en cascada: producto, variantes e imágenes con la misma fecha. */
-  async softDelete(id) {
+  async softDelete(id, actor) {
     const product = await findLiveProduct(id);
+    assertCanModify(actor, product);
     const date = new Date();
     await productRepository.softDeleteById(id, date);
     await cascadeSoftDelete(product._id, date);

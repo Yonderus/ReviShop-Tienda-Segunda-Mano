@@ -13,6 +13,8 @@ import {
   softDeleteProduct,
   updateProduct,
 } from "../controllers/product.controller.js";
+import { adminOnly } from "../middlewares/admin.middleware.js";
+import { authenticate } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.js";
 import { idParamsSchema, restoreSchema, setActiveSchema, slugParamsSchema } from "../validators/common.validator.js";
 import {
@@ -33,7 +35,8 @@ const router = Router();
  * /products:
  *   get:
  *     tags: [Productos]
- *     summary: Listado de productos (activos por defecto)
+ *     summary: Público — catálogo (solo los activos)
+ *     security: []
  *     parameters:
  *       - $ref: '#/components/parameters/Category'
  *       - $ref: '#/components/parameters/Seller'
@@ -41,10 +44,6 @@ const router = Router();
  *       - $ref: '#/components/parameters/Status'
  *       - $ref: '#/components/parameters/MinPrice'
  *       - $ref: '#/components/parameters/MaxPrice'
- *       - name: isActive
- *         in: query
- *         description: '"false" para los inactivos'
- *         schema: { type: string, enum: ["true", "false"] }
  *     responses:
  *       200:
  *         description: Productos, del más reciente al más antiguo
@@ -59,6 +58,7 @@ router.get("/", validate({ query: listQuerySchema }), getProducts);
  *   get:
  *     tags: [Productos]
  *     summary: Solo los activos (no eliminados)
+ *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - $ref: '#/components/parameters/Category'
  *       - $ref: '#/components/parameters/Seller'
@@ -67,12 +67,14 @@ router.get("/", validate({ query: listQuerySchema }), getProducts);
  *       - $ref: '#/components/parameters/MinPrice'
  *       - $ref: '#/components/parameters/MaxPrice'
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Productos activos
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductListResponse' } } }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/actives", validate({ query: stateListQuerySchema }), getActiveProducts);
+router.get("/actives", adminOnly, validate({ query: stateListQuerySchema }), getActiveProducts);
 
 /**
  * @openapi
@@ -80,6 +82,7 @@ router.get("/actives", validate({ query: stateListQuerySchema }), getActiveProdu
  *   get:
  *     tags: [Productos]
  *     summary: Solo los inactivos (ocultos en la tienda, no eliminados)
+ *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - $ref: '#/components/parameters/Category'
  *       - $ref: '#/components/parameters/Seller'
@@ -88,12 +91,14 @@ router.get("/actives", validate({ query: stateListQuerySchema }), getActiveProdu
  *       - $ref: '#/components/parameters/MinPrice'
  *       - $ref: '#/components/parameters/MaxPrice'
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Productos inactivos
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductListResponse' } } }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/inactives", validate({ query: stateListQuerySchema }), getInactiveProducts);
+router.get("/inactives", adminOnly, validate({ query: stateListQuerySchema }), getInactiveProducts);
 
 /**
  * @openapi
@@ -101,6 +106,7 @@ router.get("/inactives", validate({ query: stateListQuerySchema }), getInactiveP
  *   get:
  *     tags: [Productos]
  *     summary: Papelera (soft delete), del borrado más reciente al más antiguo
+ *     security: [{ bearerAuth: [] }]
  *     description: Cada producto muestra solo la portada que se eliminó junto a él.
  *     parameters:
  *       - $ref: '#/components/parameters/Category'
@@ -110,12 +116,14 @@ router.get("/inactives", validate({ query: stateListQuerySchema }), getInactiveP
  *       - $ref: '#/components/parameters/MinPrice'
  *       - $ref: '#/components/parameters/MaxPrice'
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Productos eliminados
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductListResponse' } } }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/trash", validate({ query: stateListQuerySchema }), getTrashedProducts);
+router.get("/trash", adminOnly, validate({ query: stateListQuerySchema }), getTrashedProducts);
 
 /**
  * @openapi
@@ -123,6 +131,7 @@ router.get("/trash", validate({ query: stateListQuerySchema }), getTrashedProduc
  *   get:
  *     tags: [Productos]
  *     summary: Detalle por slug
+ *     security: []
  *     parameters: [{ $ref: '#/components/parameters/ProductSlug' }]
  *     responses:
  *       200:
@@ -138,15 +147,18 @@ router.get("/slug/:slug", validate({ params: slugParamsSchema }), getProductBySl
  *   get:
  *     tags: [Productos]
  *     summary: Detalle por id
+ *     security: [{ bearerAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Producto con todas sus imágenes y variantes
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductResponse' } } }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/:id", validate({ params: idParamsSchema }), getProductById);
+router.get("/:id", adminOnly, validate({ params: idParamsSchema }), getProductById);
 
 /**
  * @openapi
@@ -154,18 +166,20 @@ router.get("/:id", validate({ params: idParamsSchema }), getProductById);
  *   post:
  *     tags: [Productos]
  *     summary: Crear un producto
+ *     security: [{ bearerAuth: [] }]
  *     description: Genera el slug a partir del título y una variante por defecto.
  *     requestBody:
  *       required: true
  *       content: { application/json: { schema: { $ref: '#/components/schemas/ProductInput' } } }
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
  *       201:
  *         description: Creado
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductResponse' } } }
  *       409: { $ref: '#/components/responses/Conflict' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.post("/", validate({ body: createProductSchema }), createProduct);
+router.post("/", authenticate, validate({ body: createProductSchema }), createProduct);
 
 /**
  * @openapi
@@ -173,12 +187,15 @@ router.post("/", validate({ body: createProductSchema }), createProduct);
  *   patch:
  *     tags: [Productos]
  *     summary: Actualización parcial
+ *     security: [{ bearerAuth: [] }]
  *     description: Solo los campos enviados. El estado de venta no se cambia aquí, sino en /products/{id}/status.
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     requestBody:
  *       required: true
  *       content: { application/json: { schema: { $ref: '#/components/schemas/ProductInput' } } }
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Actualizado
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductResponse' } } }
@@ -186,7 +203,7 @@ router.post("/", validate({ body: createProductSchema }), createProduct);
  *       409: { $ref: '#/components/responses/Conflict' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.patch("/:id", validate({ params: idParamsSchema, body: updateProductSchema }), updateProduct);
+router.patch("/:id", authenticate, validate({ params: idParamsSchema, body: updateProductSchema }), updateProduct);
 
 /**
  * @openapi
@@ -194,6 +211,7 @@ router.patch("/:id", validate({ params: idParamsSchema, body: updateProductSchem
  *   patch:
  *     tags: [Productos]
  *     summary: Cambiar el estado de venta
+ *     security: [{ bearerAuth: [] }]
  *     description: Solo si el producto tiene una única variante (422 si tiene varias).
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     requestBody:
@@ -202,13 +220,15 @@ router.patch("/:id", validate({ params: idParamsSchema, body: updateProductSchem
  *         application/json:
  *           schema: { $ref: '#/components/schemas/StatusInput' }
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Estado cambiado
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductResponse' } } }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.patch("/:id/status", validate({ params: idParamsSchema, body: changeStatusSchema }), changeProductStatus);
+router.patch("/:id/status", authenticate, validate({ params: idParamsSchema, body: changeStatusSchema }), changeProductStatus);
 
 /**
  * @openapi
@@ -216,6 +236,7 @@ router.patch("/:id/status", validate({ params: idParamsSchema, body: changeStatu
  *   patch:
  *     tags: [Productos]
  *     summary: Activar o desactivar (visibilidad en la tienda)
+ *     security: [{ bearerAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     requestBody:
  *       required: true
@@ -223,6 +244,8 @@ router.patch("/:id/status", validate({ params: idParamsSchema, body: changeStatu
  *         application/json:
  *           schema: { $ref: '#/components/schemas/ActiveInput' }
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Visibilidad cambiada
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductResponse' } } }
@@ -230,7 +253,7 @@ router.patch("/:id/status", validate({ params: idParamsSchema, body: changeStatu
  *       409: { $ref: '#/components/responses/Conflict' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.patch("/:id/active", validate({ params: idParamsSchema, body: setActiveSchema }), setProductActive);
+router.patch("/:id/active", authenticate, validate({ params: idParamsSchema, body: setActiveSchema }), setProductActive);
 
 /**
  * @openapi
@@ -238,6 +261,7 @@ router.patch("/:id/active", validate({ params: idParamsSchema, body: setActiveSc
  *   patch:
  *     tags: [Productos]
  *     summary: Restaurar desde la papelera
+ *     security: [{ bearerAuth: [] }]
  *     description: Vuelve inactivo salvo que se envíe isActive true. Recupera solo las variantes e imágenes eliminadas con él.
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     requestBody:
@@ -245,13 +269,15 @@ router.patch("/:id/active", validate({ params: idParamsSchema, body: setActiveSc
  *         application/json:
  *           schema: { $ref: '#/components/schemas/RestoreInput' }
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       200:
  *         description: Restaurado
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductResponse' } } }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/Conflict' }
  */
-router.patch("/:id/restore", validate({ params: idParamsSchema, body: restoreSchema }), restoreProduct);
+router.patch("/:id/restore", adminOnly, validate({ params: idParamsSchema, body: restoreSchema }), restoreProduct);
 
 /**
  * @openapi
@@ -259,12 +285,15 @@ router.patch("/:id/restore", validate({ params: idParamsSchema, body: restoreSch
  *   delete:
  *     tags: [Productos]
  *     summary: Mover a la papelera (soft delete)
+ *     security: [{ bearerAuth: [] }]
  *     description: También sus variantes e imágenes, con la misma fecha.
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     responses:
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       204: { description: Eliminado }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.delete("/:id", validate({ params: idParamsSchema }), softDeleteProduct);
+router.delete("/:id", authenticate, validate({ params: idParamsSchema }), softDeleteProduct);
 
 export default router;

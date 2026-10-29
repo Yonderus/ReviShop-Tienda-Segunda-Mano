@@ -9,7 +9,9 @@ import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import { swaggerSpec } from "./config/swagger.js";
+import authRoutes from "./routes/auth.routes.js";
 import productRoutes from "./routes/product.routes.js";
+import profileRoutes from "./routes/profile.routes.js";
 import { productVariantRoutes, productVariantsOfProductRoutes } from "./routes/productVariant.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import roleRoutes from "./routes/role.routes.js";
@@ -31,6 +33,9 @@ const accessLogStream = createWriteStream(join(__dirname, "..", "logs", "access.
 app.use(morgan("combined", { stream: accessLogStream }));
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle: "Revishop API" }));
+// Quién puede usar cada ruta lo dice su archivo de rutas (authenticate, adminOnly). Lo que no lo pone es público.
+app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
 app.use("/api/products/:id/variants", productVariantsOfProductRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/variants", productVariantRoutes);

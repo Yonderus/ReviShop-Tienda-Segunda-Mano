@@ -68,6 +68,8 @@ npm run dev             # http://localhost:3000
 | `NODE_ENV` | `development` · `production` · `test` |
 | `CORS_ORIGIN` | Orígenes permitidos en producción (en desarrollo, CORS abierto) |
 | `SEED_DEFAULT_PASSWORD` | Contraseña de los usuarios del seed |
+| `JWT_SECRET` | **Obligatoria.** Firma de los tokens de sesión: mínimo 32 caracteres, aleatoria y fuera del repositorio. Genera una con `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
+| `JWT_EXPIRES_IN` | Caducidad de los tokens: `15m`, `1h`, `7d`… (por defecto `1d`) |
 
 El entorno se valida con Zod al arrancar: si falta algo obligatorio, la API no arranca y dice qué falta.
 
@@ -100,7 +102,7 @@ npm start               # http://localhost:4200
 | Carlos Ruiz | `carlos@revishop.test` | user |
 | Pablo Sanz | `pablo@revishop.test` | user · **suspendido** (no puede vender) |
 
-Todos usan la contraseña de `SEED_DEFAULT_PASSWORD`, guardada con hash bcrypt.
+Todos usan la contraseña de `SEED_DEFAULT_PASSWORD`, guardada con hash **Argon2id**.
 
 ---
 
@@ -154,18 +156,21 @@ Role 1 ── N User 1 ── N Product N ── 1 Category (árbol de 2 niveles
                │          │
             Profile
                           │
-           Image (polimórfica: User · Category · Product · ProductVariant)
+           Image (polimórfica: Profile (avatar) · Category · Product · ProductVariant)
+
+   RevokedToken (blacklist del logout) N ── 1 User
 ```
 
 | Colección | Claves |
 |---|---|
 | `roles` | `admin`, `moderator`, `user`, con sus permisos |
 | `users` | La **cuenta**: `roleId`, email único, `passwordHash` (nunca sale en las respuestas), estado `pending · verified · suspended` |
-| `profiles` | El **perfil** (teléfono, ubicación, bio), 1 a 1 con su usuario por `userId` único e inmutable. No tiene CRUD propio: nace, se edita, se borra y se restaura con su usuario, y la API lo sigue devolviendo dentro de él |
+| `profiles` | El **perfil** (teléfono, ubicación, bio y **avatar**), 1 a 1 con su usuario por `userId` único e inmutable. No tiene CRUD propio: nace, se edita, se borra y se restaura con su usuario, y la API lo sigue devolviendo dentro de él (el avatar, como `avatarUrl`) |
 | `categories` | `parentId` (dos niveles como máximo), `status` `draft · published` y `attributes` (p. ej. talla o capacidad), que heredan las subcategorías que no tienen los suyos |
 | `products` | `sellerId`, `categoryId`, `basePrice` y `status` **calculado** a partir de sus variantes |
 | `productVariants` | Opciones, SKU único, precio propio (o el base) y stock |
-| `images` | `ownerType` + `ownerId` (`refPath`); la primera es la portada |
+| `images` | `ownerType` + `ownerId` (`refPath`); la primera es la portada. Al sustituirlas, las anteriores pasan a la papelera |
+| `revoked_tokens` | La **blacklist del logout**: `jti` del token (único), `userId`, motivo y `expiresAt`. Un índice TTL borra cada fila cuando el token habría caducado. Es la excepción: sin `isActive`, papelera ni slug |
 
 **En todas las colecciones:** `isActive`, `deletedAt`, `createdAt` y `updatedAt`, y `slug` en todas salvo `profiles` (se busca por su usuario). El **soft delete** es un plugin de Mongoose que oculta lo borrado en todas las consultas. El borrado es **en cascada** y la restauración es **exacta**: solo vuelve lo que se borró a la vez.
 
@@ -187,7 +192,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 
 **Reglas de las categorías:** el nombre es único (también frente a las de la papelera, porque su slug sigue ocupado); solo se puede colgar de una categoría principal; una con subcategorías no puede pasar a ser hija; no se borra si tiene productos o subcategorías (`409` con cuántos); una subcategoría no se restaura si su padre sigue en la papelera; y un producto solo puede ir a una categoría **publicada y activa**.
 
-**Reglas de los usuarios:** el email es único (si es de uno de la papelera, el `409` dice que lo restaures); la contraseña tiene 8 caracteres como mínimo, se guarda con **bcrypt** y no sale en ninguna respuesta; el rol tiene que existir y poder asignarse; **siempre queda al menos un administrador activo** (al último no se le puede borrar, desactivar, suspender ni cambiar el rol); y no se borra un usuario con productos (sí se puede desactivar o suspender).
+**Reglas de los usuarios:** el email es único (si es de uno de la papelera, el `409` dice que lo restaures); la contraseña tiene entre 8 y 128 caracteres, se guarda con **Argon2id** (las antiguas en bcrypt se pasan a Argon2 al iniciar sesión) y no sale en ninguna respuesta; cambiarla cierra todas sus sesiones; el rol tiene que existir y poder asignarse; **siempre queda al menos un administrador activo** (al último no se le puede borrar, desactivar, suspender ni cambiar el rol); y no se borra un usuario con productos (sí se puede desactivar o suspender).
 
 **Formato de respuesta único:**
 
@@ -247,7 +252,8 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | CRUD de categorías + panel en árbol | ✅ |
 | CRUD de usuarios + `GET /roles` + panel | ✅ |
 | Seed con 20 productos + fotos sin pérdidas ni huérfanas | ✅ |
-| Perfil separado del usuario + integridad referencial | ✅ |
+| Perfil separado del usuario (con avatar) + integridad referencial | ✅ |
+| Base del login: Argon2, JWT, blacklist del logout e integridad en los services | ✅ |
 | JWT: login, roles USER/ADMIN y perfil | 🔜 |
 | Carrito, reservas y pagos | 🔜 |
 

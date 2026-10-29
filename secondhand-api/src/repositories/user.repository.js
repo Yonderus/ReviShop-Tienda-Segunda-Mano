@@ -7,7 +7,8 @@ const ACTIVE = { isActive: true };
 const CAN_SELL = { ...ACTIVE, status: { $ne: USER_STATUS.SUSPENDED } };
 const WITH_DELETED = { withDeleted: true };
 const PUBLIC_FIELDS = "name slug";
-const ADMIN_FIELDS = "-__v -deletedBy";
+// `tokensValidAfter` es un detalle interno de la sesión (lo usa el middleware de auth): no sale al panel.
+const ADMIN_FIELDS = "-__v -deletedBy -tokensValidAfter";
 // Un usuario siempre muestra su rol, aunque después se retire.
 const ROLE_SUMMARY = { path: "role", select: "name slug", options: WITH_DELETED };
 /**

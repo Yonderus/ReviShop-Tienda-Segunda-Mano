@@ -40,6 +40,10 @@ const userSchema = new mongoose.Schema(
     lastLoginAt: { type: Date, default: null },
     emailVerifiedAt: { type: Date, default: null },
 
+    // ── Sesión ──
+    // Todo token emitido antes de esta fecha deja de valer (p. ej. al cambiar la contraseña). null = ninguno.
+    tokensValidAfter: { type: Date, default: null },
+
     // ── Comunes: isActive (+ deletedAt y slug por los plugins) ──
     ...baseFields,
   },

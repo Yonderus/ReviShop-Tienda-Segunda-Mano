@@ -14,6 +14,11 @@ export const roleRepository = {
     return Role.findOne({ _id: id, ...ASSIGNABLE }).lean();
   },
 
+  /** Activo y no eliminado, aunque esté `deprecated` (lo conserva quien ya lo tiene). */
+  findLiveById(id) {
+    return Role.findOne({ _id: id, isActive: true }).lean();
+  },
+
   findBySlug(slug) {
     return Role.findOne({ slug }).lean();
   },

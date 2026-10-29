@@ -10,6 +10,7 @@ import { Image } from "./models/image.model.js";
 import { Product } from "./models/product.model.js";
 import { ProductVariant } from "./models/productVariant.model.js";
 import { Profile } from "./models/profile.model.js";
+import { RevokedToken } from "./models/revokedToken.model.js";
 import { Role } from "./models/role.model.js";
 import { User } from "./models/user.model.js";
 import { cascadeSoftDelete, productService } from "./services/product.service.js";
@@ -330,7 +331,7 @@ const PRODUCTS = [
   },
 ];
 
-const MODELS = [Role, User, Profile, Category, Product, ProductVariant, Image];
+const MODELS = [Role, User, Profile, Category, Product, ProductVariant, Image, RevokedToken];
 
 /* ---------- Pasos (en orden de dependencias) ---------- */
 

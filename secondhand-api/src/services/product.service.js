@@ -8,19 +8,17 @@ import { ConflictError, NotFoundError, ValidationError } from "../utils/AppError
 import { imagePosition } from "../utils/image.utils.js";
 import { DEFAULT_OPTIONS_KEY, buildSku, variantSlugBase } from "../utils/productVariant.utils.js";
 import { slugify, withNumericSuffix } from "../utils/slugify.js";
+import { categoryService } from "./category.service.js";
+import { userService } from "./user.service.js";
 
 const WRITABLE_FIELDS = ["title", "description", "basePrice", "condition", "location", "categoryId", "sellerId"];
 
 const pick = (data, fields) => Object.fromEntries(Object.entries(data).filter(([key]) => fields.includes(key)));
 
-async function assertCategory(categoryId) {
-  const category = await categoryRepository.findPublishedById(categoryId);
-  if (!category) throw ValidationError.forField("categoryId", "La categoría no existe, no está publicada o está inactiva");
-}
-
-async function assertSeller(sellerId) {
-  const seller = await userRepository.findActiveById(sellerId);
-  if (!seller) throw ValidationError.forField("sellerId", "El vendedor no existe, está inactivo o está suspendido");
+/** Integridad: la categoría y el vendedor los vigila su propio service (422 `categoryId` / `sellerId`). */
+async function assertReferences({ categoryId, sellerId }) {
+  if (categoryId) await categoryService.assertAcceptsProducts(categoryId);
+  if (sellerId) await userService.assertCanSell(sellerId);
 }
 
 /** El slug sale del título: si ya existe, el que hay que cambiar es el título. */
@@ -113,8 +111,7 @@ export const productService = {
 
   async create(data) {
     const input = pick(data, WRITABLE_FIELDS);
-    await assertCategory(input.categoryId);
-    await assertSeller(input.sellerId);
+    await assertReferences(input);
     // El slug lo pone el modelo; aquí solo se comprueba antes para dar un 409 claro.
     await assertSlugAvailable(slugify(input.title));
 
@@ -142,8 +139,7 @@ export const productService = {
   async update(id, data) {
     const current = await findLiveProduct(id);
     const input = pick(data, WRITABLE_FIELDS);
-    if (input.categoryId) await assertCategory(input.categoryId);
-    if (input.sellerId) await assertSeller(input.sellerId);
+    await assertReferences(input);
 
     // Si cambia el título, el modelo regenera el slug; aquí solo se comprueba que esté libre.
     const titleChanged = input.title !== undefined && input.title !== current.title;

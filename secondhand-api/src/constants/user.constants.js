@@ -12,6 +12,9 @@ export const USER_STATUSES = Object.freeze(Object.values(USER_STATUS));
  */
 export const PROFILE_FIELDS = Object.freeze(["phone", "location", "bio"]);
 
-/** La comprueban el validador de usuarios y el de entorno (contraseña del seed). bcrypt ignora más allá de 72 bytes. */
+/**
+ * La comprueban el validador de usuarios y el de entorno (contraseña del seed). El máximo evita que alguien
+ * mande textos enormes para que Argon2 trabaje de más.
+ */
 export const PASSWORD_MIN_LENGTH = 8;
-export const PASSWORD_MAX_LENGTH = 72;
+export const PASSWORD_MAX_LENGTH = 128;

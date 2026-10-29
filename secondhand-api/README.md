@@ -26,6 +26,8 @@ Se leen y validan en un único sitio, `src/config/env.js` (con Zod). Si falta al
 | `MONGODB_URI` | **Sí** | Conexión a MongoDB, p. ej. `mongodb://localhost:27017/secondhand-db` |
 | `CORS_ORIGIN` | En producción | Orígenes permitidos, separados por comas (en desarrollo CORS está abierto) |
 | `SEED_DEFAULT_PASSWORD` | Solo para el seed | Contraseña de todos los usuarios de prueba (mínimo 8 caracteres) |
+| `JWT_SECRET` | **Sí** | Firma de los tokens de sesión: mínimo 32 caracteres, aleatoria, nunca en el repositorio. `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
+| `JWT_EXPIRES_IN` | No (`1d`) | Caducidad de los tokens: `15m`, `1h`, `7d`… |
 
 ### Arrancar
 
@@ -40,16 +42,18 @@ npm start       # producción
 npm run seed
 ```
 
-Vacía las 6 colecciones, sincroniza los índices e inserta, en orden de dependencias:
+Vacía las 8 colecciones, sincroniza los índices e inserta, en orden de dependencias:
 
 | Colección | Datos |
 |---|---|
 | `roles` | `admin`, `moderator`, `user` (`isSystem: true`) con sus permisos. No hay rol de vendedor: cualquier usuario compra y vende |
-| `users` | 1 admin y 4 usuarios (emails `@revishop.test`, contraseña de `SEED_DEFAULT_PASSWORD`, hasheada con bcryptjs) |
-| `categories` | 8 raíz + 4 subcategorías (Móviles, Ordenadores, Chaquetas, Pádel), con `attributes` de variante |
-| `products` | 14: 8 activos, 3 inactivos y 3 en la papelera |
-| `productvariants` | 1 por defecto por producto + tallas de la chaqueta y capacidades del iPhone |
-| `images` | Fotos de producto (portada + galería) y avatares de usuario |
+| `users` | 1 admin y 5 usuarios, uno de ellos suspendido (emails `@revishop.test`, contraseña de `SEED_DEFAULT_PASSWORD`, con hash Argon2id) |
+| `profiles` | Uno por usuario: ubicación, bio y avatar |
+| `categories` | 9 principales (una en borrador) + 4 subcategorías (Móviles, Ordenadores, Chaquetas, Pádel), con `attributes` de variante |
+| `products` | 20: 14 activos, 3 inactivos y 3 en la papelera |
+| `productvariants` | 27: una por defecto por producto y las de los 5 productos con opciones (talla, color, capacidad, memoria) |
+| `images` | Fotos de producto (portada + galería) y el avatar de cada perfil |
+| `revoked_tokens` | Vacía: la llena el logout |
 
 > **Cuidado:** borra todos los datos de esas colecciones cada vez que se ejecuta.
 
@@ -124,4 +128,4 @@ Ejemplos de petición y respuesta en [`postman.md`](postman.md).
 
 ## Tecnologías
 
-Express · MongoDB + Mongoose · Zod · bcryptjs · Helmet · Morgan · CORS · dotenv
+Express · MongoDB + Mongoose · Zod · Argon2 · jsonwebtoken · Helmet · Morgan · CORS · dotenv (bcryptjs solo para pasar a Argon2 las contraseñas antiguas)

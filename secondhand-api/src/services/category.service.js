@@ -44,6 +44,15 @@ async function withCounts(categories) {
 const statusFilter = (query) => (query.status ? { status: query.status } : {});
 
 export const categoryService = {
+  /**
+   * Integridad: ¿puede un producto ir a esta categoría? Tiene que existir, estar publicada y activa.
+   * Lo usa `product.service`. Si no, 422 `categoryId`.
+   */
+  async assertAcceptsProducts(categoryId) {
+    const category = await categoryRepository.findPublishedById(categoryId);
+    if (!category) throw ValidationError.forField("categoryId", "La categoría no existe, no está publicada o está inactiva");
+  },
+
   /** Atributos de variante de una categoría: los propios o, si no tiene, los de su padre. */
   async attributesFor(categoryId) {
     const category = await categoryRepository.findAttributesById(categoryId);

@@ -1,63 +1,25 @@
-import { IMAGE_KIND, IMAGE_OWNER, IMAGE_STATUS } from "../constants/image.constants.js";
+import { AUTH_MESSAGES } from "../constants/auth.constants.js";
 import { ROLE } from "../constants/role.constants.js";
-import { PROFILE_FIELDS, USER_STATUS } from "../constants/user.constants.js";
-import { imageRepository } from "../repositories/image.repository.js";
+import { USER_STATUS } from "../constants/user.constants.js";
 import { productRepository } from "../repositories/product.repository.js";
-import { profileRepository } from "../repositories/profile.repository.js";
 import { roleRepository } from "../repositories/role.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/AppError.js";
 import { hashPassword } from "../utils/password.js";
+import { profileService } from "./profile.service.js";
+import { roleService } from "./role.service.js";
 
 /*
- * El perfil (teléfono, ubicación, bio y avatar) es una parte del usuario: solo este service lo crea, lo
- * edita, lo desactiva, lo borra y lo restaura, y siempre junto a su usuario. Hacia fuera, la API sigue
- * devolviendo esos campos dentro del usuario (el avatar, como `avatarUrl`).
+ * El usuario es la cuenta. Su perfil (teléfono, ubicación, bio y avatar) lo gestiona `profileService`, pero
+ * siempre desde aquí y junto a su usuario: nace, se edita, se desactiva, se borra y se restaura con él.
+ * Hacia fuera, la API sigue devolviendo los campos del perfil dentro del usuario (el avatar, como `avatarUrl`).
  */
 
 const USER_FIELDS = ["name", "email", "roleId", "status"];
-const pickFields = (data, fields) => Object.fromEntries(Object.entries(data).filter(([key]) => fields.includes(key)));
+const pickAccount = (data) => Object.fromEntries(Object.entries(data).filter(([key]) => USER_FIELDS.includes(key)));
 
-/** Separa lo que llega del panel: lo que va a `User`, lo que va a `Profile` y el avatar (una `Image` del perfil). */
-const splitInput = (data) => ({
-  account: pickFields(data, USER_FIELDS),
-  profile: pickFields(data, PROFILE_FIELDS),
-  avatarUrl: data.avatarUrl,
-});
-
-/**
- * Usuario con su perfil poblado → la forma de siempre: los campos del perfil al mismo nivel y `avatarUrl`.
- * El avatar cuenta si está vivo como el perfil o, en la papelera, si se borró a la vez que él.
- */
-function withProfileFields({ profile, ...user }) {
-  for (const field of PROFILE_FIELDS) {
-    if (profile?.[field] !== undefined) user[field] = profile[field];
-  }
-  const avatar = profile?.avatar;
-  if (avatar && +(avatar.deletedAt ?? 0) === +(profile.deletedAt ?? 0)) user.avatarUrl = avatar.url;
-  return user;
-}
-
-const buildAvatar = (profile, user, url) => ({
-  ownerType: IMAGE_OWNER.PROFILE,
-  ownerId: profile._id,
-  kind: IMAGE_KIND.AVATAR,
-  url,
-  alt: `Avatar de ${user.name}`,
-  isPrimary: true,
-  uploadedBy: user._id,
-  status: IMAGE_STATUS.READY,
-});
-
-/**
- * Cambia el avatar como las fotos de un producto: primero crea el nuevo y solo después retira el anterior,
- * así un fallo no deja el perfil sin foto. `url` null = quitarlo.
- */
-async function replaceAvatar(profile, user, url) {
-  const previousIds = await imageRepository.findIdsByOwner(IMAGE_OWNER.PROFILE, profile._id);
-  if (url) await imageRepository.createMany([buildAvatar(profile, user, url)]);
-  if (previousIds.length) await imageRepository.softDeleteByIds(previousIds, new Date());
-}
+/** Usuario con su perfil poblado → la forma de siempre: los campos del perfil al mismo nivel. */
+const withProfileFields = ({ profile, ...user }) => ({ ...user, ...profileService.toFields(profile) });
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -77,11 +39,6 @@ async function assertEmailAvailable(email, excludeId) {
       ? "Ese email es de un usuario que está en la papelera: restáuralo en vez de crear otro"
       : "Ya existe un usuario con ese email",
   );
-}
-
-async function assertRole(roleId) {
-  const role = await roleRepository.findAssignableById(roleId);
-  if (!role) throw ValidationError.forField("roleId", "El rol no existe o ya no se puede asignar");
 }
 
 /**
@@ -122,6 +79,27 @@ async function listWith(query, extra) {
 }
 
 export const userService = {
+  // ── Integridad: lo que los demás services preguntan sobre un usuario ──
+
+  /** ¿Puede vender? Existe, no está en la papelera, está activo y no suspendido. Lo usa `product.service`. */
+  async assertCanSell(userId) {
+    const seller = await userRepository.findActiveById(userId);
+    if (!seller) throw ValidationError.forField("sellerId", "El vendedor no existe, está inactivo o está suspendido");
+  },
+
+  /**
+   * ¿Puede iniciar sesión (y seguir con la sesión abierta)? Existe, no está en la papelera, está activo, no
+   * suspendido y su rol sigue vivo. Devuelve su rol. Si no, 403. Lo usan el login y el middleware de auth.
+   */
+  async assertCanLogIn(user) {
+    const canLogIn = user && !user.deletedAt && user.isActive && user.status !== USER_STATUS.SUSPENDED;
+    const role = canLogIn ? await roleService.findForSession(user.roleId) : null;
+    if (!role) throw new ForbiddenError(AUTH_MESSAGES.CANNOT_LOG_IN);
+    return role;
+  },
+
+  // ── Lecturas ──
+
   /** Quién puede publicar: cualquier usuario activo y no suspendido. Solo campos públicos. */
   async listSellers() {
     // Solo la ubicación del perfil: { _id, name, slug, location }.
@@ -159,21 +137,19 @@ export const userService = {
     return (await withCounts([user]))[0];
   },
 
-  /**
-   * Usuario, perfil y avatar nacen juntos: si el perfil o el avatar fallan, se deshace todo (sin transacciones).
-   * Las imágenes a medias ya las borra `createMany`.
-   */
+  // ── Escrituras ──
+
+  /** Usuario, perfil y avatar nacen juntos: si el perfil o el avatar fallan, se deshace todo (sin transacciones). */
   async create(data) {
-    const { account, profile, avatarUrl } = splitInput(data);
+    const account = pickAccount(data);
     await assertEmailAvailable(account.email);
-    await assertRole(account.roleId);
+    await roleService.assertAssignable(account.roleId);
 
     const user = await userRepository.create({ ...account, passwordHash: await hashPassword(data.password) });
     try {
-      const created = await profileRepository.create({ ...profile, userId: user._id });
-      if (avatarUrl) await imageRepository.createMany([buildAvatar(created, user, avatarUrl)]);
+      await profileService.createFor(user, data);
     } catch (error) {
-      await profileRepository.hardDeleteByUserId(user._id);
+      await profileService.hardDeleteFor(user._id);
       await userRepository.hardDeleteById(user._id);
       throw error;
     }
@@ -181,29 +157,29 @@ export const userService = {
   },
 
   /**
-   * Parcial: cada campo va a su documento (cuenta, perfil o avatar) y solo se escribe el que cambia.
-   * Si llega `password` se vuelve a hashear; si no, la contraseña no cambia. `avatarUrl: null` quita la foto.
+   * Parcial: cada campo va a su sitio (cuenta, perfil o avatar) y solo se escribe lo que llega.
+   * Si llega `password` se vuelve a hashear y se cierran todas sus sesiones abiertas.
    */
   async update(id, data) {
     const current = await findLiveUser(id);
-    const { account, profile, avatarUrl } = splitInput(data);
+    const account = pickAccount(data);
 
     if (account.email !== undefined && account.email !== current.email) await assertEmailAvailable(account.email, id);
     if (account.roleId !== undefined && String(account.roleId) !== String(current.roleId)) {
-      await assertRole(account.roleId);
+      await roleService.assertAssignable(account.roleId);
       await assertNotLastAdmin(current, "cambiar su rol");
     }
     if (account.status === USER_STATUS.SUSPENDED && current.status !== USER_STATUS.SUSPENDED) {
       await assertNotLastAdmin(current, "suspender");
     }
-    if (data.password) account.passwordHash = await hashPassword(data.password);
+    if (data.password) {
+      account.passwordHash = await hashPassword(data.password);
+      // Los tokens emitidos antes de ahora dejan de valer (lo comprueba el middleware de auth).
+      account.tokensValidAfter = new Date();
+    }
 
     if (Object.keys(account).length) await userRepository.updateById(id, account);
-    if (Object.keys(profile).length) await profileRepository.updateByUserId(id, profile);
-    if (avatarUrl !== undefined) {
-      const ownProfile = await profileRepository.findByUserId(id);
-      await replaceAvatar(ownProfile, { _id: current._id, name: account.name ?? current.name }, avatarUrl);
-    }
+    await profileService.updateFor({ _id: current._id, name: account.name ?? current.name }, data);
     return this.getById(id);
   },
 
@@ -213,7 +189,7 @@ export const userService = {
     if (user.deletedAt) throw new ConflictError("El usuario está eliminado. Restáuralo antes de cambiar su visibilidad");
     if (!isActive) await assertNotLastAdmin(user, "desactivar");
     await userRepository.updateById(id, { isActive });
-    await profileRepository.setActiveByUserId(id, isActive);
+    await profileService.setActiveFor(id, isActive);
     return this.getById(id);
   },
 
@@ -228,12 +204,10 @@ export const userService = {
       );
     }
 
-    // En cascada y con la misma fecha: perfil y su avatar.
-    const profile = await profileRepository.findByUserId(id);
+    // En cascada y con la misma fecha: su perfil y su avatar.
     const date = new Date();
     await userRepository.softDeleteById(id, date);
-    await profileRepository.softDeleteByUserId(id, date);
-    await imageRepository.softDeleteByOwners(IMAGE_OWNER.PROFILE, [profile._id], date);
+    await profileService.softDeleteFor(id, date);
   },
 
   /** Vuelve inactivo salvo que se pida isActive true. Con su perfil y su avatar, si se borraron con él. */
@@ -242,11 +216,8 @@ export const userService = {
     if (!user) throw new NotFoundError("Usuario no encontrado");
     if (!user.deletedAt) throw new ConflictError("El usuario no está eliminado");
 
-    const profile = await profileRepository.findRawByUserId(id);
     await userRepository.restoreById(id, user.deletedAt, isActive);
-    await profileRepository.restoreByUserId(id, user.deletedAt, isActive);
-    await imageRepository.restoreByOwners(IMAGE_OWNER.PROFILE, [profile._id], user.deletedAt);
+    await profileService.restoreFor(id, user.deletedAt, isActive);
     return this.getById(id);
   },
 };
-

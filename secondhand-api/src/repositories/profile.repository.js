@@ -1,12 +1,20 @@
-import { Profile } from "../models/profile.model.js";
+import { AVATAR_MATCH, Profile } from "../models/profile.model.js";
 
 /**
- * Solo lo usa `user.service.js`: el perfil no tiene CRUD propio. Cada método recibe el `userId`, nunca el
- * id del perfil, porque un perfil se identifica por su usuario.
+ * Solo lo usa `profile.service.js`: el perfil no tiene CRUD propio. Cada método recibe el `userId`, nunca
+ * el id del perfil, porque un perfil se identifica por su usuario.
  */
 export const profileRepository = {
   findByUserId(userId) {
     return Profile.findOne({ userId }).lean();
+  },
+
+  /** Con su avatar vivo (el `match` se repite: el de un populate sustituye al del virtual). */
+  findWithAvatarByUserId(userId) {
+    return Profile.findOne({ userId })
+      .select("userId phone location bio deletedAt")
+      .populate({ path: "avatar", select: "url deletedAt", match: AVATAR_MATCH })
+      .lean();
   },
 
   /** Incluye los de la papelera: al restaurar un usuario hace falta su perfil (para su avatar). */

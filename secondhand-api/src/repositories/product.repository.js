@@ -9,7 +9,8 @@ const WITH_DELETED = { withDeleted: true };
 
 // Un producto siempre muestra su categoría y su vendedor, aunque después se eliminen.
 const CATEGORY_SUMMARY = { path: "category", select: "name slug", options: WITH_DELETED };
-const SELLER_SUMMARY = { path: "seller", select: "name slug location", options: WITH_DELETED };
+// La ubicación que cuenta es la del producto; la del vendedor está en su perfil y aquí no hace falta.
+const SELLER_SUMMARY = { path: "seller", select: "name slug", options: WITH_DELETED };
 
 /**
  * Listados: lo justo para una card o una fila de tabla.

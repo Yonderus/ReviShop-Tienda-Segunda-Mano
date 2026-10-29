@@ -152,14 +152,21 @@ export const swaggerSpec = swaggerJSDoc({
             status: { type: "string", enum: CATEGORY_STATUSES },
           },
         },
-        Seller: {
+        SellerSummary: {
           type: "object",
+          description: "El vendedor dentro de un producto. La ubicación que cuenta es la del producto.",
           properties: {
             _id: objectId,
             name: { type: "string", example: "Lucía Martín" },
             slug: { type: "string", example: "lucia-martin" },
-            location: { type: "string", example: "Valencia" },
           },
+        },
+        Seller: {
+          description: "Para el select de vendedor: con la ubicación de su perfil, si la tiene.",
+          allOf: [
+            { $ref: "#/components/schemas/SellerSummary" },
+            { type: "object", properties: { location: { type: "string", example: "Valencia" } } },
+          ],
         },
         Role: {
           type: "object",
@@ -183,6 +190,7 @@ export const swaggerSpec = swaggerJSDoc({
             phone: { type: "string" },
             location: { type: "string", example: "Valencia" },
             bio: { type: "string" },
+            avatarUrl: { type: "string", format: "uri", description: "Foto del perfil. No aparece si no tiene" },
             status: { type: "string", enum: USER_STATUSES, description: "suspended = no puede vender" },
             isActive: { type: "boolean" },
             deletedAt: nullableDate,
@@ -205,6 +213,13 @@ export const swaggerSpec = swaggerJSDoc({
             phone: { type: "string", maxLength: 20, example: "+34 600 000 000" },
             location: { type: "string", maxLength: 100, example: "Valencia" },
             bio: { type: "string", maxLength: 300 },
+            avatarUrl: {
+              type: "string",
+              format: "uri",
+              nullable: true,
+              example: "https://picsum.photos/id/64/200/200",
+              description: "URL http(s) de la foto del perfil; null la quita. Al cambiarla, la anterior va a la papelera",
+            },
             status: { type: "string", enum: USER_STATUSES },
           },
         },
@@ -227,7 +242,7 @@ export const swaggerSpec = swaggerJSDoc({
             categoryId: objectId,
             sellerId: objectId,
             category: { $ref: "#/components/schemas/CategorySummary" },
-            seller: { $ref: "#/components/schemas/Seller" },
+            seller: { $ref: "#/components/schemas/SellerSummary" },
             images: { type: "array", items: { $ref: "#/components/schemas/Image" } },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },

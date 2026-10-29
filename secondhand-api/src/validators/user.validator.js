@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, USER_STATUSES } from "../constants/user.constants.js";
 import { isEmail } from "../utils/email.js";
+import { isHttpUrl } from "../utils/url.js";
 import { objectId } from "./common.validator.js";
+
+const AVATAR_URL_ERROR = "El avatar debe ser una URL http(s) válida";
 
 const status = z.enum(USER_STATUSES, { error: `status debe ser: ${USER_STATUSES.join(", ")}` });
 
@@ -31,6 +34,8 @@ export const createUserSchema = z.object({
     .optional(),
   location: z.string().trim().max(100, "La ubicación no puede superar 100 caracteres").optional(),
   bio: z.string().trim().max(300, "La bio no puede superar 300 caracteres").optional(),
+  // URL de la foto del perfil; null la quita. Misma regla que las fotos de producto.
+  avatarUrl: z.string().trim().refine(isHttpUrl, AVATAR_URL_ERROR).nullable().optional(),
   status: status.optional(),
 });
 

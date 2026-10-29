@@ -1,14 +1,31 @@
 import { USER_STATUS } from "../constants/user.constants.js";
+import { AVATAR_MATCH } from "../models/profile.model.js";
 import { User } from "../models/user.model.js";
 
 // Los eliminados ya los oculta el plugin de soft delete. `passwordHash` no sale nunca: es `select: false`.
 const ACTIVE = { isActive: true };
 const CAN_SELL = { ...ACTIVE, status: { $ne: USER_STATUS.SUSPENDED } };
 const WITH_DELETED = { withDeleted: true };
-const PUBLIC_FIELDS = "name slug location";
+const PUBLIC_FIELDS = "name slug";
 const ADMIN_FIELDS = "-__v -deletedBy";
 // Un usuario siempre muestra su rol, aunque después se retire.
 const ROLE_SUMMARY = { path: "role", select: "name slug", options: WITH_DELETED };
+/**
+ * El perfil, con su avatar. `userId` hace falta para que el populate lo empareje. El perfil sigue al usuario
+ * también en la papelera; su avatar, en cambio, se pide distinto según la lista (ver TRASH_POPULATE).
+ */
+const profileWith = (avatarOptions) => ({
+  path: "profile",
+  select: "userId phone location bio deletedAt",
+  options: WITH_DELETED,
+  populate: { path: "avatar", select: "url deletedAt", match: AVATAR_MATCH, options: avatarOptions },
+});
+const ADMIN_POPULATE = [ROLE_SUMMARY, profileWith({})];
+/**
+ * Papelera: el avatar está borrado con el perfil. Entre los borrados, el más reciente es el que se borró con
+ * él (los sustituidos antes son más antiguos); el service comprueba que la fecha coincida.
+ */
+const TRASH_POPULATE = [ROLE_SUMMARY, profileWith({ ...WITH_DELETED, sort: { deletedAt: -1 } })];
 
 export const userRepository = {
   findActiveById(id) {
@@ -22,28 +39,32 @@ export const userRepository = {
 
   /** Los mismos que acepta `findActiveById`: activos y no suspendidos. */
   listSellers() {
-    return User.find(CAN_SELL).sort({ name: 1 }).select(PUBLIC_FIELDS).lean();
+    return User.find(CAN_SELL)
+      .sort({ name: 1 })
+      .select(PUBLIC_FIELDS)
+      .populate({ path: "profile", select: "userId location" })
+      .lean();
   },
 
-  /** Panel: con su rol. */
+  /** Panel: con su rol y su perfil (y el avatar del perfil). */
   findAll(filter = {}) {
-    return User.find(filter).sort({ name: 1 }).select(ADMIN_FIELDS).populate(ROLE_SUMMARY).lean();
+    return User.find(filter).sort({ name: 1 }).select(ADMIN_FIELDS).populate(ADMIN_POPULATE).lean();
   },
 
   findTrashed(filter = {}) {
     return User.find({ ...filter, deletedAt: { $ne: null } })
       .sort({ deletedAt: -1 })
       .select(ADMIN_FIELDS)
-      .populate(ROLE_SUMMARY)
+      .populate(TRASH_POPULATE)
       .lean();
   },
 
   findDetailById(id) {
-    return User.findById(id).select(ADMIN_FIELDS).populate(ROLE_SUMMARY).lean();
+    return User.findById(id).select(ADMIN_FIELDS).populate(ADMIN_POPULATE).lean();
   },
 
   findDetailBySlug(slug) {
-    return User.findOne({ slug }).select(ADMIN_FIELDS).populate(ROLE_SUMMARY).lean();
+    return User.findOne({ slug }).select(ADMIN_FIELDS).populate(ADMIN_POPULATE).lean();
   },
 
   /** Incluye eliminados: el service decide qué hacer con ellos (404, 409, restaurar…). */
@@ -67,6 +88,11 @@ export const userRepository = {
 
   updateById(id, data) {
     return User.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  },
+
+  /** Borrado físico: solo para deshacer una creación que falló a medias (p. ej. sin perfil). */
+  hardDeleteById(id) {
+    return User.deleteOne({ _id: id });
   },
 
   softDeleteById(id, date) {

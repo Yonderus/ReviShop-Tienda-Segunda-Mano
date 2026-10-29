@@ -1,6 +1,11 @@
 /**
- * Visibilidad. Es independiente del soft delete: un producto puede estar inactivo sin estar eliminado.
- * `deletedAt` y `deletedBy` los añade el plugin de soft delete, que usan todos los modelos.
+ * Lo que comparten todos los modelos. Cada modelo tiene además, por sus plugins:
+ *
+ *   isActive               visibilidad (este archivo). Independiente del borrado: algo puede estar
+ *                          inactivo sin estar eliminado.
+ *   deletedAt · deletedBy  papelera (softDeletePlugin). null = no eliminado.
+ *   slug                   identificador legible para las URL (slugPlugin), salvo Profile y ProductVariant.
+ *   createdAt · updatedAt  fechas (timestamps de baseOptions).
  */
 export const baseFields = {
   isActive: { type: Boolean, default: true },

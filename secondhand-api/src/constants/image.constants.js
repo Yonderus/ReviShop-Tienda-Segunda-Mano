@@ -3,14 +3,15 @@
  * resolver la referencia: un nombre mal escrito no da error, simplemente no encuentra nada.
  */
 export const IMAGE_OWNER = Object.freeze({
-  USER: "User",
+  // El avatar es un dato del perfil, no de la cuenta.
+  PROFILE: "Profile",
   CATEGORY: "Category",
   PRODUCT: "Product",
   PRODUCT_VARIANT: "ProductVariant",
 });
 export const IMAGE_OWNER_TYPES = Object.freeze(Object.values(IMAGE_OWNER));
 
-/** Papel de la imagen: avatar de usuario, icono de categoría, o portada y galería de un producto. */
+/** Papel de la imagen: avatar del perfil, icono de categoría, o portada y galería de un producto. */
 export const IMAGE_KIND = Object.freeze({
   AVATAR: "avatar",
   ICON: "icon",

@@ -4,11 +4,12 @@ import { env } from "./config/env.js";
 import { CATEGORY_STATUS } from "./constants/category.constants.js";
 import { IMAGE_KIND, IMAGE_OWNER, IMAGE_STATUS } from "./constants/image.constants.js";
 import { PERMISSIONS, ROLE } from "./constants/role.constants.js";
-import { USER_STATUS } from "./constants/user.constants.js";
+import { PROFILE_FIELDS, USER_STATUS } from "./constants/user.constants.js";
 import { Category } from "./models/category.model.js";
 import { Image } from "./models/image.model.js";
 import { Product } from "./models/product.model.js";
 import { ProductVariant } from "./models/productVariant.model.js";
+import { Profile } from "./models/profile.model.js";
 import { Role } from "./models/role.model.js";
 import { User } from "./models/user.model.js";
 import { cascadeSoftDelete, productService } from "./services/product.service.js";
@@ -329,7 +330,7 @@ const PRODUCTS = [
   },
 ];
 
-const MODELS = [Role, User, Category, Product, ProductVariant, Image];
+const MODELS = [Role, User, Profile, Category, Product, ProductVariant, Image];
 
 /* ---------- Pasos (en orden de dependencias) ---------- */
 
@@ -346,13 +347,17 @@ async function seedUsers(roles) {
   const passwordHash = await hashPassword(env.SEED_DEFAULT_PASSWORD);
   const users = {};
   for (const { key, role, avatar: _avatar, status = USER_STATUS.VERIFIED, ...data } of USERS) {
+    // Cada usuario nace con su perfil, como en el panel: lo que es de perfil va a Profile.
+    const profile = Object.fromEntries(PROFILE_FIELDS.filter((field) => data[field] !== undefined).map((field) => [field, data[field]]));
+    const account = Object.fromEntries(Object.entries(data).filter(([field]) => !PROFILE_FIELDS.includes(field)));
     users[key] = await User.create({
-      ...data,
+      ...account,
       roleId: roles[role]._id,
       passwordHash,
       status,
       emailVerifiedAt: status === USER_STATUS.VERIFIED ? new Date() : null,
     });
+    await Profile.create({ ...profile, userId: users[key]._id });
   }
   return users;
 }
@@ -412,12 +417,14 @@ async function seedProductImages(product, images = []) {
   }
 }
 
+/** El avatar es del perfil, no de la cuenta. */
 async function seedAvatars(users) {
   for (const { key, avatar } of USERS) {
     const user = users[key];
+    const profile = await Profile.findOne({ userId: user._id });
     await Image.create({
-      ownerType: IMAGE_OWNER.USER,
-      ownerId: user._id,
+      ownerType: IMAGE_OWNER.PROFILE,
+      ownerId: profile._id,
       kind: IMAGE_KIND.AVATAR,
       url: photo(avatar, "200/200"),
       alt: `Avatar de ${user.name}`,
@@ -473,6 +480,7 @@ async function seedDatabase() {
     console.log("\nResumen:");
     console.log(`  roles            ${await total(Role)}`);
     console.log(`  users            ${await total(User)}`);
+    console.log(`  profiles         ${await total(Profile)}`);
     console.log(`  categories       ${await total(Category)}`);
     console.log(
       `  products         ${products.length} (activos ${count((p) => !p.deletedAt && p.isActive)}, ` +

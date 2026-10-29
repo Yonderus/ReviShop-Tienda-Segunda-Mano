@@ -59,6 +59,8 @@ npm run seed            # carga los datos de prueba
 npm run dev             # http://localhost:3000
 ```
 
+`npm run seed` **vacía** la base antes de cargar los datos.
+
 | Variable | Para qué |
 |---|---|
 | `PORT` | Puerto de la API (3000 por defecto) |
@@ -87,7 +89,7 @@ npm start               # http://localhost:4200
 
 ### Datos de prueba
 
-`npm run seed` vacía la base y crea: **3 roles, 6 usuarios** (uno suspendido), **13 categorías** (9 principales, una de ellas en **borrador**, y 4 subcategorías con atributos), **20 productos** (14 activos, 3 inactivos y 3 en la papelera; 5 con variantes reales), **27 variantes** y **16 imágenes**. Así se pueden probar todos los filtros del panel.
+`npm run seed` vacía la base y crea: **3 roles, 6 usuarios** (uno suspendido) con sus **6 perfiles**, **13 categorías** (9 principales, una de ellas en **borrador**, y 4 subcategorías con atributos), **20 productos** (14 activos, 3 inactivos y 3 en la papelera; 5 con variantes reales), **27 variantes** y **16 imágenes**. Así se pueden probar todos los filtros del panel.
 
 | Usuario | Email | Rol |
 |---|---|---|
@@ -147,8 +149,10 @@ componente → store (signals) → service → ApiService → interceptores → 
 
 ```
 Role 1 ── N User 1 ── N Product N ── 1 Category (árbol de 2 niveles)
-                          │
-                          ├── 1 ── N ProductVariant
+               │          │
+               1          ├── 1 ── N ProductVariant
+               │          │
+            Profile
                           │
            Image (polimórfica: User · Category · Product · ProductVariant)
 ```
@@ -156,13 +160,16 @@ Role 1 ── N User 1 ── N Product N ── 1 Category (árbol de 2 niveles
 | Colección | Claves |
 |---|---|
 | `roles` | `admin`, `moderator`, `user`, con sus permisos |
-| `users` | `roleId`, email único, `passwordHash` (nunca sale en las respuestas), estado `pending · verified · suspended` |
+| `users` | La **cuenta**: `roleId`, email único, `passwordHash` (nunca sale en las respuestas), estado `pending · verified · suspended` |
+| `profiles` | El **perfil** (teléfono, ubicación, bio), 1 a 1 con su usuario por `userId` único e inmutable. No tiene CRUD propio: nace, se edita, se borra y se restaura con su usuario, y la API lo sigue devolviendo dentro de él |
 | `categories` | `parentId` (dos niveles como máximo), `status` `draft · published` y `attributes` (p. ej. talla o capacidad), que heredan las subcategorías que no tienen los suyos |
 | `products` | `sellerId`, `categoryId`, `basePrice` y `status` **calculado** a partir de sus variantes |
 | `productVariants` | Opciones, SKU único, precio propio (o el base) y stock |
 | `images` | `ownerType` + `ownerId` (`refPath`); la primera es la portada |
 
-**En todas las colecciones:** `isActive`, `deletedAt`, `slug`, `createdAt` y `updatedAt`. El **soft delete** es un plugin de Mongoose que oculta lo borrado en todas las consultas. El borrado es **en cascada** y la restauración es **exacta**: solo vuelve lo que se borró a la vez.
+**En todas las colecciones:** `isActive`, `deletedAt`, `createdAt` y `updatedAt`, y `slug` en todas salvo `profiles` (se busca por su usuario). El **soft delete** es un plugin de Mongoose que oculta lo borrado en todas las consultas. El borrado es **en cascada** y la restauración es **exacta**: solo vuelve lo que se borró a la vez.
+
+**Integridad referencial.** MongoDB no tiene claves foráneas (`ref` solo sirve para `populate`), así que la garantizan **los services**: el rol de un usuario tiene que existir y poder asignarse; el perfil solo lo crea, edita, borra y restaura el service de usuarios, siempre junto a su usuario; y no se borra una categoría o un usuario que tenga productos. Los índices ayudan (`profiles.userId` único, que asegura el 1 a 1, y `users.roleId`).
 
 ---
 
@@ -240,6 +247,7 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 | CRUD de categorías + panel en árbol | ✅ |
 | CRUD de usuarios + `GET /roles` + panel | ✅ |
 | Seed con 20 productos + fotos sin pérdidas ni huérfanas | ✅ |
+| Perfil separado del usuario + integridad referencial | ✅ |
 | JWT: login, roles USER/ADMIN y perfil | 🔜 |
 | Carrito, reservas y pagos | 🔜 |
 

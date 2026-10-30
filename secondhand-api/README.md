@@ -128,4 +128,4 @@ Ejemplos de petición y respuesta en [`postman.md`](postman.md).
 
 ## Tecnologías
 
-Express · MongoDB + Mongoose · Zod · Argon2 · jsonwebtoken · Helmet · Morgan · CORS · dotenv (bcryptjs solo para pasar a Argon2 las contraseñas antiguas)
+Express · MongoDB + Mongoose · Zod · Argon2 · jsonwebtoken · express-rate-limit · Helmet · Morgan · CORS · dotenv (bcryptjs solo para pasar a Argon2 las contraseñas antiguas)

@@ -47,6 +47,12 @@ export class ConflictError extends AppError {
   }
 }
 
+export class TooManyRequestsError extends AppError {
+  constructor(message = "Demasiadas peticiones", errors) {
+    super(429, message, errors);
+  }
+}
+
 export class ValidationError extends AppError {
   constructor(message = "Los datos enviados no son válidos", errors) {
     super(422, message, errors);

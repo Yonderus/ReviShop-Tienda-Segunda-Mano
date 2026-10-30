@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getMe, login, logout } from "../controllers/auth.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
+import { loginRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.js";
 import { loginSchema } from "../validators/auth.validator.js";
 
@@ -16,7 +17,7 @@ const router = Router();
  *     description: |
  *       Devuelve un JWT (cabecera `Authorization: Bearer <token>` en las demás peticiones) y el usuario.
  *       Email inexistente o contraseña mala → 401 con el mismo mensaje. Cuenta inactiva, suspendida o
- *       eliminada → 403.
+ *       eliminada → 403. Límite de intentos fallidos cada 15 minutos (10 por IP y email, 50 por IP) → 429.
  *     requestBody:
  *       required: true
  *       content: { application/json: { schema: { $ref: '#/components/schemas/LoginInput' } } }
@@ -27,8 +28,9 @@ const router = Router();
  *       401: { $ref: '#/components/responses/BadCredentials' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       422: { $ref: '#/components/responses/ValidationError' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
  */
-router.post("/login", validate({ body: loginSchema }), login);
+router.post("/login", loginRateLimit, validate({ body: loginSchema }), login);
 
 /**
  * @openapi

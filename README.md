@@ -202,7 +202,7 @@ En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`)
 | **Usuarios** | 🛡️ todo: `GET /users` (`?isActive=`) · `/actives` · `/inactives` · `/trash` (con `?status=` y `?role=`) · `/slug/:slug` · `/:id` · `POST` · `PATCH /:id` · `/:id/active` · `/:id/restore` · `DELETE /:id` |
 | **Roles y vendedores** | 🛡️ `GET /roles` (los asignables, sin CRUD) · 🌐 `GET /sellers` (activos y no suspendidos) |
 
-**Reglas del login:** email inexistente o contraseña mala dan el mismo `401` ("Email o contraseña incorrectos"), para no revelar qué emails existen; una cuenta inactiva, suspendida o eliminada da `403` aunque la contraseña sea buena.
+**Reglas del login:** email inexistente o contraseña mala dan el mismo `401` ("Email o contraseña incorrectos"), para no revelar qué emails existen; una cuenta inactiva, suspendida o eliminada da `403` aunque la contraseña sea buena. Contra quien prueba contraseñas: **10 intentos fallidos cada 15 minutos por IP y email, y 50 por IP** → `429` (con la cabecera `Retry-After`); los logins correctos no cuentan.
 
 **Reglas de las categorías:** el nombre es único (también frente a las de la papelera, porque su slug sigue ocupado); solo se puede colgar de una categoría principal; una con subcategorías no puede pasar a ser hija; no se borra si tiene productos o subcategorías (`409` con cuántos); una subcategoría no se restaura si su padre sigue en la papelera; y un producto solo puede ir a una categoría **publicada y activa**.
 
@@ -225,6 +225,7 @@ En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`)
 | `401` | Sin sesión, o con un token caducado, revocado (logout) o no válido · login con credenciales incorrectas |
 | `403` | Con sesión pero sin permiso: no es admin, o el recurso no es suyo · login de una cuenta que no puede entrar |
 | `404` | No existe o está en la papelera |
+| `429` | Demasiados intentos de login fallidos (espera lo que diga `Retry-After`) |
 | `409` | Choca con otro registro (título o email repetido) o con el estado (activar uno borrado, borrar una categoría con productos, quitar al último admin) |
 | `422` | Datos no válidos (Zod, reglas del service o Mongoose) |
 

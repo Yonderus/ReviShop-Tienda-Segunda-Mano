@@ -415,6 +415,10 @@ export const swaggerSpec = swaggerJSDoc({
           success: false,
           message: "No tienes permiso para esto",
         }),
+        TooManyRequests: errorResponse("Demasiados intentos fallidos: la cabecera Retry-After dice cuántos segundos esperar", {
+          success: false,
+          message: "Demasiados intentos de inicio de sesión. Prueba de nuevo dentro de unos minutos",
+        }),
         BadCredentials: errorResponse("Email o contraseña incorrectos (el mismo mensaje en los dos casos)", {
           success: false,
           message: "Email o contraseña incorrectos",

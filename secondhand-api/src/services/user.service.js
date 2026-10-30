@@ -23,6 +23,13 @@ const withProfileFields = ({ profile, ...user }) => ({ ...user, ...profileServic
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
+/**
+ * Cierra todas las sesiones abiertas del usuario: los tokens emitidos antes de ahora dejan de valer (lo
+ * comprueba el middleware de auth). Se usa cuando se le quita el acceso (desactivar, suspender, borrar) o
+ * cambia su contraseña: si después recupera el acceso, tiene que volver a iniciar sesión.
+ */
+const closeSessions = () => ({ tokensValidAfter: new Date() });
+
 async function findLiveUser(id) {
   const user = await userRepository.findRawById(id);
   if (!user || user.deletedAt) throw new NotFoundError("Usuario no encontrado");
@@ -158,7 +165,7 @@ export const userService = {
 
   /**
    * Parcial: cada campo va a su sitio (cuenta, perfil o avatar) y solo se escribe lo que llega.
-   * Si llega `password` se vuelve a hashear y se cierran todas sus sesiones abiertas.
+   * Si llega `password` se vuelve a hashear. Cambiar la contraseña o suspender cierra todas sus sesiones.
    */
   async update(id, data) {
     const current = await findLiveUser(id);
@@ -169,14 +176,10 @@ export const userService = {
       await roleService.assertAssignable(account.roleId);
       await assertNotLastAdmin(current, "cambiar su rol");
     }
-    if (account.status === USER_STATUS.SUSPENDED && current.status !== USER_STATUS.SUSPENDED) {
-      await assertNotLastAdmin(current, "suspender");
-    }
-    if (data.password) {
-      account.passwordHash = await hashPassword(data.password);
-      // Los tokens emitidos antes de ahora dejan de valer (lo comprueba el middleware de auth).
-      account.tokensValidAfter = new Date();
-    }
+    const suspending = account.status === USER_STATUS.SUSPENDED && current.status !== USER_STATUS.SUSPENDED;
+    if (suspending) await assertNotLastAdmin(current, "suspender");
+    if (data.password) account.passwordHash = await hashPassword(data.password);
+    if (data.password || suspending) Object.assign(account, closeSessions());
 
     if (Object.keys(account).length) await userRepository.updateById(id, account);
     await profileService.updateFor({ _id: current._id, name: account.name ?? current.name }, data);
@@ -188,7 +191,8 @@ export const userService = {
     if (!user) throw new NotFoundError("Usuario no encontrado");
     if (user.deletedAt) throw new ConflictError("El usuario está eliminado. Restáuralo antes de cambiar su visibilidad");
     if (!isActive) await assertNotLastAdmin(user, "desactivar");
-    await userRepository.updateById(id, { isActive });
+    // Desactivar cierra sus sesiones: al reactivarlo tendrá que volver a iniciar sesión.
+    await userRepository.updateById(id, isActive ? { isActive } : { isActive, ...closeSessions() });
     await profileService.setActiveFor(id, isActive);
     return this.getById(id);
   },
@@ -204,8 +208,10 @@ export const userService = {
       );
     }
 
-    // En cascada y con la misma fecha: su perfil y su avatar.
+    // Cierra sus sesiones (si se restaura, tendrá que volver a iniciar sesión) y, en cascada y con la misma
+    // fecha, su perfil y su avatar.
     const date = new Date();
+    await userRepository.updateById(id, closeSessions());
     await userRepository.softDeleteById(id, date);
     await profileService.softDeleteFor(id, date);
   },

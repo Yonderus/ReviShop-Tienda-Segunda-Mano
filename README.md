@@ -206,7 +206,7 @@ En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`)
 
 **Reglas de las categorías:** el nombre es único (también frente a las de la papelera, porque su slug sigue ocupado); solo se puede colgar de una categoría principal; una con subcategorías no puede pasar a ser hija; no se borra si tiene productos o subcategorías (`409` con cuántos); una subcategoría no se restaura si su padre sigue en la papelera; y un producto solo puede ir a una categoría **publicada y activa**.
 
-**Reglas de los usuarios:** el email es único (si es de uno de la papelera, el `409` dice que lo restaures); la contraseña tiene entre 8 y 128 caracteres, se guarda con **Argon2id** (las antiguas en bcrypt se pasan a Argon2 al iniciar sesión) y no sale en ninguna respuesta; cambiarla cierra todas sus sesiones; el rol tiene que existir y poder asignarse; **siempre queda al menos un administrador activo** (al último no se le puede borrar, desactivar, suspender ni cambiar el rol); y no se borra un usuario con productos (sí se puede desactivar o suspender).
+**Reglas de los usuarios:** el email es único (si es de uno de la papelera, el `409` dice que lo restaures); la contraseña tiene entre 8 y 128 caracteres, se guarda con **Argon2id** (las antiguas en bcrypt se pasan a Argon2 al iniciar sesión) y no sale en ninguna respuesta; **cambiarla, desactivarlo, suspenderlo o borrarlo cierra todas sus sesiones** (si recupera el acceso, tiene que volver a iniciar sesión); el rol tiene que existir y poder asignarse; **siempre queda al menos un administrador activo** (al último no se le puede borrar, desactivar, suspender ni cambiar el rol); y no se borra un usuario con productos (sí se puede desactivar o suspender).
 
 **Formato de respuesta único:**
 

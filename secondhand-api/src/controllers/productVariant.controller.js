@@ -3,7 +3,7 @@ import { sendCreated, sendNoContent, sendSuccess } from "../utils/response.js";
 
 export const getProductVariants = async (req, res, next) => {
   try {
-    const variants = await productVariantService.listByProduct(req.params.id);
+    const variants = await productVariantService.listByProduct(req.params.id, req.user);
     sendSuccess(res, variants);
   } catch (error) {
     next(error);

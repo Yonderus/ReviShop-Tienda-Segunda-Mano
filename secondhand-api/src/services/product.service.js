@@ -25,6 +25,9 @@ function assertCanModify(actor, product) {
   if (!isOwnerOrAdmin(actor, product.sellerId)) throw new ForbiddenError(AUTH_MESSAGES.FORBIDDEN);
 }
 
+/** ¿Puede verlo? Activo: cualquiera. Inactivo: solo su vendedor o un admin. */
+const canSee = (actor, product) => product.isActive || isOwnerOrAdmin(actor, product.sellerId);
+
 /** Integridad: la categoría y el vendedor los vigila su propio service (422 `categoryId` / `sellerId`). */
 async function assertReferences({ categoryId, sellerId }) {
   if (categoryId) await categoryService.assertAcceptsProducts(categoryId);
@@ -116,10 +119,19 @@ export const productService = {
     return product;
   },
 
-  async getBySlug(slug) {
+  /**
+   * Público. Un producto inactivo (oculto por su vendedor o por un admin) solo lo ven su dueño y los admin:
+   * al resto, 404 (no 403, para no confirmar que existe). `actor` es el usuario de la sesión, si la hay.
+   */
+  async getBySlug(slug, actor = null) {
     const product = await productRepository.findDetailBySlug(slug);
-    if (!product) throw new NotFoundError("Producto no encontrado");
+    if (!product || !canSee(actor, product)) throw new NotFoundError("Producto no encontrado");
     return product;
+  },
+
+  /** Lo mismo para cualquier lectura pública ligada a un producto (p. ej. sus variantes). */
+  assertCanSee(actor, product) {
+    if (!canSee(actor, product)) throw new NotFoundError("Producto no encontrado");
   },
 
   /** El vendedor es el de la sesión. Solo un admin puede publicar en nombre de otro (con `sellerId`). */

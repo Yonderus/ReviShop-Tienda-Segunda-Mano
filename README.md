@@ -190,14 +190,14 @@ Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`
 
 En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`), que no esté en la blacklist, que el usuario siga activo y no suspendido y que no se haya cambiado su contraseña después. El rol se lee de la base de datos, no del token: si se lo cambian, manda el nuevo.
 
-**Quién puede usar cada endpoint:** 🌐 público · 🔑 con sesión · 👤 su dueño o un admin · 🛡️ solo admin.
+**Quién puede usar cada endpoint:** 🌐 público (si llega un token válido se tiene en cuenta; uno caducado se ignora) · 🔑 con sesión · 👤 su dueño o un admin · 🛡️ solo admin.
 
 | Recurso | Endpoints |
 |---|---|
 | **Auth** | 🌐 `POST /auth/login` · 🔑 `GET /auth/me` · 🔑 `POST /auth/logout` |
 | **Perfil** | 🔑 `GET /profile/me` · 🔑 `PATCH /profile/me` (teléfono, ubicación, bio y avatar; solo el suyo) |
-| **Productos** | 🌐 `GET /products` (solo activos) · 🌐 `/slug/:slug` · 🛡️ `/actives` · `/inactives` · `/trash` · `/:id` · 🔑 `POST /products` (el vendedor es el de la sesión; un admin puede indicar otro) · 👤 `PATCH /:id` · `/:id/status` · `/:id/active` · `DELETE /:id` · 🛡️ `PATCH /:id/restore` |
-| **Variantes** | 🌐 `GET /products/:id/variants` · 👤 `POST /products/:id/variants` · `PATCH /variants/:id` · `/:id/status` · `/:id/active` · `DELETE /variants/:id` (el dueño es el del producto) |
+| **Productos** | 🌐 `GET /products` (solo activos) · 🌐 `/slug/:slug` (uno inactivo, solo su dueño o un admin; al resto, 404) · 🛡️ `/actives` · `/inactives` · `/trash` · `/:id` · 🔑 `POST /products` (el vendedor es el de la sesión; un admin puede indicar otro) · 👤 `PATCH /:id` · `/:id/status` · `/:id/active` · `DELETE /:id` · 🛡️ `PATCH /:id/restore` |
+| **Variantes** | 🌐 `GET /products/:id/variants` (las de un producto inactivo, igual que él) · 👤 `POST /products/:id/variants` · `PATCH /variants/:id` · `/:id/status` · `/:id/active` · `DELETE /variants/:id` (el dueño es el del producto) |
 | **Categorías** | 🌐 `GET /categories` (publicadas y activas) · 🛡️ todo lo demás: `/actives` · `/inactives` · `/trash` (con `?status=`) · `/slug/:slug` · `/:id` · `POST` · `PATCH /:id` · `/:id/active` · `/:id/restore` · `DELETE /:id` |
 | **Usuarios** | 🛡️ todo: `GET /users` (`?isActive=`) · `/actives` · `/inactives` · `/trash` (con `?status=` y `?role=`) · `/slug/:slug` · `/:id` · `POST` · `PATCH /:id` · `/:id/active` · `/:id/restore` · `DELETE /:id` |
 | **Roles y vendedores** | 🛡️ `GET /roles` (los asignables, sin CRUD) · 🌐 `GET /sellers` (activos y no suspendidos) |

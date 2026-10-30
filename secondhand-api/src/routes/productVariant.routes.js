@@ -7,7 +7,7 @@ import {
   softDeleteVariant,
   updateVariant,
 } from "../controllers/productVariant.controller.js";
-import { authenticate } from "../middlewares/auth.middleware.js";
+import { authenticate, optionalAuthenticate } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.js";
 import { idParamsSchema, setActiveSchema } from "../validators/common.validator.js";
 import { changeStatusSchema } from "../validators/product.validator.js";
@@ -21,8 +21,9 @@ export const productVariantsOfProductRoutes = Router({ mergeParams: true });
  * /products/{id}/variants:
  *   get:
  *     tags: [Variantes]
- *     summary: Variantes no eliminadas de un producto
- *     security: []
+ *     summary: Público — variantes no eliminadas de un producto
+ *     security: [{}, { bearerAuth: [] }]
+ *     description: Las de un producto inactivo solo las ven su dueño y los admin (con token); al resto, 404.
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     responses:
  *       200:
@@ -30,7 +31,7 @@ export const productVariantsOfProductRoutes = Router({ mergeParams: true });
  *         content: { application/json: { schema: { $ref: '#/components/schemas/VariantListResponse' } } }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-productVariantsOfProductRoutes.get("/", validate({ params: idParamsSchema }), getProductVariants);
+productVariantsOfProductRoutes.get("/", optionalAuthenticate, validate({ params: idParamsSchema }), getProductVariants);
 
 /**
  * @openapi

@@ -14,7 +14,7 @@ import {
   updateProduct,
 } from "../controllers/product.controller.js";
 import { adminOnly } from "../middlewares/admin.middleware.js";
-import { authenticate } from "../middlewares/auth.middleware.js";
+import { authenticate, optionalAuthenticate } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.js";
 import { idParamsSchema, restoreSchema, setActiveSchema, slugParamsSchema } from "../validators/common.validator.js";
 import {
@@ -130,8 +130,9 @@ router.get("/trash", adminOnly, validate({ query: stateListQuerySchema }), getTr
  * /products/slug/{slug}:
  *   get:
  *     tags: [Productos]
- *     summary: Detalle por slug
- *     security: []
+ *     summary: Público — detalle por slug
+ *     security: [{}, { bearerAuth: [] }]
+ *     description: Un producto inactivo solo lo ven su dueño y los admin (con token); al resto, 404. El token es opcional y, si no vale, se ignora.
  *     parameters: [{ $ref: '#/components/parameters/ProductSlug' }]
  *     responses:
  *       200:
@@ -139,7 +140,7 @@ router.get("/trash", adminOnly, validate({ query: stateListQuerySchema }), getTr
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductResponse' } } }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.get("/slug/:slug", validate({ params: slugParamsSchema }), getProductBySlug);
+router.get("/slug/:slug", optionalAuthenticate, validate({ params: slugParamsSchema }), getProductBySlug);
 
 /**
  * @openapi

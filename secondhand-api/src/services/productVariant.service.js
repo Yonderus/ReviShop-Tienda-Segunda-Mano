@@ -59,8 +59,9 @@ async function assertOptions(product, options) {
 }
 
 export const productVariantService = {
-  async listByProduct(productId) {
-    await findLiveProduct(productId);
+  /** Público, salvo las de un producto inactivo: esas solo las ven su dueño y los admin (404 al resto). */
+  async listByProduct(productId, actor = null) {
+    productService.assertCanSee(actor, await findLiveProduct(productId));
     return productVariantRepository.findLiveByProduct(productId);
   },
 

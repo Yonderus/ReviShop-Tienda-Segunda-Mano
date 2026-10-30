@@ -48,7 +48,7 @@ export const getProductById = async (req, res, next) => {
 
 export const getProductBySlug = async (req, res, next) => {
   try {
-    const product = await productService.getBySlug(req.params.slug);
+    const product = await productService.getBySlug(req.params.slug, req.user);
     sendSuccess(res, product);
   } catch (error) {
     next(error);

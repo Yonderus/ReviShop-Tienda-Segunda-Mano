@@ -32,19 +32,19 @@ const buildAvatar = (profile, user, url) => ({
  * Cambia el avatar como las fotos de un producto: primero crea el nuevo y solo después retira el anterior,
  * así un fallo no deja el perfil sin foto. `url` null = quitarlo.
  */
-async function replaceAvatar(profile, user, url) {
+async function replaceAvatar(profile, user, url, deletedBy) {
   const previousIds = await imageRepository.findIdsByOwner(IMAGE_OWNER.PROFILE, profile._id);
   if (url) await imageRepository.createMany([buildAvatar(profile, user, url)]);
-  if (previousIds.length) await imageRepository.softDeleteByIds(previousIds, new Date());
+  if (previousIds.length) await imageRepository.softDeleteByIds(previousIds, new Date(), deletedBy);
 }
 
 /** Escribe lo que llegue: campos del perfil y, si viene `avatarUrl` (aunque sea null), el avatar. */
-async function writeProfile(user, data) {
+async function writeProfile(user, data, deletedBy) {
   const fields = pickProfileFields(data);
   if (Object.keys(fields).length) await profileRepository.updateByUserId(user._id, fields);
   if (data.avatarUrl !== undefined) {
     const profile = await profileRepository.findByUserId(user._id);
-    await replaceAvatar(profile, user, data.avatarUrl);
+    await replaceAvatar(profile, user, data.avatarUrl, deletedBy);
   }
 }
 
@@ -73,7 +73,8 @@ export const profileService = {
 
   /** `user` es el de la sesión: `{ _id, name }`. Solo teléfono, ubicación, bio y avatar. */
   async updateMine(user, data) {
-    await writeProfile(user, data);
+    // El avatar anterior lo retira el propio usuario.
+    await writeProfile(user, data, user._id);
     return this.getMine(user._id);
   },
 
@@ -86,8 +87,9 @@ export const profileService = {
     return profile;
   },
 
-  updateFor(user, data) {
-    return writeProfile(user, data);
+  /** `deletedBy`: quien hace el cambio (el admin desde el panel), para el avatar que se retira. */
+  updateFor(user, data, deletedBy = null) {
+    return writeProfile(user, data, deletedBy);
   },
 
   setActiveFor(userId, isActive) {
@@ -95,10 +97,10 @@ export const profileService = {
   },
 
   /** A la papelera con la misma fecha que su usuario, con su avatar. */
-  async softDeleteFor(userId, date) {
+  async softDeleteFor(userId, date, deletedBy = null) {
     const profile = await profileRepository.findByUserId(userId);
-    await profileRepository.softDeleteByUserId(userId, date);
-    if (profile) await imageRepository.softDeleteByOwners(IMAGE_OWNER.PROFILE, [profile._id], date);
+    await profileRepository.softDeleteByUserId(userId, date, deletedBy);
+    if (profile) await imageRepository.softDeleteByOwners(IMAGE_OWNER.PROFILE, [profile._id], date, deletedBy);
   },
 
   /** Solo vuelve lo que se borró con el usuario (misma fecha). */

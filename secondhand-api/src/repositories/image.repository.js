@@ -23,12 +23,12 @@ export const imageRepository = {
     return Image.find({ ownerType, ownerId }).distinct("_id");
   },
 
-  softDeleteByIds(ids, date) {
-    return Image.softDeleteMany({ _id: { $in: ids } }, date);
+  softDeleteByIds(ids, date, deletedBy = null) {
+    return Image.softDeleteMany({ _id: { $in: ids } }, date, deletedBy);
   },
 
-  softDeleteByOwners(ownerType, ownerIds, date) {
-    return Image.softDeleteMany(ownersFilter(ownerType, ownerIds), date);
+  softDeleteByOwners(ownerType, ownerIds, date, deletedBy = null) {
+    return Image.softDeleteMany(ownersFilter(ownerType, ownerIds), date, deletedBy);
   },
 
   /** Solo las que se eliminaron con esa fecha: no revive las sustituidas antes al cambiar las fotos. */

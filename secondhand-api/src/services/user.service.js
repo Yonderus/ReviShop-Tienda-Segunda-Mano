@@ -167,7 +167,7 @@ export const userService = {
    * Parcial: cada campo va a su sitio (cuenta, perfil o avatar) y solo se escribe lo que llega.
    * Si llega `password` se vuelve a hashear. Cambiar la contraseña o suspender cierra todas sus sesiones.
    */
-  async update(id, data) {
+  async update(id, data, actor = null) {
     const current = await findLiveUser(id);
     const account = pickAccount(data);
 
@@ -182,7 +182,7 @@ export const userService = {
     if (data.password || suspending) Object.assign(account, closeSessions());
 
     if (Object.keys(account).length) await userRepository.updateById(id, account);
-    await profileService.updateFor({ _id: current._id, name: account.name ?? current.name }, data);
+    await profileService.updateFor({ _id: current._id, name: account.name ?? current.name }, data, actor?.id ?? null);
     return this.getById(id);
   },
 
@@ -198,7 +198,7 @@ export const userService = {
   },
 
   /** No se puede eliminar con productos: sus anuncios se quedarían sin vendedor. Desactivarlo sí. */
-  async softDelete(id) {
+  async softDelete(id, actor = null) {
     const user = await findLiveUser(id);
     await assertNotLastAdmin(user, "eliminar");
     const products = (await productRepository.countBySellers([id]))[id] ?? 0;
@@ -212,8 +212,8 @@ export const userService = {
     // fecha, su perfil y su avatar.
     const date = new Date();
     await userRepository.updateById(id, closeSessions());
-    await userRepository.softDeleteById(id, date);
-    await profileService.softDeleteFor(id, date);
+    await userRepository.softDeleteById(id, date, actor?.id ?? null);
+    await profileService.softDeleteFor(id, date, actor?.id ?? null);
   },
 
   /** Vuelve inactivo salvo que se pida isActive true. Con su perfil y su avatar, si se borraron con él. */

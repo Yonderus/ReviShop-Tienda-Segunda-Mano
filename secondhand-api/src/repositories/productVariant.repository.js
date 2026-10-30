@@ -23,11 +23,11 @@ export const productVariantRepository = {
 
   /** Para recuperar una variante eliminada al volver a crearla con las mismas opciones. */
   restoreById(id, data) {
-    return ProductVariant.findByIdAndUpdate(id, { ...data, deletedAt: null }, { new: true, runValidators: true }).setOptions(WITH_DELETED);
+    return ProductVariant.findByIdAndUpdate(id, { ...data, deletedAt: null, deletedBy: null }, { new: true, runValidators: true }).setOptions(WITH_DELETED);
   },
 
-  softDeleteByIds(ids, date) {
-    return ProductVariant.softDeleteMany({ _id: { $in: ids } }, date);
+  softDeleteByIds(ids, date, deletedBy = null) {
+    return ProductVariant.softDeleteMany({ _id: { $in: ids } }, date, deletedBy);
   },
 
   findLiveByProduct(productId) {
@@ -48,8 +48,8 @@ export const productVariantRepository = {
     return ProductVariant.findByIdAndUpdate(id, data, { new: true, runValidators: true });
   },
 
-  softDeleteByProduct(productId, date) {
-    return ProductVariant.softDeleteMany({ productId }, date);
+  softDeleteByProduct(productId, date, deletedBy = null) {
+    return ProductVariant.softDeleteMany({ productId }, date, deletedBy);
   },
 
   /** Solo las que se eliminaron junto al producto (misma fecha): no revive las eliminadas antes por separado. */

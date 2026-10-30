@@ -191,7 +191,7 @@ export const productService = {
       // pasan a soft delete las anteriores, por id: si la creación falla, el producto conserva sus fotos.
       const previousIds = await imageRepository.findIdsByOwner(IMAGE_OWNER.PRODUCT, product._id);
       if (data.images.length) await imageRepository.createMany(buildProductImages(product, data.images));
-      if (previousIds.length) await imageRepository.softDeleteByIds(previousIds, new Date());
+      if (previousIds.length) await imageRepository.softDeleteByIds(previousIds, new Date(), actor.id);
     }
 
     return productRepository.findDetailById(id);
@@ -237,8 +237,8 @@ export const productService = {
     const product = await findLiveProduct(id);
     assertCanModify(actor, product);
     const date = new Date();
-    await productRepository.softDeleteById(id, date);
-    await cascadeSoftDelete(product._id, date);
+    await productRepository.softDeleteById(id, date, actor.id);
+    await cascadeSoftDelete(product._id, date, actor.id);
   },
 
   /** Restaura el producto y solo los hijos que se borraron con él (misma fecha). */
@@ -257,9 +257,9 @@ export const productService = {
   },
 };
 
-export async function cascadeSoftDelete(productId, date) {
+export async function cascadeSoftDelete(productId, date, deletedBy = null) {
   const variantIds = (await productVariantRepository.findAllByProduct(productId)).map((v) => v._id);
-  await productVariantRepository.softDeleteByProduct(productId, date);
-  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT, [productId], date);
-  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT, variantIds, date);
+  await productVariantRepository.softDeleteByProduct(productId, date, deletedBy);
+  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT, [productId], date, deletedBy);
+  await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT, variantIds, date, deletedBy);
 }

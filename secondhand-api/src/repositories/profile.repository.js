@@ -35,8 +35,8 @@ export const profileRepository = {
   },
 
   /** Con la misma fecha que su usuario: así la restauración solo devuelve lo que se borró junto. */
-  softDeleteByUserId(userId, date) {
-    return Profile.softDeleteMany({ userId }, date);
+  softDeleteByUserId(userId, date, deletedBy = null) {
+    return Profile.softDeleteMany({ userId }, date, deletedBy);
   },
 
   restoreByUserId(userId, date, isActive) {

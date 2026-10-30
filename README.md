@@ -172,7 +172,7 @@ Role 1 ── N User 1 ── N Product N ── 1 Category (árbol de 2 niveles
 | `images` | `ownerType` + `ownerId` (`refPath`); la primera es la portada. Al sustituirlas, las anteriores pasan a la papelera |
 | `revoked_tokens` | La **blacklist del logout**: `jti` del token (único), `userId`, motivo y `expiresAt`. Un índice TTL borra cada fila cuando el token habría caducado. Es la excepción: sin `isActive`, papelera ni slug |
 
-**En todas las colecciones:** `isActive`, `deletedAt`, `createdAt` y `updatedAt`, y `slug` en todas salvo `profiles` (se busca por su usuario). El **soft delete** es un plugin de Mongoose que oculta lo borrado en todas las consultas. El borrado es **en cascada** y la restauración es **exacta**: solo vuelve lo que se borró a la vez.
+**En todas las colecciones:** `isActive`, `deletedAt`, `createdAt` y `updatedAt`, y `slug` en todas salvo `profiles` (se busca por su usuario). El **soft delete** es un plugin de Mongoose que oculta lo borrado en todas las consultas. El borrado es **en cascada** y la restauración es **exacta**: solo vuelve lo que se borró a la vez. **`deletedBy`** guarda quién mandó cada cosa a la papelera (el usuario de la sesión, también en lo que cae en cascada; `null` si fue el seed) y se vacía al restaurar.
 
 **Integridad referencial.** MongoDB no tiene claves foráneas (`ref` solo sirve para `populate`), así que la garantizan **los services**: el rol de un usuario tiene que existir y poder asignarse; el perfil solo lo crea, edita, borra y restaura el service de usuarios, siempre junto a su usuario; y no se borra una categoría o un usuario que tenga productos. Los índices ayudan (`profiles.userId` único, que asegura el 1 a 1, y `users.roleId`).
 

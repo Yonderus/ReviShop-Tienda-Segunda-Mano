@@ -125,7 +125,7 @@ export const categoryService = {
   },
 
   /** No se puede eliminar si tiene productos o subcategorías: primero hay que moverlos o eliminarlos. */
-  async softDelete(id) {
+  async softDelete(id, actor = null) {
     await findLiveCategory(id);
     const [products, children] = await Promise.all([productRepository.countByCategories([id]), categoryRepository.countChildren([id])]);
     const blockers = [
@@ -137,8 +137,8 @@ export const categoryService = {
     }
 
     const date = new Date();
-    await categoryRepository.softDeleteById(id, date);
-    await imageRepository.softDeleteByOwners(IMAGE_OWNER.CATEGORY, [id], date);
+    await categoryRepository.softDeleteById(id, date, actor?.id ?? null);
+    await imageRepository.softDeleteByOwners(IMAGE_OWNER.CATEGORY, [id], date, actor?.id ?? null);
   },
 
   /** Vuelve inactiva salvo que se pida isActive true. Una subcategoría necesita que su padre no esté eliminado. */

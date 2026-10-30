@@ -83,7 +83,7 @@ export const restoreCategory = async (req, res, next) => {
 
 export const softDeleteCategory = async (req, res, next) => {
   try {
-    await categoryService.softDelete(req.params.id);
+    await categoryService.softDelete(req.params.id, req.user);
     sendNoContent(res);
   } catch (error) {
     next(error);

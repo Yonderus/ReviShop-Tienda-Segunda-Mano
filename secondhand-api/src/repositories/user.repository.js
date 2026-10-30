@@ -104,8 +104,8 @@ export const userRepository = {
     return User.deleteOne({ _id: id });
   },
 
-  softDeleteById(id, date) {
-    return User.softDeleteMany({ _id: id }, date);
+  softDeleteById(id, date, deletedBy = null) {
+    return User.softDeleteMany({ _id: id }, date, deletedBy);
   },
 
   restoreById(id, date, isActive) {

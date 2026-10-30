@@ -73,8 +73,8 @@ export const categoryRepository = {
     return Category.findByIdAndUpdate(id, data, { new: true, runValidators: true });
   },
 
-  softDeleteById(id, date) {
-    return Category.softDeleteMany({ _id: id }, date);
+  softDeleteById(id, date, deletedBy = null) {
+    return Category.softDeleteMany({ _id: id }, date, deletedBy);
   },
 
   restoreById(id, date, isActive) {

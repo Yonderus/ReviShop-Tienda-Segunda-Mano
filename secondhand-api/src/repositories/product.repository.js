@@ -111,8 +111,8 @@ export const productRepository = {
     return Product.findByIdAndUpdate(id, data, { new: true, runValidators: true }).setOptions(WITH_DELETED);
   },
 
-  softDeleteById(id, date) {
-    return Product.softDeleteMany({ _id: id }, date);
+  softDeleteById(id, date, deletedBy = null) {
+    return Product.softDeleteMany({ _id: id }, date, deletedBy);
   },
 
   restoreById(id, date, isActive) {

@@ -13,15 +13,17 @@ const FILTERED_QUERIES = ["find", "findOne", "findOneAndUpdate", "countDocuments
  * - Oculta los eliminados en todas las consultas, populate incluidos, salvo que:
  *     · el filtro ya hable de `deletedAt` (la papelera: `{ deletedAt: { $ne: null } }`), o
  *     · se pida expresamente con `.setOptions({ withDeleted: true })`.
- * - `Model.softDeleteMany(filter, date)` y `Model.restoreMany(filter, date, fields)`: la fecha
- *   enlaza un borrado en cascada con su restauración, así solo vuelve lo que se borró junto.
+ * - `Model.softDeleteMany(filter, date, deletedBy)` y `Model.restoreMany(filter, date, fields)`: la fecha
+ *   enlaza un borrado en cascada con su restauración, así solo vuelve lo que se borró junto. `deletedBy` es
+ *   quién lo mandó a la papelera (el usuario de la sesión; null si fue el sistema, p. ej. el seed).
+ *   Restaurar lo vacía.
  *
  * @param {object} [options.deletedFields] campos que se fijan además de deletedAt (p. ej. isActive: false)
  */
 export function softDeletePlugin(schema, { deletedFields = {} } = {}) {
   schema.add({
     deletedAt: { type: Date, default: null },
-    // Queda en null mientras no exista login.
+    // Quién lo mandó a la papelera. null: no está eliminado, o lo eliminó el sistema (el seed).
     deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   });
 
@@ -30,11 +32,11 @@ export function softDeletePlugin(schema, { deletedFields = {} } = {}) {
     if (this.getFilter().deletedAt === undefined) this.where({ deletedAt: null });
   });
 
-  schema.statics.softDeleteMany = function (filter, date = new Date()) {
-    return this.updateMany({ ...filter, deletedAt: null }, { ...deletedFields, deletedAt: date });
+  schema.statics.softDeleteMany = function (filter, date = new Date(), deletedBy = null) {
+    return this.updateMany({ ...filter, deletedAt: null }, { ...deletedFields, deletedAt: date, deletedBy });
   };
 
   schema.statics.restoreMany = function (filter, date, fields = {}) {
-    return this.updateMany({ ...filter, deletedAt: date }, { ...fields, deletedAt: null });
+    return this.updateMany({ ...filter, deletedAt: date }, { ...fields, deletedAt: null, deletedBy: null });
   };
 }

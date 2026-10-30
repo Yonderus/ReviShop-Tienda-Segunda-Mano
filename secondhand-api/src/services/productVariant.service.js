@@ -104,8 +104,8 @@ export const productVariantService = {
     const defaults = all.filter((v) => !v.deletedAt && v.optionsKey === DEFAULT_OPTIONS_KEY).map((v) => v._id);
     if (defaults.length) {
       const date = new Date();
-      await productVariantRepository.softDeleteByIds(defaults, date);
-      await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT, defaults, date);
+      await productVariantRepository.softDeleteByIds(defaults, date, actor.id);
+      await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT, defaults, date, actor.id);
     }
 
     await productService.recalculateStatus(productId);
@@ -140,8 +140,8 @@ export const productVariantService = {
       throw new ConflictError("Un producto necesita al menos una variante: si quieres quitarla, borra el producto");
     }
     const date = new Date();
-    await productVariantRepository.softDeleteByIds([variant._id], date);
-    await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT, [variant._id], date);
+    await productVariantRepository.softDeleteByIds([variant._id], date, actor.id);
+    await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT, [variant._id], date, actor.id);
     await productService.recalculateStatus(variant.productId);
   },
 };

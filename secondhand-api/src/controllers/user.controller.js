@@ -67,7 +67,7 @@ export const createUser = async (req, res, next) => {
 
 export const updateUser = async (req, res, next) => {
   try {
-    sendSuccess(res, await userService.update(req.params.id, req.body));
+    sendSuccess(res, await userService.update(req.params.id, req.body, req.user));
   } catch (error) {
     next(error);
   }
@@ -91,7 +91,7 @@ export const restoreUser = async (req, res, next) => {
 
 export const softDeleteUser = async (req, res, next) => {
   try {
-    await userService.softDelete(req.params.id);
+    await userService.softDelete(req.params.id, req.user);
     sendNoContent(res);
   } catch (error) {
     next(error);

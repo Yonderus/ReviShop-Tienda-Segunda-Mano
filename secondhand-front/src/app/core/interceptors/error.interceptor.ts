@@ -10,7 +10,7 @@ import { TimeoutError, catchError, map, throwError, timeout } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Router } from '@angular/router';
 import { AuthStore } from '../auth/auth.store';
-import { INLINE_ERROR_STATUSES, SKIP_AUTH_REDIRECT, SKIP_ERROR_ALERT } from '../config/api.tokens';
+import { INLINE_ERROR_STATUSES, SENT_WITH_SESSION, SKIP_AUTH_REDIRECT, SKIP_ERROR_ALERT } from '../config/api.tokens';
 import { ApiError } from '../models/api-error.model';
 import { failureErrors, isApiFailure, isApiSuccess } from '../models/api-response.model';
 import { AlertService } from '../services/alert.service';
@@ -82,11 +82,12 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         console.error(`[API] ${req.method} ${req.urlWithParams}`, raw);
       }
 
-      // 401 de una petición que llevaba token: la sesión ya no vale (caducada, cerrada, cuenta desactivada…).
-      // Se borra la sesión local y al login. Si fallan varias a la vez, solo la primera avisa: las demás ya
-      // encuentran la sesión borrada. El login, `/auth/me` y el logout tratan su 401 ellos (SKIP_AUTH_REDIRECT).
-      if (error.status === 401 && req.headers.has('Authorization') && !req.context.get(SKIP_AUTH_REDIRECT)) {
-        if (auth.token()) {
+      // 401 de una petición que salió con la sesión abierta: la sesión ya no vale (caducada, cerrada, cuenta
+      // desactivada…). Se borra la sesión local y al login (la cookie ya la ha borrado la API). Si fallan varias
+      // a la vez, solo la primera avisa: las demás ya encuentran la sesión borrada. El login, `/auth/me` y el
+      // logout tratan su 401 ellos (SKIP_AUTH_REDIRECT).
+      if (error.status === 401 && req.context.get(SENT_WITH_SESSION) && !req.context.get(SKIP_AUTH_REDIRECT)) {
+        if (auth.isAuthenticated()) {
           auth.clearSession();
           void alert.error(error.message);
           void router.navigate(['/login'], { queryParams: { returnUrl: router.url } });

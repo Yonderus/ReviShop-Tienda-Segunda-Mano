@@ -21,12 +21,15 @@ export class AuthService {
     });
   }
 
-  /** Al arrancar la app: sin avisos ni loader (si el token ya no vale, simplemente no hay sesión). */
+  /** Al arrancar la app: sin avisos ni loader (sin cookie, o con una que ya no vale, simplemente no hay sesión). */
   me(): Promise<AuthUser> {
     return this.api.get<AuthUser>('/auth/me', { skipErrorAlert: true, skipGlobalLoader: true, skipAuthRedirect: true });
   }
 
-  /** Revoca el token en el servidor (blacklist). Si falla, da igual: la sesión local se borra igualmente. */
+  /**
+   * Revoca el token en el servidor (blacklist) y borra la cookie, que desde JavaScript no se puede tocar.
+   * Es idempotente; si falla (sin red), da igual: la sesión local se borra igualmente.
+   */
   logout(): Promise<void> {
     return this.api.post<void>('/auth/logout', null, { skipErrorAlert: true, skipGlobalLoader: true, skipAuthRedirect: true });
   }

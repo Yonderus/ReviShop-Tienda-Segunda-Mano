@@ -15,5 +15,11 @@ export const BLOCKING_REQUEST = new HttpContextToken<boolean>(() => false);
  */
 export const SKIP_AUTH_REDIRECT = new HttpContextToken<boolean>(() => false);
 
+/**
+ * Lo pone el authInterceptor: la petición salió con la sesión abierta. Un 401 de una petición así significa
+ * "tu sesión ya no vale" (con la cookie httpOnly el front no ve el token, así que no hay cabecera que mirar).
+ */
+export const SENT_WITH_SESSION = new HttpContextToken<boolean>(() => false);
+
 /** Códigos HTTP que el llamador pinta en línea (p. ej. en el formulario) en lugar de en un modal. */
 export const INLINE_ERROR_STATUSES = new HttpContextToken<readonly number[]>(() => []);

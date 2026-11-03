@@ -39,7 +39,8 @@ export const appConfig: ApplicationConfig = {
       // anchorScrolling: los enlaces con #fragmento (p. ej. …/edit#variantes) bajan hasta esa sección.
       withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' }),
     ),
-    // authInterceptor el primero: así el loader y el manejo de errores ven ya la petición con su token.
+    // authInterceptor el primero: así el loader y el manejo de errores ven ya la petición con `withCredentials`
+    // y marcada con SENT_WITH_SESSION.
     provideHttpClient(withFetch(), withInterceptors([authInterceptor, loadingInterceptor, errorInterceptor])),
     // La sesión guardada se recupera antes de la primera navegación: los guards deciden con ella ya cargada.
     {

@@ -24,7 +24,7 @@ export interface LoginInput {
   password: string;
 }
 
+/** El token no viene: la API lo guarda en la cookie `httpOnly` (JavaScript nunca lo ve). */
 export interface LoginResponse {
-  token: string;
   user: AuthUser;
 }

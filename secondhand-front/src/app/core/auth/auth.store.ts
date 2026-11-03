@@ -1,71 +1,41 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { AUTH_TOKEN_KEY } from '../config/app.constants';
-import { ApiError } from '../models/api-error.model';
 import { AuthUser, LoginInput, ROLE, RoleSlug } from './auth.models';
 import { AuthService } from './auth.service';
 
-/** Segundos de margen: un token que caduca ahora mismo ya no se usa. */
-const EXPIRY_MARGIN_S = 10;
+/** Donde la versión anterior guardaba el token. Se borra al arrancar para no dejarlo olvidado en el navegador. */
+const LEGACY_TOKEN_KEY = 'revishop.token';
 
-/** `exp` del JWT (segundos) leído sin librerías: es la parte central, en base64url. null si no se puede leer. */
-function tokenExpiry(token: string): number | null {
+function removeLegacyToken(): void {
   try {
-    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const { exp } = JSON.parse(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '=')));
-    return typeof exp === 'number' ? exp : null;
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
   } catch {
-    return null;
+    // Sin almacenamiento disponible (modo privado estricto): no hay nada que borrar.
   }
 }
 
-const isExpired = (token: string): boolean => {
-  const exp = tokenExpiry(token);
-  return exp === null || exp - EXPIRY_MARGIN_S <= Date.now() / 1000;
-};
-
-// localStorage puede no estar disponible (modo privado estricto, almacenamiento bloqueado): sin él, no hay sesión.
-const storage = {
-  read: (): string | null => {
-    try {
-      return localStorage.getItem(AUTH_TOKEN_KEY);
-    } catch {
-      return null;
-    }
-  },
-  write: (token: string | null): void => {
-    try {
-      if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
-      else localStorage.removeItem(AUTH_TOKEN_KEY);
-    } catch {
-      // Sin almacenamiento: la sesión dura lo que la pestaña.
-    }
-  },
-};
-
 /**
- * La sesión, con signals (pizarra ②⑥). Guarda **solo el token** en localStorage; el usuario sale siempre de
- * la API (`/auth/me`), así un cambio de rol o una desactivación se notan al recargar.
+ * La sesión, con signals (pizarra ②⑥). El token vive en una cookie `httpOnly` que pone la API: el front **no
+ * lo ve ni lo guarda**. Lo único que sabe es quién es el usuario, y eso sale siempre de la API (`/auth/me`),
+ * así un cambio de rol o una desactivación se notan al recargar.
  *
  * - `restore()` se llama al arrancar la app (APP_INITIALIZER), antes de que los guards decidan.
- * - `logout()` revoca el token en la API y borra la sesión local; `clearSession()` solo la local (para cuando
- *   la API ya ha dicho que el token no vale).
+ * - `logout()` revoca el token y borra la cookie en la API, y después la sesión local; `clearSession()` solo
+ *   la local (para cuando la API ya ha dicho que el token no vale; la cookie ya la ha borrado ella).
  * - Quien guarde datos ligados al usuario se apunta a `onSessionEnd` para vaciarlos al salir.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthStore {
   private readonly auth = inject(AuthService);
 
-  private readonly _token = signal<string | null>(null);
   private readonly _user = signal<AuthUser | null>(null);
-  private readonly _restoring = signal(false);
+  private readonly _restoring = signal(true);
   private readonly sessionEndListeners = new Set<() => void>();
 
-  readonly token = this._token.asReadonly();
   readonly user = this._user.asReadonly();
-  /** true mientras se comprueba la sesión guardada al arrancar (para no parpadear entre "Iniciar sesión" y el usuario). */
+  /** true mientras se comprueba la sesión al arrancar (para no parpadear entre "Iniciar sesión" y el usuario). */
   readonly restoring = this._restoring.asReadonly();
 
-  readonly isAuthenticated = computed(() => this._token() !== null && this._user() !== null);
+  readonly isAuthenticated = computed(() => this._user() !== null);
   readonly role = computed<RoleSlug | null>(() => this._user()?.role?.slug ?? null);
   /** Un usuario tiene un rol; la lista es para cumplir con `hasRole` sin inventar nada. */
   readonly roles = computed<RoleSlug[]>(() => {
@@ -84,46 +54,37 @@ export class AuthStore {
     return !!user && (this.isAdmin() || (!!ownerId && ownerId === user._id));
   }
 
-  /** Recupera la sesión guardada: si el token no ha caducado, pide el usuario a la API. */
+  /**
+   * Recupera la sesión: como la cookie no se puede leer, siempre pregunta a la API. 200 → hay sesión;
+   * 401 (sin cookie, caducada, revocada…) o cualquier otro fallo (sin red) → no hay sesión, sin avisos.
+   */
   async restore(): Promise<void> {
-    const token = storage.read();
-    if (!token || isExpired(token)) {
-      this.clearSession();
-      return;
-    }
-    this._token.set(token);
+    removeLegacyToken();
     this._restoring.set(true);
     try {
       this._user.set(await this.auth.me());
-    } catch (error) {
-      // 401: el token ya no vale (logout, caducado, cuenta desactivada…). Otro error (sin red): la sesión se
-      // queda guardada, pero sin usuario; al recargar con la API disponible se recupera.
-      if (error instanceof ApiError && error.status === 401) this.clearSession();
-      else this._user.set(null);
+    } catch {
+      this._user.set(null);
     } finally {
       this._restoring.set(false);
     }
   }
 
   async login(input: LoginInput): Promise<AuthUser> {
-    const { token, user } = await this.auth.login(input);
-    storage.write(token);
-    this._token.set(token);
+    const { user } = await this.auth.login(input);
     this._user.set(user);
     return user;
   }
 
-  /** Cierra la sesión: la revoca en la API (blacklist) y, aunque eso falle, la borra aquí. */
+  /** Cierra la sesión: la API revoca el token y borra la cookie (aunque ya no valga); aunque falle, se borra aquí. */
   async logout(): Promise<void> {
-    if (this._token()) await this.auth.logout().catch(() => undefined);
+    await this.auth.logout().catch(() => undefined);
     this.clearSession();
   }
 
-  /** Solo la sesión local, sin llamar a la API (el token ya no vale). */
+  /** Solo la sesión local, sin llamar a la API (el token ya no vale y la API ya ha borrado la cookie). */
   clearSession(): void {
-    const hadSession = this._token() !== null || this._user() !== null;
-    storage.write(null);
-    this._token.set(null);
+    const hadSession = this._user() !== null;
     this._user.set(null);
     if (hadSession) this.sessionEndListeners.forEach((listener) => listener());
   }

@@ -1,153 +1,242 @@
+<div align="center">
+
+<img src="src/assets/logo.svg" alt="Revishop" width="84" height="84" />
+
 # Revishop · Frontend
 
-SPA en **Angular 18** para Revishop, un marketplace de productos de segunda mano. Consume la API REST de `../secondhand-api` (Express + MongoDB). Permite listar y filtrar anuncios, ver el detalle por **slug**, publicar, editar y retirar productos.
+**Cada objeto merece una segunda vida.**
+SPA del marketplace de segunda mano Revishop: catálogo público, publicación de anuncios, Mi perfil y un panel de administración completo.
 
-## Pantallas
+![Angular](https://img.shields.io/badge/Angular-18-DD0031?style=for-the-badge&logo=angular&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![Signals](https://img.shields.io/badge/Estado-Signals-1E3A8A?style=for-the-badge)
+![JWT](https://img.shields.io/badge/Sesión-JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 
-| Ruta | Pantalla |
-| --- | --- |
-| `/` | Catálogo: cabecera con el recuento real de anuncios, filtros (categoría, condición, estado, rango de precio, orden) reflejados en la URL y rejilla de cards con acciones rápidas *Editar / Eliminar*. |
-| `/products/new` | Publicar producto (formulario reactivo con validaciones accesibles). |
-| `/products/:slug` | Detalle: galería diferida, selector de variantes (si hay más de una), precio según la variante, escala de condición, vendedor, ubicación, fecha y acciones. |
-| `/products/:slug/edit` | Editar (envía `PATCH` solo con los campos modificados). |
-| `**` | 404 real. Un slug inexistente muestra "Producto no encontrado". |
+[Puesta en marcha](#-puesta-en-marcha) · [Sesión y permisos](#-sesión-y-permisos) · [Pantallas](#️-pantallas) · [API](#-api-consumida) · [Estructura](#-estructura) · [Diseño](#-sistema-de-diseño) · [Decisiones](#-decisiones-técnicas)
 
-### Panel de administración (`/admin`)
+</div>
 
-Sidebar vertical (drawer accesible en móvil) y sin login todavía (ver *Autenticación*).
+---
 
-| Ruta | Pantalla |
-| --- | --- |
-| `/admin` | Resumen con datos reales: inventario (publicados, activos, inactivos, en papelera) con barra proporcional, estado de venta, reparto por categoría, últimos productos y módulos futuros deshabilitados. |
-| `/admin/products` · `/admin/products/inactive` | Pestañas Activos / Inactivos: tabla (tarjetas en móvil) con interruptor de visibilidad y selector de estado de venta, ambos optimistas, editar y mover a la papelera. |
-| `/admin/products/new` · `/admin/products/:slug/edit` | Crear y editar reutilizando el mismo formulario que la tienda. |
-| `/admin/trash` | Papelera (soft delete): productos borrados con su fecha, restaurables como activos o como inactivos. |
+## ✨ Qué hace
 
-Los cambios se reflejan al instante en todas las vistas, porque comparten `ProductsStore`. Por ejemplo, al desactivar un producto baja el contador de Activos y sube el de Inactivos y el del resumen, sin recargar.
+<table>
+<tr>
+<td width="50%" valign="top">
 
-Usuarios, Mensajes, Reservas, Valoraciones, Pagos y Envíos son **solo nombres estáticos** en `features/admin/admin-nav.config.ts` (`PLATFORM_MODULES`), sin rutas, peticiones ni datos. Se ven con el mismo estilo "retirado" que la papelera: borde discontinuo, icono desaturado y etiqueta *Próximamente*.
+### 🛍️ Tienda
+- Catálogo con filtros (categoría, condición, estado, precio y orden) **guardados en la URL**.
+- Ficha por **slug** con galería, variantes y la *escala de segunda vida*.
+- Publicar, editar y retirar **tus** anuncios.
+- **Mi perfil**: foto, teléfono, ubicación y bio.
 
-Estados cubiertos en todas las pantallas: carga (skeleton con la forma real), vacío, sin resultados de filtros, error con **Reintentar** y no encontrado.
+</td>
+<td width="50%" valign="top">
 
-## Requisitos
+### 🛡️ Panel de administración
+- Resumen con datos reales del inventario.
+- CRUD de **productos** (con variantes), **categorías** (en árbol) y **usuarios** (con avatar).
+- Pestañas Activos · Inactivos · Papelera, con cambios **optimistas**.
+- Solo para el rol `admin`.
 
-- Node.js **18.19+, 20.11+ o 22** (versiones soportadas por Angular 18; con Node 24 funciona pero el CLI avisa de que no está soportado).
-- npm 10+.
-- MongoDB en local para la API.
-- Angular CLI 18 (incluido en `devDependencies`, se usa vía `npx ng` o los scripts npm).
+</td>
+</tr>
+</table>
 
-## Instalación y ejecución
+Todas las pantallas cubren los estados de **carga** (skeleton con la forma real), **vacío**, **sin resultados**, **error con Reintentar** y **no encontrado**.
+
+---
+
+## 🚀 Puesta en marcha
+
+> **Requisitos:** Node.js **18.19+, 20.11+ o 22** (con Node 24 funciona, pero el CLI avisa) · npm 10+ · MongoDB en local para la API.
 
 ```bash
-# 1. API (otra terminal)
+# 1 · API (en otra terminal)
 cd ../secondhand-api
 npm install
-npm run seed     # carga 5 productos de ejemplo (borra la colección)
+npm run seed     # 6 usuarios, categorías y 20 productos (borra los datos de prueba)
 npm run dev      # http://localhost:3000/api
 
-# 2. Front
+# 2 · Front
 cd ../secondhand-front
 npm install
-npm start        # ng serve → http://localhost:4200 (configuración development)
+npm start        # http://localhost:4200
 ```
 
-Build de producción (sale en `dist/secondhand-front`):
+> [!IMPORTANT]
+> La API necesita un `.env` con `JWT_SECRET` (y `SEED_DEFAULT_PASSWORD` para el seed). Mira [`secondhand-api/README.md`](../secondhand-api/README.md).
+
+### 👥 Usuarios de prueba
+
+Todos usan la contraseña de **`SEED_DEFAULT_PASSWORD`** del `.env` de la API.
+
+| | Email | Rol | Qué puede hacer |
+|:-:|---|---|---|
+| 🛡️ | `admin@revishop.test` | admin | Todo, panel incluido |
+| 🙋 | `lucia@revishop.test` | user | Comprar, publicar y gestionar lo suyo |
+| 🙋 | `juan@revishop.test` · `marta@revishop.test` · `carlos@revishop.test` | user | Igual que Lucía |
+| ⛔ | `pablo@revishop.test` | user, **suspendido** | No puede iniciar sesión (403) |
+
+**Iniciar sesión:** botón de la barra superior → `/login`. El admin llega a `/admin` y el resto a la tienda. **Cerrar sesión** está en el menú de tu foto.
+
+### 📦 Build
 
 ```bash
-npm run build                                  # producción (por defecto)
-npx ng build --configuration development      # build de desarrollo
+npm run build                               # producción → dist/secondhand-front
+npx ng build --configuration development    # desarrollo
 ```
 
-## Variables de entorno
+---
 
-Angular no lee `.env`: la URL de la API (`API_URL`) vive en los ficheros de `src/environments/`.
+## 🔐 Sesión y permisos
 
-| Fichero | Cuándo se usa | `apiUrl` |
-| --- | --- | --- |
-| `environment.ts` | `npm run build` (producción, base) | `/api` (mismo dominio, detrás de un proxy) |
-| `environment.development.ts` | `npm start` y `ng build --configuration development` (sustituye al anterior vía `fileReplacements` en `angular.json`) | `http://localhost:3000/api` |
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant F as Front (AuthStore)
+    participant A as API
+    U->>F: email + contraseña
+    F->>A: POST /auth/login
+    A-->>F: { token, user }
+    F->>F: guarda solo el token en localStorage
+    Note over F,A: Cada petición a la API lleva<br/>Authorization: Bearer token
+    U->>F: recarga la página
+    F->>A: GET /auth/me (APP_INITIALIZER)
+    A-->>F: usuario actual (rol leído de la BD)
+    U->>F: Cerrar sesión
+    F->>A: POST /auth/logout (token a la blacklist)
+    F->>F: borra la sesión local y vacía las colecciones del panel
+```
 
-Ambos exponen:
+| Pieza | Dónde | Qué hace |
+|---|---|---|
+| **`AuthStore`** | `core/auth/auth.store.ts` | Signals `token`, `user`, `isAuthenticated`, `role`, `isAdmin`, `hasRole()` e `isOwnerOrAdmin()` (la misma regla que la API). `restore()`, `login()`, `logout()` y `onSessionEnd()` |
+| **`AuthService`** | `core/auth/auth.service.ts` | Solo HTTP: `login`, `me` y `logout` |
+| **`authInterceptor`** | `core/auth/auth.interceptor.ts` | Añade `Bearer` **solo** a las peticiones a `environment.apiUrl` |
+| **`errorInterceptor`** | `core/interceptors/` | `401` con sesión abierta → la cierra, avisa y lleva a `/login?returnUrl=…`. `403` y `429` → mensaje de la API |
+| **Guards** (`canMatch`) | `core/auth/*.guard.ts` | Deciden qué rutas se pueden abrir (tabla de abajo) |
 
-- `production`: activa o desactiva los logs técnicos en consola (solo en desarrollo).
-- `apiUrl`: equivale a `API_URL`. Cámbialo aquí si la API corre en otro host o puerto.
-- `requestTimeoutMs`: tiempo máximo por petición (10 000 ms). Pasado ese tiempo se muestra "El servidor está tardando demasiado…".
+| Guard | Rutas | Si no se cumple |
+|---|---|---|
+| `guestGuard` | `/login` | Con sesión → `/admin` (admin) o `/` |
+| `authGuard` | `/profile` · `/products/new` · `/products/:slug/edit` | → `/login?returnUrl=…` y vuelve después |
+| `adminGuard` | `/admin/**` | Sin sesión → login · sin permiso → `/forbidden` |
 
-## Estructura
+> [!NOTE]
+> Los guards y los botones ocultos son **comodidad**, no seguridad: la API comprueba cada permiso otra vez. El token va en `localStorage` por decisión del proyecto; pasar a una cookie `httpOnly` queda apuntado para el futuro.
+
+**Lo tuyo y lo de los demás:** "Editar" y "Retirar" solo aparecen en tus anuncios (o en todos si eres admin), el select **Vendedor** solo lo ve el admin (el resto publica a su nombre) y un anuncio **inactivo** solo lo ven su vendedor y el admin.
+
+---
+
+## 🗺️ Pantallas
+
+**Leyenda:** 🌐 público · 🔑 con sesión · 👤 su dueño o un admin · 🛡️ solo admin · 🚪 solo sin sesión
+
+### 🛍️ Tienda
+
+| Ruta | | Pantalla |
+|---|:-:|---|
+| `/` | 🌐 | Catálogo: recuento real, filtros en la URL y tarjetas (con *Editar / Eliminar* en lo tuyo) |
+| `/products/:slug` | 🌐 | Ficha: galería diferida, variantes con su precio, condición, vendedor y ubicación |
+| `/login` | 🚪 | Iniciar sesión, con los errores de la API (credenciales, cuenta bloqueada, demasiados intentos) |
+| `/profile` | 🔑 | **Mi perfil**: foto con vista previa, teléfono, ubicación y bio (`PATCH` solo con lo cambiado) |
+| `/products/new` | 🔑 | Publicar un anuncio |
+| `/products/:slug/edit` | 👤 | Editar (`PATCH` solo con los campos cambiados) |
+| `/forbidden` | 🔑 | Acceso denegado |
+| `**` | 🌐 | 404 real; un slug inexistente muestra "Producto no encontrado" |
+
+### 🛡️ Panel (`/admin`)
+
+| Ruta | Pantalla |
+|---|---|
+| `/admin` | Resumen: inventario con barra proporcional, estado de venta, reparto por categoría y últimos productos |
+| `/admin/products` · `/inactive` · `/trash` | Productos: interruptor de visibilidad y estado de venta **optimistas**, editor de variantes, papelera restaurable |
+| `/admin/categories` · `/inactive` · `/trash` | Categorías en árbol, con borrador y atributos heredados |
+| `/admin/users` · `/inactive` · `/trash` | Usuarios con foto, rol, estado y **Avatar (URL)** en el formulario |
+| `…/new` · `…/:slug/edit` | Crear y editar cada entidad |
+
+Mensajes, Reservas, Valoraciones, Pagos y Envíos aparecen en el menú como **Próximamente** (`PLATFORM_MODULES` en `features/admin/admin-nav.config.ts`): sin rutas ni datos todavía.
+
+---
+
+## 🔌 API consumida
+
+Base: `environment.apiUrl` · respuestas `{ success: true, data }` o `{ success: false, message, errors? }`.
+
+| Recurso | Endpoints | Uso |
+|---|---|---|
+| 🔐 **Auth** | `POST /auth/login` · `GET /auth/me` · `POST /auth/logout` | Sesión |
+| 👤 **Perfil** | `GET` · `PATCH /profile/me` | Mi perfil |
+| 📦 **Productos** | `GET /products` · `/slug/:slug` | Catálogo público y ficha |
+| | `GET /products/actives` · `/inactives` · `/trash` | Pestañas del panel |
+| | `POST /products` · `PATCH /:id` · `/:id/status` · `/:id/active` · `/:id/restore` · `DELETE /:id` | Escrituras |
+| 🎨 **Variantes** | `/products/:id/variants` · `/variants/:id` (+ `/status`, `/active`) | Editor de variantes |
+| 🏷️ **Categorías** | `/categories` (CRUD completo) | Filtros, formulario y panel |
+| 🙋 **Usuarios** | `/users` (CRUD completo) · `GET /roles` · `GET /sellers` | Panel y select de vendedor |
+
+---
+
+## 🧱 Estructura
 
 ```
 src/app/
-├── core/                    # Infraestructura transversal (no conoce productos)
-│   ├── auth/                # AuthService (sin sesión todavía) y adminGuard (canMatch, hoy permite el paso)
-│   ├── config/              # HttpContextTokens (SKIP_ERROR_ALERT, SKIP_GLOBAL_LOADER, BLOCKING_REQUEST, INLINE_ERROR_STATUSES) y constantes
-│   ├── interceptors/        # errorInterceptor (timeout, normalización, alertas) y loadingInterceptor
-│   ├── models/              # ApiResponse<T>, ApiError
-│   └── services/            # ApiService (async/await → Promise), LoadingService, AlertService (SweetAlert2)
-├── shared/                  # Piezas reutilizables sin dominio
-│   ├── components/          # navbar, loader, blocking-spinner (ngx-spinner), skeleton, empty-state, error-state, page-not-found, form-field-error
-│   ├── ui/                  # icon, badge, level-meter, stat-card, toggle-switch
-│   └── utils/               # validadores, mensajes de error de formulario, pipes de precio y tiempo relativo
-├── layouts/
-│   ├── main-layout/         # tienda: navbar + router-outlet + footer + loader global
-│   └── admin-layout/        # admin: sidebar vertical / drawer móvil + topbar con migas
-├── features/catalog/        # Datos de referencia compartidos (categorías y vendedores)
-│   ├── models/              # Category, CategoryAttribute, Seller
-│   ├── services/            # CategoriesService, SellersService
-│   └── store/               # CatalogStore (carga única, árbol de categorías, atributos heredados)
-├── features/admin/          # Panel de administración (usa el modelo, servicio y store de products)
-│   ├── admin-nav.config.ts  # navegación y módulos estáticos deshabilitados
-│   ├── components/          # admin-sidebar, admin-thumb
-│   ├── dashboard/           # resumen
-│   ├── products/            # productos (activos/inactivos), papelera, crear, editar
-│   └── admin.routes.ts      # rutas hijas lazy con migas en `data`
-├── features/products/       # Todo lo del recurso Product
-│   ├── models/              # tipos, enums, etiquetas legibles, diff para PATCH
-│   ├── services/            # ProductsService (rutas de producto sobre ApiService, devuelve Promise)
-│   ├── store/               # ProductsStore: colecciones activos/inactivos/papelera, caché y KPIs
-│   ├── components/          # product-card, product-grid, product-filters, product-form, product-images-field, product-variant-picker, product-image, product-gallery
-│   ├── pages/               # list, detail, create, edit
-│   └── products.routes.ts   # rutas hijas lazy
-├── app.routes.ts            # /admin (canMatch adminGuard) + tienda + 404
-└── app.config.ts            # router, HttpClient con interceptores, locale es-ES
+├── core/                    Infraestructura transversal (no conoce productos)
+│   ├── auth/                AuthStore, AuthService, authInterceptor y guards
+│   ├── config/              HttpContextTokens y constantes
+│   ├── interceptors/        errorInterceptor (401/403/429, timeout, alertas) y loadingInterceptor
+│   ├── models/              ApiResponse<T>, ApiError
+│   ├── services/            ApiService (Observable → Promise), EntityApiService, LoadingService, AlertService
+│   └── store/               EntityStore y RemoteCollection (base de todos los stores)
+├── shared/
+│   ├── components/          navbar, user-menu, loader, skeleton, empty-state, error-state, page-not-found…
+│   ├── ui/                  icon, avatar, badge, level-meter, stat-card, toggle-switch
+│   └── utils/               validadores, mensajes de error, diff para PATCH, pipes
+├── layouts/                 main-layout (tienda) y admin-layout (sidebar + drawer móvil)
+├── features/
+│   ├── auth/                login y acceso denegado
+│   ├── profile/             Mi perfil
+│   ├── catalog/             categorías y vendedores compartidos (CatalogStore)
+│   ├── products/            modelo, servicios, ProductsStore, componentes y páginas
+│   ├── users/               modelo, servicios y UsersStore
+│   └── admin/               panel: dashboard, products, categories, users
+├── app.routes.ts            /admin (adminGuard) + tienda + 404
+└── app.config.ts            router, interceptores, APP_INITIALIZER (restaura la sesión), locale es-ES
 ```
 
-### Añadir una feature nueva
+<details>
+<summary><b>➕ Añadir una feature nueva</b></summary>
 
-Cada módulo futuro (usuarios, reservas, pagos, reviews, favoritos…) va en `features/<nombre>/` con sus propios `models/`, `services/` (sobre `ApiService`), `store/`, `components/`, `pages/` y un `<nombre>.routes.ts`. Se registra con un `loadChildren` en `app.routes.ts`. No hace falta tocar `core/` ni `shared/`: los interceptores, las alertas, el loader y los estados de error ya funcionan para cualquier petición.
+<br/>
 
-Para activar en el admin una de las entidades de `PLATFORM_MODULES`:
-1. crea su `features/<entidad>/`;
-2. añade su ruta en `features/admin/admin.routes.ts`;
-3. mueve la entrada de `PLATFORM_MODULES` a `ADMIN_NAV` con su `path`.
+Cada módulo (reservas, pagos, favoritos…) va en `features/<nombre>/` con sus `models/`, `services/` (sobre `ApiService` o `EntityApiService`), `store/` (sobre `EntityStore`), `components/`, `pages/` y un `<nombre>.routes.ts`. Los interceptores, las alertas, el loader, la sesión y los estados de error ya funcionan para cualquier petición.
 
-## API consumida
+- **Rutas en la tienda:** añádelas sueltas en `app.routes.ts` (`...MIS_RUTAS`), **no** como `{ path: '', loadChildren }` delante del catálogo: un grupo `''` lazy se queda con la URL vacía aunque ninguno de sus hijos coincida y la portada sale en blanco. Las páginas siguen siendo lazy con `loadComponent`.
+- **Si guarda datos del usuario:** el `EntityStore` ya se vacía al cerrar sesión; un store propio puede usar `authStore.onSessionEnd()`.
+- **En el panel:** crea su ruta en `features/admin/admin.routes.ts` y mueve su entrada de `PLATFORM_MODULES` a `ADMIN_NAV`.
 
-| Método | Ruta | Uso en el front |
-| --- | --- | --- |
-| GET | `/api/products` | Catálogo (una sola carga; filtra y ordena en cliente) |
-| GET | `/api/products/slug/:slug` | Detalle y edición cuando el producto no está en caché |
-| POST | `/api/products` | Publicar (201; **409** si el slug/título ya existe) |
-| GET | `/api/products/inactives` | Admin: pestaña Inactivos |
-| GET | `/api/products/trash` | Admin: papelera (productos con soft delete) |
-| GET | `/api/categories` · `/api/sellers` | Opciones de los `select` del formulario y del filtro de categoría |
-| PATCH | `/api/products/:id` | Editar (solo campos modificados) |
-| PATCH | `/api/products/:id/status` | Admin: estado de venta (`{ status }`, optimista; 422 si hay varias variantes) |
-| PATCH | `/api/products/:id/active` | Admin: interruptor de visibilidad (`{ isActive }`, optimista) |
-| PATCH | `/api/products/:id/restore` | Admin: restaurar desde la papelera (`{ isActive }`) |
-| DELETE | `/api/products/:id` | Retirar / mover a la papelera (soft delete, 204 sin body) |
+</details>
 
-Formato: éxito `{ success: true, data }`; error `{ success: false, message }`.
+---
 
-Un producto llega con sus relaciones ya resueltas: `category { name, slug }`, `seller { name, slug, location }`, `images[]` (objetos con `url`, `alt`, `isPrimary` y `order`) y, en el detalle, `variants[]`. El precio del producto es `basePrice`; cada variante puede tener el suyo.
+## 🎨 Sistema de diseño
 
-## Sistema de diseño
+| | |
+|---|---|
+| **Tipografía** | Poppins (400–700) con `preconnect` y `display=swap` |
+| **Tokens** | Colores en `src/styles.scss` (`:root`) como canales RGB; Tailwind los usa como `primary-*`, `accent`, `ink`, `line`, `canvas`, `surface`. **Cambiar de paleta = cambiar el bloque `:root`** |
+| **Escala de segunda vida** | La condición en 5 tramos (Nuevo = 5 … Mejorable = 1) en la tarjeta, la ficha y el formulario |
+| **Estados de venta** | 🟢 disponible · 🟠 reservado · ⚫ vendido. Todos los pares texto/fondo cumplen **WCAG AA** (≥ 4,54:1) |
+| **Movimiento** | View Transitions de la tarjeta a la ficha; se desactivan con `prefers-reduced-motion` |
+| **Responsive** | Sin scroll horizontal desde **375 px**; el panel usa un drawer accesible en móvil |
 
-- **Tipografía:** Poppins (400–700) con `preconnect` y `display=swap`.
-- **Tokens:** los colores están en `src/styles.scss` (`:root`) como canales RGB y Tailwind los consume desde `tailwind.config.js` (`primary-*`, `accent`, `ink`, `line`, `canvas`, `surface`). **Para cambiar de paleta basta con sustituir el bloque `:root`**.
-- **Firma del producto:** la *escala de segunda vida* muestra la condición en 5 tramos (Nuevo = 5 … Mejorable = 1) en la card, el detalle y el selector del formulario. Al ir de la card al detalle, la imagen se transforma con View Transitions; la animación se desactiva con `prefers-reduced-motion`.
-- **Estados:** disponible (verde), reservado (ámbar), vendido (pizarra). Todos los pares de texto y fondo cumplen WCAG AA (mínimo 4,54:1).
+<details>
+<summary><b>🎨 Paletas intercambiables</b></summary>
 
-### Paletas intercambiables
+<br/>
 
 | Token | A · Azul Confianza (activa) | B · Marino + Cian | C · Índigo + Turquesa |
 | --- | --- | --- | --- |
@@ -158,25 +247,83 @@ Un producto llega con sus relaciones ya resueltas: `category { name, slug }`, `s
 | `--color-canvas` | `248 250 252` (#F8FAFC) | `244 247 251` (#F4F7FB) | `250 250 249` (stone-50) |
 | `--color-ink-muted` | `71 85 105` | `71 85 105` | `87 83 78` (stone-600) |
 
-Al cambiar de paleta, revisa también `primary-50/100/200/400/500` (tonos claros del mismo matiz) y el contraste del texto sobre `accent`. Con B y C el acento es claro, así que el texto del botón "Publicar" debe seguir siendo `ink`.
+Al cambiar de paleta, revisa también `primary-50/100/200/400/500` y el contraste del texto sobre `accent`. Con B y C el acento es claro, así que el texto del botón "Publicar" debe seguir siendo `ink`.
 
-## Decisiones técnicas
+</details>
 
-- **Store como caché (`ProductsStore`):** la lista se carga una sola vez (`loadAll({ force })`) y una segunda llamada simultánea reutiliza la promesa en vuelo. `loadBySlug` busca primero en caché y crear, editar o retirar actualizan la caché sin recargar. Ir de la lista al detalle y volver no repite peticiones. Los signals son privados y se exponen con `asReadonly()` y `computed()`, y nunca se escriben dentro de un `effect()`.
-- **Slug en las URLs, `_id` en las mutaciones:** las rutas públicas son legibles (`/products/iphone-13-pro-256gb`), pero la API identifica por `_id`. Por eso el producto se obtiene por slug y `PATCH`/`DELETE` usan su `_id`. Tras editar se navega al slug de la respuesta, porque cambia si cambia el título.
-- **`products/new` se declara antes que `products/:slug`.** Edge case conocido: un producto titulado "New" tendría slug `new` y su detalle no sería accesible.
-- **Política de errores:** el `errorInterceptor` aplica el timeout, valida que la respuesta tenga la forma `{ success, data }` y normaliza todo a `ApiError` (`network`, `timeout`, `http`, `validation` o `invalid-response`) con mensajes en español.
-  - Las cargas (GET) llevan `SKIP_ERROR_ALERT`: el error se muestra en la pantalla con *Reintentar*, nunca en un modal.
-  - Las mutaciones muestran un modal de SweetAlert2, salvo los códigos 400/409/422 al guardar, que el formulario pinta en línea (por ejemplo, título duplicado → error en el campo *Título*).
-- **Loader global:** contador de peticiones con retardo de 180 ms para evitar parpadeos. Las pantallas con skeleton usan `SKIP_GLOBAL_LOADER` para no mostrar dos indicadores a la vez.
-- **Rendimiento:** todo es standalone y `OnPush`. Rutas lazy con precarga, galería en `@defer`, SweetAlert2 cargado bajo demanda (chunk aparte), `NgOptimizedImage` con hueco reservado y bundle inicial de unos 423 kB (118 kB transferidos; el admin va en chunks lazy aparte).
-- **Validación de precio:** la API acepta `price ≥ 0`, pero el front exige `> 0` (`PRICE_MIN_EXCLUSIVE` en `product-form.component.ts`).
-- **Spinner bloqueante (ngx-spinner):** solo para lo que el usuario espera de forma activa (guardar, borrar, restaurar), marcado con `BLOCKING_REQUEST`. Lo gestiona el mismo `LoadingService` que la barra superior, con dos contadores. El interruptor de visibilidad no bloquea porque es optimista: cambia al instante y se revierte si la API falla. Ante un 409 (producto ya en la papelera) muestra un mensaje específico y recarga las colecciones.
-- **Autenticación preparada, sin implementar:** `/admin` pasa por `adminGuard` (`canMatch`), que hoy siempre deja pasar. `AuthService.currentUser` es `null`, y el futuro `authInterceptor` (cabecera `Authorization`) irá al principio de la lista de interceptores en `app.config.ts`.
-- **Datos de prueba:** el admin trabaja contra la API y la base de desarrollo reales. `npm run seed` en `secondhand-api` deja 8 activos, 3 inactivos y 3 en la papelera.
-- **Capa de datos asíncrona:** `ApiService` convierte el `Observable` de `HttpClient` en `Promise` (único `firstValueFrom` de la aplicación), así que services y stores usan `async/await` sin RxJS. RxJS solo queda en los interceptores.
-- **`CatalogStore`:** categorías y vendedores se cargan una vez y los comparten el formulario, el filtro del catálogo y las etiquetas. Ninguna categoría está escrita en el código: vienen de `GET /categories`, incluidas las subcategorías (filtrar por "Electrónica" incluye "Móviles" y "Ordenadores").
-- **Variantes:** todo producto tiene al menos una. En el detalle, si hay más de una se muestra un `radiogroup` que cambia precio y disponibilidad; la vendida aparece tachada y no se puede elegir. El precio de la card usa el mínimo de las variantes y añade "desde" cuando difieren.
-- **Estado de venta:** se cambia desde la lista del panel con `PATCH /products/:id/status`, nunca desde el formulario. En productos con varias variantes el selector sale deshabilitado, porque la API responde 422.
-- **Imágenes múltiples:** hasta 5 por producto, cada una con URL y texto alternativo obligatorio. La primera es la portada y se pueden reordenar con botones accesibles por teclado.
-- **View Transitions:** se omite la transición inicial y se capturan los rechazos de la animación. El navegador aborta la transición si la pestaña está oculta, y sin ese `catch` la vista se quedaba en blanco.
+---
+
+## 🧠 Decisiones técnicas
+
+<details>
+<summary><b>🗄️ Datos y estado</b></summary>
+
+<br/>
+
+- **Capa asíncrona sin RxJS:** `ApiService` convierte el `Observable` de `HttpClient` en `Promise` (el único `firstValueFrom` de la app). Services y stores usan `async/await`; RxJS solo queda en los interceptores.
+- **Store genérico (`EntityStore`):** colecciones (activos, inactivos, papelera), caché de detalle y escrituras optimistas. Cada entidad hereda y solo añade lo suyo; `afterWrite` refresca lo que depende de ella. Los signals son privados y se exponen con `asReadonly()` y `computed()`.
+- **Catálogo público aparte:** la tienda usa `GET /products` (solo activos) y el panel sus propias colecciones, así un usuario nunca pide endpoints de admin.
+- **`CatalogStore`:** categorías y vendedores se cargan una vez y los comparten el formulario, los filtros y las etiquetas. Ninguna categoría está escrita en el código.
+- **Slug en las URLs, `_id` en las escrituras:** las rutas son legibles, pero `PATCH` y `DELETE` usan el `_id`. Tras editar se navega al slug de la respuesta, porque cambia con el título.
+
+</details>
+
+<details>
+<summary><b>🚨 Errores y carga</b></summary>
+
+<br/>
+
+- **`errorInterceptor`:** timeout (`requestTimeoutMs`), valida la forma `{ success, data }` y lo normaliza todo a `ApiError` con mensajes en español.
+  - Las cargas (GET) muestran el error **en la pantalla** con *Reintentar*, nunca en un modal.
+  - Las escrituras muestran un modal (SweetAlert2), salvo 400/409/422 al guardar, que el formulario pinta **junto a cada campo**.
+  - `401` con sesión → cierra la sesión y va al login; las peticiones de la propia sesión (`login`, `me`, `logout`) lo evitan con `SKIP_AUTH_REDIRECT`.
+- **Loader global** con retardo de 180 ms para que no parpadee; las pantallas con skeleton lo omiten (`SKIP_GLOBAL_LOADER`).
+- **Spinner bloqueante** (ngx-spinner) solo para lo que el usuario espera activamente (guardar, borrar, restaurar), marcado con `BLOCKING_REQUEST`.
+
+</details>
+
+<details>
+<summary><b>📦 Productos</b></summary>
+
+<br/>
+
+- **Variantes:** todo producto tiene al menos una. En la ficha, si hay varias, un `radiogroup` cambia precio y disponibilidad; la vendida sale tachada. La tarjeta muestra el mínimo con "desde".
+- **Estado de venta:** se cambia desde el panel (`PATCH /products/:id/status`); con varias variantes el selector sale deshabilitado (la API da 422).
+- **Imágenes:** hasta 5 por producto, con texto alternativo obligatorio; la primera es la portada y se reordenan con botones accesibles por teclado.
+- **Precio:** la API acepta `≥ 0`, el front exige `> 0` (`PRICE_MIN_EXCLUSIVE`).
+- **`products/new` va antes que `products/:slug`:** un producto titulado "New" tendría slug `new` y su ficha no sería accesible (caso límite conocido).
+
+</details>
+
+<details>
+<summary><b>⚡ Rendimiento y UX</b></summary>
+
+<br/>
+
+- Todo **standalone** y **`OnPush`**; rutas lazy con precarga, galería en `@defer`, SweetAlert2 bajo demanda y `NgOptimizedImage` con hueco reservado.
+- **View Transitions:** se omite la inicial y se capturan los rechazos (con la pestaña oculta el navegador aborta la transición y, sin ese `catch`, la vista se quedaba en blanco).
+- **Sin parpadeo de sesión:** mientras se restaura, el menú de usuario muestra un círculo gris en lugar de "Iniciar sesión".
+- **Accesibilidad:** labels, `aria-*`, foco al primer error, `aria-live` en los avisos, menús con Escape y clic fuera.
+
+</details>
+
+---
+
+## ⚙️ Variables de entorno
+
+Angular no lee `.env`: la configuración vive en `src/environments/`.
+
+| Fichero | Cuándo se usa | `apiUrl` |
+| --- | --- | --- |
+| `environment.ts` | `npm run build` (producción) | `/api` (mismo dominio, detrás de un proxy) |
+| `environment.development.ts` | `npm start` y `ng build --configuration development` | `http://localhost:3000/api` |
+
+Ambos exponen `production` (logs técnicos solo en desarrollo), `apiUrl` (cámbialo si la API va en otro host o puerto) y `requestTimeoutMs` (10 000 ms; pasado ese tiempo se muestra "El servidor está tardando demasiado…").
+
+---
+
+<div align="center">
+
+Hecho con ☕ y Angular para **2º DAW** · [README general](../README.md) · [API](../secondhand-api/README.md)
+
+</div>

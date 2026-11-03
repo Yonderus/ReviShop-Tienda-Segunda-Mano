@@ -1,250 +1,258 @@
+<div align="center">
+
+<img src="secondhand-front/src/assets/logo.svg" alt="Revishop" width="96" height="96" />
+
 # ♻️ Revishop
 
-**Marketplace de segunda mano: cualquier usuario compra y vende, y cada objeto encuentra una segunda vida.**
+### Marketplace de segunda mano: cualquier usuario compra y vende, y cada objeto encuentra una segunda vida.
 
-Proyecto de 2º de DAW formado por una **API REST** (Express + MongoDB) y una **SPA** (Angular 18) con catálogo público y panel de administración.
+Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una **SPA** (Angular 18) con tienda pública, sesión con JWT y panel de administración.
 
-![Node](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)
-![Express](https://img.shields.io/badge/Express-4-000000?logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_8-47A248?logo=mongodb&logoColor=white)
-![Zod](https://img.shields.io/badge/Zod-4-3E67B1)
-![Angular](https://img.shields.io/badge/Angular-18-DD0031?logo=angular&logoColor=white)
-![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?logo=tailwindcss&logoColor=white)
-![Swagger](https://img.shields.io/badge/Docs-Swagger-85EA2D?logo=swagger&logoColor=black)
+![Node](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/Express-4-000000?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_8-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![Zod](https://img.shields.io/badge/Zod-4-3E67B1?style=for-the-badge&logo=zod&logoColor=white)
+<br/>
+![Angular](https://img.shields.io/badge/Angular-18-DD0031?style=for-the-badge&logo=angular&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![JWT](https://img.shields.io/badge/Sesión-JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+![Swagger](https://img.shields.io/badge/Docs-Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
 
----
+[Qué hace](#-qué-hace) · [Puesta en marcha](#-puesta-en-marcha) · [Arquitectura](#️-arquitectura) · [Modelo](#️-modelo-de-datos) · [API](#-api) · [Frontend](#️-frontend) · [Decisiones](#-decisiones-de-diseño) · [Hoja de ruta](#️-estado-y-hoja-de-ruta)
 
-## 📑 Índice
+<table>
+<tr>
+<td align="center" width="50%"><a href="secondhand-api/README.md"><b>🔌 secondhand-api</b></a><br/><sub>Express · Mongoose · Zod · JWT · Swagger</sub></td>
+<td align="center" width="50%"><a href="secondhand-front/README.md"><b>🅰️ secondhand-front</b></a><br/><sub>Angular 18 · Signals · Tailwind</sub></td>
+</tr>
+</table>
 
-- [Qué hace](#-qué-hace)
-- [Puesta en marcha](#-puesta-en-marcha)
-- [Arquitectura](#-arquitectura)
-- [Modelo de datos](#-modelo-de-datos)
-- [API](#-api)
-- [Frontend](#-frontend)
-- [Decisiones de diseño](#-decisiones-de-diseño)
-- [Estado y hoja de ruta](#-estado-y-hoja-de-ruta)
+</div>
 
 ---
 
 ## ✨ Qué hace
 
-### Tienda pública
-- **Catálogo** con filtros por categoría (incluye sus subcategorías), condición, estado de venta y precio, y orden por fecha o precio.
-- **Ficha de producto** con galería de fotos, nivel de conservación y **selector de variantes** (talla, capacidad…) con su propio precio y estado.
-- **Publicar y editar** anuncios con hasta 5 fotos. Los errores del servidor se pintan **junto al campo** que los provoca.
+<table>
+<tr>
+<td width="33%" valign="top">
 
-### Panel de administración (`/admin`)
-- **Resumen** con métricas del inventario: activos, inactivos, papelera, estados de venta y reparto por categoría.
-- **Productos** en pestañas **Activos · Inactivos · Papelera**, con contadores.
-- Cambios **optimistas**: activar, desactivar o cambiar el estado se ve al instante y **vuelve atrás** si la API falla.
-- **Papelera** (soft delete): restaurar como activo o como inactivo, con sus variantes y fotos.
-- **Editor de variantes**: precio, stock, estado y visibilidad de cada una, y alta de variantes nuevas con los atributos de la categoría.
-- **Categorías** en árbol (principales y subcategorías) con las mismas pestañas, filtro **Publicada · Borrador**, nº de productos y subcategorías, y formulario con los **atributos de variante** (clave, nombre y valores). No deja borrar una categoría con productos o subcategorías y avisa de cuántos tiene.
-- **Usuarios** con las mismas pestañas, filtros por estado de cuenta y rol, y formulario con contraseña (obligatoria al crear, opcional al editar y con botón para verla). Nunca se precarga ni se devuelve. Siempre queda al menos un administrador activo.
+### 🛍️ Tienda
+- **Catálogo** con filtros (categoría y sus subcategorías, condición, estado y precio) y orden.
+- **Ficha** con galería, nivel de conservación y **variantes** (talla, capacidad…) con su precio y estado.
+- Errores del servidor **junto al campo** que los provoca.
+
+</td>
+<td width="33%" valign="top">
+
+### 🔐 Tu cuenta
+- **Iniciar y cerrar sesión** (el token queda revocado).
+- **Publicar, editar y retirar** tus anuncios, con hasta 5 fotos.
+- **Mi perfil**: foto, teléfono, ubicación y bio.
+- Tus anuncios ocultos solo los ves tú.
+
+</td>
+<td width="33%" valign="top">
+
+### 🛡️ Panel de admin
+- **Resumen** con métricas reales del inventario.
+- **Productos**, **categorías** (en árbol) y **usuarios** en pestañas Activos · Inactivos · Papelera.
+- Cambios **optimistas** que vuelven atrás si la API falla.
+- **Editor de variantes** con los atributos de la categoría.
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## 🚀 Puesta en marcha
 
-**Requisitos:** Node.js 18 o superior y MongoDB en local (o una URI de Atlas).
-
-### 1. API
+> **Requisitos:** Node.js 18+ y MongoDB en local (o una URI de Atlas).
 
 ```bash
+# 1 · API
 cd secondhand-api
 npm install
-cp .env.example .env    # y rellena SEED_DEFAULT_PASSWORD (mínimo 8 caracteres)
-npm run seed            # carga los datos de prueba
+cp .env.example .env    # rellena MONGODB_URI, JWT_SECRET y SEED_DEFAULT_PASSWORD
+npm run seed            # ⚠️ vacía la base y carga los datos de prueba
 npm run dev             # http://localhost:3000
-```
 
-`npm run seed` **vacía** la base antes de cargar los datos.
-
-| Variable | Para qué |
-|---|---|
-| `PORT` | Puerto de la API (3000 por defecto) |
-| `MONGODB_URI` | Conexión a MongoDB |
-| `NODE_ENV` | `development` · `production` · `test` |
-| `CORS_ORIGIN` | Orígenes permitidos en producción (en desarrollo, CORS abierto) |
-| `SEED_DEFAULT_PASSWORD` | Contraseña de los usuarios del seed |
-| `JWT_SECRET` | **Obligatoria.** Firma de los tokens de sesión: mínimo 32 caracteres, aleatoria y fuera del repositorio. Genera una con `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
-| `JWT_EXPIRES_IN` | Caducidad de los tokens: `15m`, `1h`, `7d`… (por defecto `1d`) |
-
-El entorno se valida con Zod al arrancar: si falta algo obligatorio, la API no arranca y dice qué falta.
-
-### 2. Frontend
-
-```bash
+# 2 · Front (en otra terminal)
 cd secondhand-front
 npm install
 npm start               # http://localhost:4200
 ```
 
-### 3. Abre
-
 | | URL |
-|---|---|
-| 🛍️ Tienda | http://localhost:4200 |
-| 🛠️ Panel | http://localhost:4200/admin |
-| 📖 Documentación de la API | http://localhost:3000/api/docs |
+|:-:|---|
+| 🛍️ | **Tienda** · http://localhost:4200 |
+| 🛡️ | **Panel** · http://localhost:4200/admin |
+| 📖 | **Swagger** · http://localhost:3000/api/docs |
 
-### Datos de prueba
+> [!TIP]
+> El entorno se valida con Zod al arrancar: si falta algo obligatorio, la API no arranca y dice qué falta. Todas las variables están explicadas en el [README de la API](secondhand-api/README.md#️-variables-de-entorno).
 
-`npm run seed` vacía la base y crea: **3 roles, 6 usuarios** (uno suspendido) con sus **6 perfiles**, **13 categorías** (9 principales, una de ellas en **borrador**, y 4 subcategorías con atributos), **20 productos** (14 activos, 3 inactivos y 3 en la papelera; 5 con variantes reales), **27 variantes** y **16 imágenes**. Así se pueden probar todos los filtros del panel.
+### 👥 Usuarios de prueba
 
-| Usuario | Email | Rol |
-|---|---|---|
-| Admin Revishop | `admin@revishop.test` | admin |
-| Lucía Martín | `lucia@revishop.test` | user |
-| Juan Pérez | `juan@revishop.test` | user |
-| Marta Gil | `marta@revishop.test` | user |
-| Carlos Ruiz | `carlos@revishop.test` | user |
-| Pablo Sanz | `pablo@revishop.test` | user · **suspendido** (no puede vender) |
+El seed crea **3 roles, 6 usuarios** con sus perfiles, **13 categorías** (una en borrador), **20 productos** (14 activos, 3 inactivos y 3 en la papelera), **27 variantes** y sus fotos. Todos los usuarios usan la contraseña de **`SEED_DEFAULT_PASSWORD`** (guardada con Argon2id).
 
-Todos usan la contraseña de `SEED_DEFAULT_PASSWORD`, guardada con hash **Argon2id**.
+| | Usuario | Email | Rol |
+|:-:|---|---|---|
+| 🛡️ | Admin Revishop | `admin@revishop.test` | admin |
+| 🙋 | Lucía Martín | `lucia@revishop.test` | user |
+| 🙋 | Juan Pérez | `juan@revishop.test` | user |
+| 🙋 | Marta Gil | `marta@revishop.test` | user |
+| 🙋 | Carlos Ruiz | `carlos@revishop.test` | user |
+| ⛔ | Pablo Sanz | `pablo@revishop.test` | user · **suspendido** (no puede entrar ni vender) |
 
 **Cómo entrar:**
-
-- **En la web:** botón **Iniciar sesión** de la barra superior (`/login`). Con `admin@revishop.test` llegas al panel (`/admin`); con cualquier otro, a la tienda, donde puedes publicar y gestionar tus anuncios y editar **Mi perfil** (`/profile`). **Cerrar sesión** está en el menú de tu foto.
-- **En Swagger:** `POST /auth/login` con el email y esa contraseña, y pega el `token` en **Authorize**.
+- 🌐 **En la web:** botón **Iniciar sesión** (`/login`). El admin llega al panel; el resto, a la tienda. **Cerrar sesión** está en el menú de tu foto.
+- 📖 **En Swagger:** `POST /auth/login` con el email y la contraseña, y pega el `token` en **Authorize**.
 
 ---
 
 ## 🏗️ Arquitectura
 
-```
-Aplicación Segunda Mano/
-├── secondhand-api/      API REST · Express + Mongoose + Zod
-└── secondhand-front/    SPA · Angular 18 standalone + Signals + Tailwind
-```
-
-### Backend: por capas
-
-```
-routes → validate (Zod) → controllers → services → repositories → models → MongoDB
-```
-
-| Capa | Responsabilidad |
-|---|---|
-| `routes/` | URL, validador y controlador, con su documentación Swagger al lado |
-| `middlewares/validate.js` | Valida `params`, `query` y `body` con Zod |
-| `controllers/` | Funciones `const` con `try/catch` que devuelven el código HTTP |
-| `services/` | **Reglas de negocio** (lo único que decide) |
-| `repositories/` | Las únicas que tocan Mongo: consultas y populate |
-| `models/` | Esquemas, relaciones y los plugins de soft delete y slug |
-| `constants/` · `utils/` | Valores fijos y funciones puras, sin base de datos (p. ej. `isEmail`, `isHttpUrl` y `hashPassword`, compartidas por validadores, modelos y seed) |
-
-### Frontend: por features
-
-```
-componente → store (signals) → service → ApiService → interceptores → HttpClient
+```mermaid
+flowchart LR
+    subgraph FRONT["🅰️ secondhand-front · Angular 18"]
+        direction TB
+        CMP[Componentes] --> ST["Stores (Signals)"]
+        ST --> SV[Services]
+        SV --> API["ApiService + interceptores<br/>(Bearer, errores, carga)"]
+    end
+    subgraph BACK["🔌 secondhand-api · Express"]
+        direction TB
+        RT["routes + middlewares<br/>(auth, Zod)"] --> CT[controllers]
+        CT --> SR["services<br/>(reglas, permisos, integridad)"]
+        SR --> RP[repositories]
+    end
+    API -- "HTTP · JSON · JWT" --> RT
+    RP --> DB[("MongoDB")]
 ```
 
-| Carpeta | Contenido |
-|---|---|
-| `core/` | Infraestructura sin dominio: `ApiService`, interceptores de errores y carga, `AlertService` (SweetAlert2) y el **store genérico** `EntityStore` |
-| `features/products` · `catalog` · `users` · `admin` | Cada dominio con sus modelos, services y store; las páginas del panel van en `admin/` |
-| `layouts/` | Tienda (navbar) y panel (sidebar vertical) |
-| `shared/` | Piezas reutilizables: skeleton, estados de error y vacío, badges, pipes y validadores |
+| Proyecto | Flujo | Claves |
+|---|---|---|
+| **API** | `routes → validate → controllers → services → repositories → models` | Las reglas de negocio solo viven en los **services**; solo los **repositories** tocan Mongo |
+| **Front** | `componente → store → service → ApiService → interceptores` | Ningún componente usa `HttpClient`; RxJS solo en los interceptores, el resto con `async/await` |
 
-**Reglas que sigue el código:** `constants/` no importa nada del proyecto, `utils/` solo importa `constants/`, ningún componente usa `HttpClient` directamente, y los archivos de dominio se llaman `<entidad>.<capa>`.
+**Reglas que sigue el código:** `constants/` no importa nada del proyecto, `utils/` solo importa `constants/` y los archivos de dominio se llaman `<entidad>.<capa>`.
 
 ---
 
 ## 🗃️ Modelo de datos
 
+```mermaid
+erDiagram
+    ROLE ||--o{ USER : tiene
+    USER ||--|| PROFILE : "su perfil"
+    USER ||--o{ PRODUCT : vende
+    USER ||--o{ REVOKED_TOKEN : "logout"
+    CATEGORY ||--o{ CATEGORY : subcategorias
+    CATEGORY ||--o{ PRODUCT : agrupa
+    PRODUCT ||--|{ PRODUCT_VARIANT : variantes
+    PRODUCT ||--o{ IMAGE : fotos
+    PROFILE ||--o| IMAGE : avatar
 ```
-Role 1 ── N User 1 ── N Product N ── 1 Category (árbol de 2 niveles)
-               │          │
-               1          ├── 1 ── N ProductVariant
-               │          │
-            Profile
-                          │
-           Image (polimórfica: Profile (avatar) · Category · Product · ProductVariant)
 
-   RevokedToken (blacklist del logout) N ── 1 User
-```
-
-| Colección | Claves |
+| | |
 |---|---|
-| `roles` | `admin`, `moderator`, `user`, con sus permisos |
-| `users` | La **cuenta**: `roleId`, email único, `passwordHash` (nunca sale en las respuestas), estado `pending · verified · suspended` |
-| `profiles` | El **perfil** (teléfono, ubicación, bio y **avatar**), 1 a 1 con su usuario por `userId` único e inmutable. No tiene CRUD propio: nace, se edita, se borra y se restaura con su usuario, y la API lo sigue devolviendo dentro de él (el avatar, como `avatarUrl`) |
-| `categories` | `parentId` (dos niveles como máximo), `status` `draft · published` y `attributes` (p. ej. talla o capacidad), que heredan las subcategorías que no tienen los suyos |
-| `products` | `sellerId`, `categoryId`, `basePrice` y `status` **calculado** a partir de sus variantes |
-| `productVariants` | Opciones, SKU único, precio propio (o el base) y stock |
-| `images` | `ownerType` + `ownerId` (`refPath`); la primera es la portada. Al sustituirlas, las anteriores pasan a la papelera |
-| `revoked_tokens` | La **blacklist del logout**: `jti` del token (único), `userId`, motivo y `expiresAt`. Un índice TTL borra cada fila cuando el token habría caducado. Es la excepción: sin `isActive`, papelera ni slug |
-
-**En todas las colecciones:** `isActive`, `deletedAt`, `createdAt` y `updatedAt`, y `slug` en todas salvo `profiles` (se busca por su usuario). El **soft delete** es un plugin de Mongoose que oculta lo borrado en todas las consultas. El borrado es **en cascada** y la restauración es **exacta**: solo vuelve lo que se borró a la vez. **`deletedBy`** guarda quién mandó cada cosa a la papelera (el usuario de la sesión, también en lo que cae en cascada; `null` si fue el seed) y se vacía al restaurar.
-
-**Integridad referencial.** MongoDB no tiene claves foráneas (`ref` solo sirve para `populate`), así que la garantizan **los services**: el rol de un usuario tiene que existir y poder asignarse; el perfil solo lo crea, edita, borra y restaura el service de usuarios, siempre junto a su usuario; y no se borra una categoría o un usuario que tenga productos. Los índices ayudan (`profiles.userId` único, que asegura el 1 a 1, y `users.roleId`).
+| 👤 **Cuenta y perfil** | `users` es la cuenta (rol, email, contraseña, estado); `profiles` es lo que la persona cuenta de sí misma (teléfono, ubicación, bio y avatar), **1 a 1** y siempre con su usuario |
+| 🏷️ **Categorías** | Árbol de dos niveles, con **borrador** y **atributos de variante** que heredan las subcategorías |
+| 📦 **Productos** | Su `status` (disponible · reservado · vendido) se **calcula** a partir de sus variantes |
+| 🖼️ **Imágenes** | **Polimórficas** (`ownerType` + `ownerId`): avatar, icono de categoría o fotos de producto y variante |
+| 🚫 **`revoked_tokens`** | La blacklist del logout, con índice **TTL** que borra cada fila cuando el token habría caducado |
+| 🗑️ **Soft delete** | Plugin de Mongoose en todas las colecciones: borrado **en cascada**, restauración **exacta** y `deletedBy` con quién lo borró |
+| 🔗 **Integridad** | MongoDB no tiene claves foráneas, así que la garantizan **los services** (rol asignable, categoría que acepta productos, no borrar lo que tiene dependientes…) |
 
 ---
 
 ## 🔌 API
 
-Base: `http://localhost:3000/api` · documentación interactiva en **`/api/docs`** (botón **Authorize** para probar con sesión).
+Base: `http://localhost:3000/api` · Documentación interactiva en **`/api/docs`**.
 
-### Sesión con JWT
-
-1. `POST /api/auth/login` con `{ email, password }` devuelve `{ token, user }`.
-2. Las demás peticiones llevan la cabecera `Authorization: Bearer <token>`.
-3. `POST /api/auth/logout` apunta el token en la blacklist (`revoked_tokens`): desde ese momento da `401`, aunque no haya caducado.
-
-En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`), que no esté en la blacklist, que el usuario siga activo y no suspendido y que no se haya cambiado su contraseña después. El rol se lee de la base de datos, no del token: si se lo cambian, manda el nuevo.
-
-**Quién puede usar cada endpoint:** 🌐 público (si llega un token válido se tiene en cuenta; uno caducado se ignora) · 🔑 con sesión · 👤 su dueño o un admin · 🛡️ solo admin.
+**Leyenda:** 🌐 público · 🔑 con sesión · 👤 su dueño o un admin · 🛡️ solo admin
 
 | Recurso | Endpoints |
 |---|---|
-| **Auth** | 🌐 `POST /auth/login` · 🔑 `GET /auth/me` · 🔑 `POST /auth/logout` |
-| **Perfil** | 🔑 `GET /profile/me` · 🔑 `PATCH /profile/me` (teléfono, ubicación, bio y avatar; solo el suyo) |
-| **Productos** | 🌐 `GET /products` (solo activos) · 🌐 `/slug/:slug` (uno inactivo, solo su dueño o un admin; al resto, 404) · 🛡️ `/actives` · `/inactives` · `/trash` · `/:id` · 🔑 `POST /products` (el vendedor es el de la sesión; un admin puede indicar otro) · 👤 `PATCH /:id` · `/:id/status` · `/:id/active` · `DELETE /:id` · 🛡️ `PATCH /:id/restore` |
-| **Variantes** | 🌐 `GET /products/:id/variants` (las de un producto inactivo, igual que él) · 👤 `POST /products/:id/variants` · `PATCH /variants/:id` · `/:id/status` · `/:id/active` · `DELETE /variants/:id` (el dueño es el del producto) |
-| **Categorías** | 🌐 `GET /categories` (publicadas y activas) · 🛡️ todo lo demás: `/actives` · `/inactives` · `/trash` (con `?status=`) · `/slug/:slug` · `/:id` · `POST` · `PATCH /:id` · `/:id/active` · `/:id/restore` · `DELETE /:id` |
-| **Usuarios** | 🛡️ todo: `GET /users` (`?isActive=`) · `/actives` · `/inactives` · `/trash` (con `?status=` y `?role=`) · `/slug/:slug` · `/:id` · `POST` · `PATCH /:id` · `/:id/active` · `/:id/restore` · `DELETE /:id` |
-| **Roles y vendedores** | 🛡️ `GET /roles` (los asignables, sin CRUD) · 🌐 `GET /sellers` (activos y no suspendidos) |
+| 🔐 **Auth** | 🌐 `POST /auth/login` · 🔑 `GET /auth/me` · 🔑 `POST /auth/logout` |
+| 👤 **Perfil** | 🔑 `GET /profile/me` · 🔑 `PATCH /profile/me` |
+| 📦 **Productos** | 🌐 `GET /products` (solo activos) · 🌐 `/slug/:slug` · 🔑 `POST` · 👤 `PATCH /:id` · `/:id/status` · `/:id/active` · `DELETE /:id` · 🛡️ `/actives` · `/inactives` · `/trash` · `/:id` · `PATCH /:id/restore` |
+| 🎨 **Variantes** | 🌐 `GET /products/:id/variants` · 👤 `POST /products/:id/variants` · `PATCH` · `DELETE /variants/:id` |
+| 🏷️ **Categorías** | 🌐 `GET /categories` · 🛡️ el resto del CRUD |
+| 🙋 **Usuarios** | 🛡️ CRUD completo · 🛡️ `GET /roles` · 🌐 `GET /sellers` |
 
-**Reglas del login:** email inexistente o contraseña mala dan el mismo `401` ("Email o contraseña incorrectos"), para no revelar qué emails existen; una cuenta inactiva, suspendida o eliminada da `403` aunque la contraseña sea buena. Contra quien prueba contraseñas: **10 intentos fallidos cada 15 minutos por IP y email, y 50 por IP** → `429` (con la cabecera `Retry-After`); los logins correctos no cuentan.
+<details>
+<summary><b>🔐 Cómo funciona la sesión</b></summary>
 
-**Reglas de las categorías:** el nombre es único (también frente a las de la papelera, porque su slug sigue ocupado); solo se puede colgar de una categoría principal; una con subcategorías no puede pasar a ser hija; no se borra si tiene productos o subcategorías (`409` con cuántos); una subcategoría no se restaura si su padre sigue en la papelera; y un producto solo puede ir a una categoría **publicada y activa**.
+<br/>
 
-**Reglas de los usuarios:** el email es único (si es de uno de la papelera, el `409` dice que lo restaures); la contraseña tiene entre 8 y 128 caracteres, se guarda con **Argon2id** (las antiguas en bcrypt se pasan a Argon2 al iniciar sesión) y no sale en ninguna respuesta; **cambiarla, desactivarlo, suspenderlo o borrarlo cierra todas sus sesiones** (si recupera el acceso, tiene que volver a iniciar sesión); el rol tiene que existir y poder asignarse; **siempre queda al menos un administrador activo** (al último no se le puede borrar, desactivar, suspender ni cambiar el rol); y no se borra un usuario con productos (sí se puede desactivar o suspender).
+1. `POST /api/auth/login` con `{ email, password }` devuelve `{ token, user }`.
+2. Las demás peticiones llevan `Authorization: Bearer <token>`.
+3. `POST /api/auth/logout` apunta el token en la blacklist: desde ese momento da `401`, aunque no haya caducado.
 
-**Formato de respuesta único:**
+En cada petición se comprueban la firma, la caducidad, la blacklist, que el usuario siga activo y no suspendido, y que no se haya cambiado su contraseña después. **El rol se lee de la base de datos**, no del token.
+
+- Email inexistente o contraseña mala → el **mismo** `401`, para no revelar qué emails existen.
+- Cuenta inactiva, suspendida o eliminada → `403`.
+- **10 fallos cada 15 min por IP y email, y 50 por IP** → `429` con `Retry-After`.
+- Cambiar la contraseña, desactivar, suspender o borrar a un usuario **cierra todas sus sesiones**.
+
+</details>
+
+<details>
+<summary><b>📏 Reglas de negocio</b></summary>
+
+<br/>
+
+| Entidad | Reglas |
+|---|---|
+| 🏷️ **Categorías** | Nombre único (también frente a la papelera) · solo se cuelga de una principal · no se borra con productos o subcategorías (`409` con cuántos) · una subcategoría no se restaura si su padre sigue en la papelera · un producto solo va a una categoría **publicada y activa** |
+| 🙋 **Usuarios** | Email único (si es de uno de la papelera, el `409` dice que lo restaures) · contraseña de 8 a 128 caracteres con **Argon2id**, nunca en una respuesta · el rol tiene que existir · **siempre queda un admin activo** · no se borra un usuario con productos |
+| 📦 **Productos** | El vendedor es el de la sesión (el admin puede indicar otro) · uno **inactivo** solo lo ven su dueño y el admin · todo producto tiene al menos una variante |
+
+</details>
+
+<details>
+<summary><b>🚨 Formato de respuesta y códigos</b></summary>
+
+<br/>
 
 ```jsonc
-// éxito
+// ✅ éxito
 { "success": true, "data": { … } }
 
-// error: `errors` aparece si va ligado a campos
+// ❌ error — `errors` aparece si va ligado a campos
 { "success": false, "message": "Los datos enviados no son válidos",
   "errors": [{ "field": "images.0.url", "message": "Cada imagen debe tener una URL http(s) válida" }] }
 ```
 
 | Código | Cuándo |
-|---|---|
+|:-:|---|
 | `200` · `201` · `204` | Lectura o edición · creación · borrado |
-| `401` | Sin sesión, o con un token caducado, revocado (logout) o no válido · login con credenciales incorrectas |
-| `403` | Con sesión pero sin permiso: no es admin, o el recurso no es suyo · login de una cuenta que no puede entrar |
+| `401` | Sin sesión, token caducado, revocado o no válido · credenciales incorrectas |
+| `403` | Sin permiso: no es admin o no es suyo · cuenta que no puede entrar |
 | `404` | No existe o está en la papelera |
-| `429` | Demasiados intentos de login fallidos (espera lo que diga `Retry-After`) |
-| `409` | Choca con otro registro (título o email repetido) o con el estado (activar uno borrado, borrar una categoría con productos, quitar al último admin) |
+| `409` | Choca con otro registro o con su estado |
 | `422` | Datos no válidos (Zod, reglas del service o Mongoose) |
+| `429` | Demasiados intentos de login |
+
+</details>
 
 ---
 
 ## 🅰️ Frontend
 
-- **Angular 18** con componentes standalone, **Signals**, `OnPush` en todos los componentes, Reactive Forms y lazy loading con code splitting.
-- **Store genérico** (`EntityStore`): colecciones, detalle, escrituras y visibilidad optimista. Cada entidad hereda y solo añade lo suyo (`ProductsStore`, `CategoriesStore`, `UsersStore`); el hook `afterWrite` permite refrescar lo que depende de ella (al cambiar una categoría o un usuario se recargan los select de categoría y vendedor).
-- **Sesión (`core/auth/`):** `AuthStore` con Signals guarda **solo el token** en `localStorage`; el usuario sale siempre de `GET /auth/me` al arrancar (así un cambio de rol o una desactivación se notan al recargar). Un interceptor añade `Authorization: Bearer` solo a las peticiones a la API.
-- **Rutas protegidas:** `guestGuard` en `/login`, `authGuard` en `/profile`, `/products/new` y `/products/:slug/edit`, y `adminGuard` en `/admin/**` (un usuario sin permiso va a `/forbidden`). La API vuelve a comprobarlo todo: los guards solo evitan pantallas que acabarían en error.
-- **Lo tuyo y lo de los demás:** "Editar" y "Retirar" solo salen en tus anuncios (o en todos, si eres admin), y el select **Vendedor** solo lo ve el admin: el resto publica a su nombre.
-- **Interceptores:** traducen los errores a mensajes en español y gestionan un loader global con retardo para que no parpadee. Un `401` con la sesión abierta (token caducado o revocado) la cierra y te lleva al login para volver después a donde estabas.
-- **UX:** skeletons, estados vacíos y de error con "Reintentar", View Transitions, sin scroll horizontal desde 375 px y accesibilidad (labels, `aria-*` y foco al primer error).
+| | |
+|---|---|
+| ⚡ **Angular 18** | Standalone, **Signals**, `OnPush` en todo, Reactive Forms y lazy loading con code splitting |
+| 🗄️ **Store genérico** | `EntityStore`: colecciones, detalle, escrituras y visibilidad optimista. Cada entidad hereda y solo añade lo suyo |
+| 🔐 **Sesión** | `AuthStore` guarda **solo el token** en `localStorage`; el usuario sale siempre de `GET /auth/me`. El interceptor pone `Bearer` solo en las peticiones a la API |
+| 🚧 **Rutas protegidas** | `guestGuard` (`/login`), `authGuard` (`/profile`, publicar y editar) y `adminGuard` (`/admin/**` → `/forbidden` si no eres admin) |
+| 👤 **Lo tuyo** | "Editar" y "Retirar" solo en tus anuncios (o en todos si eres admin); el select **Vendedor** solo lo ve el admin |
+| 🚨 **Errores** | En español, junto al campo o en la pantalla con *Reintentar*. Un `401` con sesión la cierra y te devuelve después a donde estabas |
+| 🎨 **UX** | Skeletons, estados vacíos y de error, View Transitions, sin scroll horizontal desde 375 px y accesibilidad (labels, `aria-*`, foco al primer error) |
 
 ---
 
@@ -255,33 +263,43 @@ En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`)
 | **Zod** en lugar de express-validator | Lo pide la pizarra; además, una misma regla (p. ej. la URL) la usan el validador y el modelo |
 | **Todo el mundo vende** | Como Wallapop: no hay rol de vendedor; `/sellers` son los usuarios activos y no suspendidos |
 | El vendedor es un **User** (no hay `hosts`) | En un marketplace de segunda mano quien vende es un usuario más |
-| La **ubicación** es texto | Suficiente mientras no haga falta filtrar por ciudad |
+| **Perfil separado** de la cuenta, pero sin CRUD propio | Lo personal (avatar, bio…) aparte del login, siempre con el mismo ciclo de vida que su usuario |
+| **Argon2id** en lugar de bcrypt | Es la recomendación actual de OWASP; las contraseñas antiguas se migran al iniciar sesión |
+| **Blacklist** para el logout | Un JWT no se puede "borrar": así el logout invalida el token de verdad |
+| El token va en **`localStorage`** con `Bearer` | Más sencillo de entender y de probar con Swagger; queda apuntado pasar a una cookie `httpOnly` si hace falta más protección frente a XSS |
+| **Integridad en los services**, no en scripts | Cada service vigila su entidad, en cada petición y no solo al migrar |
 | **`isActive` y `deletedAt` independientes** | Ocultar un anuncio no es lo mismo que borrarlo |
 | El **estado del producto se calcula** a partir de sus variantes | Un solo origen de verdad: disponible, reservado o vendido |
-| Categorías con **borrador** además de `isActive` | Se puede preparar una categoría (atributos, subcategorías) antes de que salga en la tienda |
-| Borrar una categoría con productos da **409** en vez de borrar en cascada | Borrar una categoría no debería hacer desaparecer anuncios de otros usuarios |
+| Categorías con **borrador** además de `isActive` | Se puede preparar una categoría antes de que salga en la tienda |
+| Borrar una categoría con productos da **409** | Borrar una categoría no debería hacer desaparecer anuncios de otros usuarios |
 | **Siempre queda un admin activo** | Si no, nadie podría volver a entrar al panel |
-| El token va en **`localStorage`** con `Bearer` (no en una cookie `httpOnly`) | Más sencillo de entender y de probar con Swagger; queda apuntado pasar a cookie si hace falta más protección frente a XSS |
-| Al cambiar las fotos, **primero se crean las nuevas** y luego se retiran las anteriores | Sin transacciones (necesitan *replica set*), es la forma de que un fallo no deje un producto sin fotos. Si falla una nueva, se borran las ya creadas |
+| Al cambiar las fotos, **primero se crean las nuevas** | Sin transacciones (necesitan *replica set*), es la forma de que un fallo no deje un producto sin fotos |
 
 ---
 
 ## 🗺️ Estado y hoja de ruta
 
-| Fase | Estado |
-|---|---|
-| CRUD de productos, soft delete, slug, estados y relaciones | ✅ |
-| Plugins de soft delete y slug en todos los modelos | ✅ |
-| Errores por campo + Swagger | ✅ |
-| Store genérico + panel con pestañas | ✅ |
-| CRUD de variantes + editor en el panel | ✅ |
-| CRUD de categorías + panel en árbol | ✅ |
-| CRUD de usuarios + `GET /roles` + panel | ✅ |
-| Seed con 20 productos + fotos sin pérdidas ni huérfanas | ✅ |
-| Perfil separado del usuario (con avatar) + integridad referencial | ✅ |
-| Base del login: Argon2, JWT, blacklist del logout e integridad en los services | ✅ |
-| JWT en la API: login, `/me`, logout, `/profile/me`, roles (RBAC) y propiedad (ABAC) | ✅ |
-| JWT en el front: login, sesión, guards, interceptor, menú de usuario y Mi perfil | ✅ |
-| Carrito, reservas y pagos | 🔜 |
+| | Fase |
+|:-:|---|
+| ✅ | CRUD de productos, soft delete, slug, estados y relaciones |
+| ✅ | Plugins de soft delete y slug en todos los modelos |
+| ✅ | Errores por campo + Swagger |
+| ✅ | Store genérico + panel con pestañas |
+| ✅ | CRUD de variantes + editor en el panel |
+| ✅ | CRUD de categorías + panel en árbol |
+| ✅ | CRUD de usuarios + `GET /roles` + panel |
+| ✅ | Seed con 20 productos + fotos sin pérdidas ni huérfanas |
+| ✅ | Perfil separado del usuario (con avatar) + integridad referencial |
+| ✅ | Base del login: Argon2, JWT, blacklist del logout e integridad en los services |
+| ✅ | JWT en la API: login, `/me`, logout, `/profile/me`, roles (RBAC) y propiedad (ABAC) |
+| ✅ | JWT en el front: login, sesión, guards, interceptor, menú de usuario y Mi perfil |
+| 🔜 | Mis anuncios, cambio de contraseña y registro |
+| 🔜 | Carrito, reservas y pagos |
 
-Cada proyecto tiene su README con más detalle: [`secondhand-api`](secondhand-api/README.md) · [`secondhand-front`](secondhand-front/README.md).
+---
+
+<div align="center">
+
+Hecho con ☕ para **2º DAW** · [API](secondhand-api/README.md) · [Frontend](secondhand-front/README.md)
+
+</div>

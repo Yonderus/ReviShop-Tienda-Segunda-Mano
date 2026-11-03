@@ -10,7 +10,7 @@ const router = Router();
  *   get:
  *     tags: [Usuarios]
  *     summary: Roles que se pueden asignar (activos y no obsoletos)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Para el select de rol del panel. No hay CRUD de roles.
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }

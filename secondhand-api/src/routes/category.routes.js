@@ -40,7 +40,7 @@ router.get("/", getCategories);
  *   get:
  *     tags: [Categorías]
  *     summary: Panel — activas (borradores incluidos)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/CategoryStatus' }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -58,7 +58,7 @@ router.get("/actives", adminOnly, validate({ query: adminListQuerySchema }), get
  *   get:
  *     tags: [Categorías]
  *     summary: Panel — inactivas (no se ofrecen en la tienda)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/CategoryStatus' }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -76,7 +76,7 @@ router.get("/inactives", adminOnly, validate({ query: adminListQuerySchema }), g
  *   get:
  *     tags: [Categorías]
  *     summary: Panel — papelera, de la eliminada más reciente a la más antigua
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/CategoryStatus' }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -94,7 +94,7 @@ router.get("/trash", adminOnly, validate({ query: adminListQuerySchema }), getTr
  *   get:
  *     tags: [Categorías]
  *     summary: Detalle por slug
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ name: slug, in: path, required: true, schema: { type: string, example: moviles } }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -112,7 +112,7 @@ router.get("/slug/:slug", adminOnly, validate({ params: slugParamsSchema }), get
  *   get:
  *     tags: [Categorías]
  *     summary: Detalle por id
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/CategoryId' }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -131,7 +131,7 @@ router.get("/:id", adminOnly, validate({ params: idParamsSchema }), getCategoryB
  *   post:
  *     tags: [Categorías]
  *     summary: Crear una categoría
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Dos niveles como máximo. Nace en borrador salvo que se envíe status published.
  *     requestBody:
  *       required: true
@@ -153,7 +153,7 @@ router.post("/", adminOnly, validate({ body: createCategorySchema }), createCate
  *   patch:
  *     tags: [Categorías]
  *     summary: Actualización parcial
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Si cambia el nombre, cambia el slug. Una categoría con subcategorías no puede pasar a ser hija.
  *     parameters: [{ $ref: '#/components/parameters/CategoryId' }]
  *     requestBody:
@@ -177,7 +177,7 @@ router.patch("/:id", adminOnly, validate({ params: idParamsSchema, body: updateC
  *   patch:
  *     tags: [Categorías]
  *     summary: Activar o desactivar
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Una categoría inactiva no sale en la tienda ni admite productos nuevos; los que ya tiene se quedan.
  *     parameters: [{ $ref: '#/components/parameters/CategoryId' }]
  *     requestBody:
@@ -200,7 +200,7 @@ router.patch("/:id/active", adminOnly, validate({ params: idParamsSchema, body: 
  *   patch:
  *     tags: [Categorías]
  *     summary: Restaurar desde la papelera
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Vuelve inactiva salvo isActive true. Una subcategoría necesita que su padre no esté en la papelera.
  *     parameters: [{ $ref: '#/components/parameters/CategoryId' }]
  *     requestBody:
@@ -222,7 +222,7 @@ router.patch("/:id/restore", adminOnly, validate({ params: idParamsSchema, body:
  *   delete:
  *     tags: [Categorías]
  *     summary: Mover a la papelera (soft delete)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: 409 si tiene productos o subcategorías (dice cuántos).
  *     parameters: [{ $ref: '#/components/parameters/CategoryId' }]
  *     responses:

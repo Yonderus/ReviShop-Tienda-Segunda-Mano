@@ -41,7 +41,7 @@ const router = Router();
  *   get:
  *     tags: [Usuarios]
  *     summary: Panel — todos los no eliminados
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters:
  *       - { name: isActive, in: query, schema: { type: string, enum: ['true', 'false'] } }
  *       - $ref: '#/components/parameters/UserStatus'
@@ -62,7 +62,7 @@ router.get("/", adminOnly, validate({ query: allUsersQuerySchema }), getUsers);
  *   get:
  *     tags: [Usuarios]
  *     summary: Panel — activos
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/UserStatus' }, { $ref: '#/components/parameters/UserRole' }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -80,7 +80,7 @@ router.get("/actives", adminOnly, validate({ query: userListQuerySchema }), getA
  *   get:
  *     tags: [Usuarios]
  *     summary: Panel — inactivos (no pueden vender)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/UserStatus' }, { $ref: '#/components/parameters/UserRole' }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -98,7 +98,7 @@ router.get("/inactives", adminOnly, validate({ query: userListQuerySchema }), ge
  *   get:
  *     tags: [Usuarios]
  *     summary: Panel — papelera, del eliminado más reciente al más antiguo
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/UserStatus' }, { $ref: '#/components/parameters/UserRole' }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -116,7 +116,7 @@ router.get("/trash", adminOnly, validate({ query: userListQuerySchema }), getTra
  *   get:
  *     tags: [Usuarios]
  *     summary: Detalle por slug
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ name: slug, in: path, required: true, schema: { type: string, example: lucia-martin } }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -134,7 +134,7 @@ router.get("/slug/:slug", adminOnly, validate({ params: slugParamsSchema }), get
  *   get:
  *     tags: [Usuarios]
  *     summary: Detalle por id
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -153,7 +153,7 @@ router.get("/:id", adminOnly, validate({ params: idParamsSchema }), getUserById)
  *   post:
  *     tags: [Usuarios]
  *     summary: Crear un usuario
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: La contraseña se guarda con hash bcrypt y no sale nunca en las respuestas. Nace en estado pending salvo que se envíe otro.
  *     requestBody:
  *       required: true
@@ -175,7 +175,7 @@ router.post("/", adminOnly, validate({ body: createUserSchema }), createUser);
  *   patch:
  *     tags: [Usuarios]
  *     summary: Actualización parcial
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: password es opcional; si llega, se cambia. Al último administrador activo no se le puede cambiar el rol ni suspender (409).
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     requestBody:
@@ -199,7 +199,7 @@ router.patch("/:id", adminOnly, validate({ params: idParamsSchema, body: updateU
  *   patch:
  *     tags: [Usuarios]
  *     summary: Activar o desactivar
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Un usuario inactivo no puede vender. Al último administrador activo no se le puede desactivar (409).
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     requestBody:
@@ -222,7 +222,7 @@ router.patch("/:id/active", adminOnly, validate({ params: idParamsSchema, body: 
  *   patch:
  *     tags: [Usuarios]
  *     summary: Restaurar desde la papelera
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Vuelve inactivo salvo isActive true, con su avatar.
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     requestBody:
@@ -244,7 +244,7 @@ router.patch("/:id/restore", adminOnly, validate({ params: idParamsSchema, body:
  *   delete:
  *     tags: [Usuarios]
  *     summary: Mover a la papelera (soft delete)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: 409 si tiene productos o si es el último administrador activo.
  *     parameters: [{ $ref: '#/components/parameters/UserId' }]
  *     responses:

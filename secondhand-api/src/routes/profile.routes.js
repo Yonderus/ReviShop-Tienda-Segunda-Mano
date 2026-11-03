@@ -13,7 +13,7 @@ const router = Router();
  *   get:
  *     tags: [Perfil]
  *     summary: Mi perfil
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     responses:
  *       200:
  *         description: Teléfono, ubicación, bio y avatar (solo los que tenga)
@@ -29,7 +29,7 @@ router.get("/me", authenticate, getMyProfile);
  *     tags: [Perfil]
  *     summary: Editar mi perfil
  *     description: Solo teléfono, ubicación, bio y avatar. Nunca el rol, el estado ni el perfil de otro (un userId en el body se ignora).
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     requestBody:
  *       required: true
  *       content: { application/json: { schema: { $ref: '#/components/schemas/ProfileInput' } } }

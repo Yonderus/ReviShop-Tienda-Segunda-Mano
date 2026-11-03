@@ -7,6 +7,19 @@ export const AUTH_MESSAGES = Object.freeze({
   TOKEN_REVOKED: "Tu sesión se ha cerrado. Vuelve a iniciar sesión",
   FORBIDDEN: "No tienes permiso para esto",
   TOO_MANY_ATTEMPTS: "Demasiados intentos de inicio de sesión. Prueba de nuevo dentro de unos minutos",
+  ORIGIN_NOT_ALLOWED: "Origen no permitido",
+});
+
+/**
+ * La cookie de la sesión: lleva el JWT y el navegador la envía sola a la API.
+ * - `httpOnly`: JavaScript no puede leerla (un XSS no puede robar el token).
+ * - `sameSite: "strict"`: no viaja en peticiones que vienen de otra web (defensa principal contra CSRF).
+ * - `path: "/api"`: solo va a la API, no con el HTML ni las imágenes.
+ * `secure` (solo por HTTPS) y `maxAge` (lo que le queda al token) se ponen en `utils/sessionCookie.js`.
+ */
+export const SESSION_COOKIE = Object.freeze({
+  NAME: "revishop_session",
+  OPTIONS: Object.freeze({ httpOnly: true, sameSite: "strict", path: "/api" }),
 });
 
 /**

@@ -58,7 +58,7 @@ router.get("/", validate({ query: listQuerySchema }), getProducts);
  *   get:
  *     tags: [Productos]
  *     summary: Solo los activos (no eliminados)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters:
  *       - $ref: '#/components/parameters/Category'
  *       - $ref: '#/components/parameters/Seller'
@@ -82,7 +82,7 @@ router.get("/actives", adminOnly, validate({ query: stateListQuerySchema }), get
  *   get:
  *     tags: [Productos]
  *     summary: Solo los inactivos (ocultos en la tienda, no eliminados)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters:
  *       - $ref: '#/components/parameters/Category'
  *       - $ref: '#/components/parameters/Seller'
@@ -106,7 +106,7 @@ router.get("/inactives", adminOnly, validate({ query: stateListQuerySchema }), g
  *   get:
  *     tags: [Productos]
  *     summary: Papelera (soft delete), del borrado más reciente al más antiguo
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Cada producto muestra solo la portada que se eliminó junto a él.
  *     parameters:
  *       - $ref: '#/components/parameters/Category'
@@ -131,7 +131,7 @@ router.get("/trash", adminOnly, validate({ query: stateListQuerySchema }), getTr
  *   get:
  *     tags: [Productos]
  *     summary: Público — detalle por slug
- *     security: [{}, { bearerAuth: [] }]
+ *     security: [{}, { cookieAuth: [] }]
  *     description: Un producto inactivo solo lo ven su dueño y los admin (con token); al resto, 404. El token es opcional y, si no vale, se ignora.
  *     parameters: [{ $ref: '#/components/parameters/ProductSlug' }]
  *     responses:
@@ -148,7 +148,7 @@ router.get("/slug/:slug", optionalAuthenticate, validate({ params: slugParamsSch
  *   get:
  *     tags: [Productos]
  *     summary: Detalle por id
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     responses:
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -167,7 +167,7 @@ router.get("/:id", adminOnly, validate({ params: idParamsSchema }), getProductBy
  *   post:
  *     tags: [Productos]
  *     summary: Crear un producto
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Genera el slug a partir del título y una variante por defecto.
  *     requestBody:
  *       required: true
@@ -188,7 +188,7 @@ router.post("/", authenticate, validate({ body: createProductSchema }), createPr
  *   patch:
  *     tags: [Productos]
  *     summary: Actualización parcial
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Solo los campos enviados. El estado de venta no se cambia aquí, sino en /products/{id}/status.
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     requestBody:
@@ -212,7 +212,7 @@ router.patch("/:id", authenticate, validate({ params: idParamsSchema, body: upda
  *   patch:
  *     tags: [Productos]
  *     summary: Cambiar el estado de venta
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Solo si el producto tiene una única variante (422 si tiene varias).
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     requestBody:
@@ -237,7 +237,7 @@ router.patch("/:id/status", authenticate, validate({ params: idParamsSchema, bod
  *   patch:
  *     tags: [Productos]
  *     summary: Activar o desactivar (visibilidad en la tienda)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     requestBody:
  *       required: true
@@ -262,7 +262,7 @@ router.patch("/:id/active", authenticate, validate({ params: idParamsSchema, bod
  *   patch:
  *     tags: [Productos]
  *     summary: Restaurar desde la papelera
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Vuelve inactivo salvo que se envíe isActive true. Recupera solo las variantes e imágenes eliminadas con él.
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     requestBody:
@@ -286,7 +286,7 @@ router.patch("/:id/restore", adminOnly, validate({ params: idParamsSchema, body:
  *   delete:
  *     tags: [Productos]
  *     summary: Mover a la papelera (soft delete)
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: También sus variantes e imágenes, con la misma fecha.
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     responses:

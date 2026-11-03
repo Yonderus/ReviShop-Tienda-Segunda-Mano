@@ -22,7 +22,7 @@ export const productVariantsOfProductRoutes = Router({ mergeParams: true });
  *   get:
  *     tags: [Variantes]
  *     summary: Público — variantes no eliminadas de un producto
- *     security: [{}, { bearerAuth: [] }]
+ *     security: [{}, { cookieAuth: [] }]
  *     description: Las de un producto inactivo solo las ven su dueño y los admin (con token); al resto, 404.
  *     parameters: [{ $ref: '#/components/parameters/ProductId' }]
  *     responses:
@@ -39,7 +39,7 @@ productVariantsOfProductRoutes.get("/", optionalAuthenticate, validate({ params:
  *   post:
  *     tags: [Variantes]
  *     summary: Crear una variante
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: >
  *       Las opciones tienen que ser atributos de la categoría del producto (o de su padre). La primera variante
  *       con opciones sustituye a la "Única". Si coincide con una variante eliminada, se recupera esa.
@@ -68,7 +68,7 @@ export const productVariantRoutes = Router();
  *   patch:
  *     tags: [Variantes]
  *     summary: Cambiar precio o stock
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: Las opciones no se pueden cambiar (cambiarían el SKU).
  *     parameters: [{ $ref: '#/components/parameters/VariantId' }]
  *     requestBody:
@@ -91,7 +91,7 @@ productVariantRoutes.patch("/:id", authenticate, validate({ params: idParamsSche
  *   patch:
  *     tags: [Variantes]
  *     summary: Cambiar el estado de venta
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: El estado del producto se recalcula a partir de sus variantes.
  *     parameters: [{ $ref: '#/components/parameters/VariantId' }]
  *     requestBody:
@@ -114,7 +114,7 @@ productVariantRoutes.patch("/:id/status", authenticate, validate({ params: idPar
  *   patch:
  *     tags: [Variantes]
  *     summary: Activar o desactivar
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/VariantId' }]
  *     requestBody:
  *       required: true
@@ -136,7 +136,7 @@ productVariantRoutes.patch("/:id/active", authenticate, validate({ params: idPar
  *   delete:
  *     tags: [Variantes]
  *     summary: Mover a la papelera (soft delete), con sus imágenes
- *     security: [{ bearerAuth: [] }]
+ *     security: [{ cookieAuth: [] }]
  *     description: No se puede eliminar la última variante de un producto (409).
  *     parameters: [{ $ref: '#/components/parameters/VariantId' }]
  *     responses:

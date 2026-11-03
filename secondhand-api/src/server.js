@@ -2,6 +2,7 @@ import { createWriteStream } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import express from "express";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -9,6 +10,7 @@ import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import { swaggerSpec } from "./config/swagger.js";
+import { checkOrigin } from "./middlewares/origin.middleware.js";
 import authRoutes from "./routes/auth.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
@@ -24,15 +26,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 app.use(helmet());
-// Abierto en desarrollo; en producción solo los orígenes de CORS_ORIGIN.
-app.use(cors(env.isProduction ? { origin: env.CORS_ORIGIN?.split(",") } : undefined));
+// La sesión va en una cookie: solo los orígenes del front (CORS_ORIGIN) y con `credentials`, también en
+// desarrollo. Con un origen abierto (`*`), el navegador no enviaría la cookie.
+app.use(cors({ origin: [...env.corsOrigins], credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 app.use(morgan("dev"));
 const accessLogStream = createWriteStream(join(__dirname, "..", "logs", "access.log"), { flags: "a" });
 app.use(morgan("combined", { stream: accessLogStream }));
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle: "Revishop API" }));
+// Escrituras solo desde el front o la propia API (defensa contra CSRF, junto con SameSite=Strict).
+app.use("/api", checkOrigin);
 // Quién puede usar cada ruta lo dice su archivo de rutas (authenticate, adminOnly). Lo que no lo pone es público.
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);

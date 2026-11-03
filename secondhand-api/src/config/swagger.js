@@ -42,8 +42,12 @@ export const swaggerSpec = swaggerJSDoc({
       description:
         "API REST del marketplace de segunda mano Revishop. Todas las respuestas correctas van en " +
         "`{ success: true, data }` y los errores en `{ success: false, message, errors? }`.\n\n" +
-        "**Sesión:** `POST /auth/login` devuelve un token; pulsa **Authorize** y pégalo para probar las rutas " +
-        "protegidas. Cada ruta indica si es pública, con sesión, del dueño (o un admin) o solo de admin.",
+        "**Sesión:** inicia sesión con *Try it out* en `POST /auth/login`. La API guarda el token en la cookie " +
+        "`revishop_session` (`HttpOnly`: JavaScript no puede leerla) y el navegador la envía sola, así que el resto " +
+        "de pruebas ya van con sesión; para salir, `POST /auth/logout`. Cada ruta indica si es pública, con sesión, " +
+        "del dueño (o un admin) o solo de admin.\n\n" +
+        "**Escrituras desde otra web:** un `POST`, `PATCH` o `DELETE` cuyo `Origin` no sea el front (`CORS_ORIGIN`) " +
+        "ni la propia API da **403** \"Origen no permitido\" (defensa contra CSRF).",
     },
     servers: [{ url: "/api" }],
     tags: [
@@ -56,11 +60,13 @@ export const swaggerSpec = swaggerJSDoc({
     ],
     components: {
       securitySchemes: {
-        bearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          bearerFormat: "JWT",
-          description: "El `token` de `POST /auth/login` (sin la palabra Bearer: la añade Swagger).",
+        cookieAuth: {
+          type: "apiKey",
+          in: "cookie",
+          name: "revishop_session",
+          description:
+            "La pone `POST /auth/login` y el navegador la envía sola: no hace falta pulsar **Authorize**. " +
+            "`HttpOnly`, `SameSite=Strict` y `Path=/api`.",
         },
       },
       schemas: {
@@ -382,10 +388,8 @@ export const swaggerSpec = swaggerJSDoc({
         },
         LoginResponse: success({
           type: "object",
-          properties: {
-            token: { type: "string", description: "JWT. Va en `Authorization: Bearer <token>`. Caduca según JWT_EXPIRES_IN" },
-            user: { $ref: "#/components/schemas/Me" },
-          },
+          description: "Solo el usuario: el token va en la cookie `revishop_session` (cabecera Set-Cookie).",
+          properties: { user: { $ref: "#/components/schemas/Me" } },
         }),
         MeResponse: success({ $ref: "#/components/schemas/Me" }),
         ProfileResponse: success({ $ref: "#/components/schemas/Profile" }),
@@ -407,11 +411,11 @@ export const swaggerSpec = swaggerJSDoc({
         MaxPrice: { name: "maxPrice", in: "query", schema: { type: "number", minimum: 0 } },
       },
       responses: {
-        Unauthorized: errorResponse("Sin sesión, o con un token caducado, revocado (logout) o no válido", {
+        Unauthorized: errorResponse("Sin la cookie de sesión, o con un token caducado, revocado (logout) o no válido (la cookie se borra)", {
           success: false,
           message: "Necesitas iniciar sesión",
         }),
-        Forbidden: errorResponse("Con sesión, pero sin permiso: no es admin, o el recurso no es suyo", {
+        Forbidden: errorResponse("Con sesión, pero sin permiso: no es admin, o el recurso no es suyo (o una escritura desde un origen no permitido)", {
           success: false,
           message: "No tienes permiso para esto",
         }),

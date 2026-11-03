@@ -2,7 +2,13 @@ import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { BLOCKING_REQUEST, INLINE_ERROR_STATUSES, SKIP_ERROR_ALERT, SKIP_GLOBAL_LOADER } from '../config/api.tokens';
+import {
+  BLOCKING_REQUEST,
+  INLINE_ERROR_STATUSES,
+  SKIP_AUTH_REDIRECT,
+  SKIP_ERROR_ALERT,
+  SKIP_GLOBAL_LOADER,
+} from '../config/api.tokens';
 import { ApiSuccess } from '../models/api-response.model';
 
 export type QueryValue = string | number | boolean | null | undefined;
@@ -13,6 +19,8 @@ export interface ApiRequestOptions {
   skipGlobalLoader?: boolean;
   inlineErrorStatuses?: readonly number[];
   blocking?: boolean;
+  /** Ver SKIP_AUTH_REDIRECT. */
+  skipAuthRedirect?: boolean;
 }
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
@@ -68,6 +76,7 @@ export class ApiService {
       .set(SKIP_ERROR_ALERT, options.skipErrorAlert ?? false)
       .set(SKIP_GLOBAL_LOADER, options.skipGlobalLoader ?? false)
       .set(INLINE_ERROR_STATUSES, options.inlineErrorStatuses ?? [])
-      .set(BLOCKING_REQUEST, options.blocking ?? false);
+      .set(BLOCKING_REQUEST, options.blocking ?? false)
+      .set(SKIP_AUTH_REDIRECT, options.skipAuthRedirect ?? false);
   }
 }

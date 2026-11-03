@@ -1,4 +1,5 @@
-import { computed, signal } from '@angular/core';
+import { computed, inject, signal } from '@angular/core';
+import { AuthStore } from '../auth/auth.store';
 import { ApiError, toApiError } from '../models/api-error.model';
 import { EntityRecord } from '../models/entity.model';
 import { EntityApiService } from '../services/entity-api.service';
@@ -69,6 +70,19 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
   /** Registros pedidos por slug que aún no están en ninguna lista (p. ej. entrada directa al detalle). */
   private readonly detailCache = new Map<string, T>();
   private currentSlug: string | null = null;
+
+  constructor() {
+    // Las colecciones del panel son de quien tenía la sesión: al cerrarla, fuera (el siguiente que entre en
+    // este navegador no debe verlas, ni siquiera un instante).
+    inject(AuthStore).onSessionEnd(() => this.resetSessionData());
+  }
+
+  /** Vacía lo que depende de la sesión. Los stores con datos propios de sesión lo amplían. */
+  protected resetSessionData(): void {
+    Object.values(this.collections).forEach((collection) => collection.reset());
+    this.detailCache.clear();
+    this.clearSelected();
+  }
 
   collection(key: CollectionKey) {
     const { items, loading, error, loaded } = this.collections[key];

@@ -40,6 +40,13 @@ export class RemoteCollection<T extends { _id: string }> {
     this._items.update((list) => list.filter((i) => i._id !== id));
   }
 
+  /** Vacía la colección: la próxima `load()` la vuelve a pedir (p. ej. tras cerrar sesión). */
+  reset(): void {
+    this._items.set([]);
+    this._error.set(null);
+    this._loaded.set(false);
+  }
+
   private async run(): Promise<void> {
     this._loading.set(true);
     this._error.set(null);

@@ -8,7 +8,9 @@ import {
 import { inject } from '@angular/core';
 import { TimeoutError, catchError, map, throwError, timeout } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { INLINE_ERROR_STATUSES, SKIP_ERROR_ALERT } from '../config/api.tokens';
+import { Router } from '@angular/router';
+import { AuthStore } from '../auth/auth.store';
+import { INLINE_ERROR_STATUSES, SKIP_AUTH_REDIRECT, SKIP_ERROR_ALERT } from '../config/api.tokens';
 import { ApiError } from '../models/api-error.model';
 import { failureErrors, isApiFailure, isApiSuccess } from '../models/api-response.model';
 import { AlertService } from '../services/alert.service';
@@ -18,6 +20,9 @@ const MESSAGES = {
   timeout: 'El servidor está tardando demasiado en responder. Inténtalo de nuevo en unos segundos.',
   invalidResponse: 'Hemos recibido una respuesta inesperada del servidor. Inténtalo de nuevo.',
   validation: 'Algunos datos no son válidos. Revísalos e inténtalo de nuevo.',
+  unauthorized: 'Necesitas iniciar sesión.',
+  forbidden: 'No tienes permiso para esto.',
+  tooMany: 'Demasiados intentos. Prueba de nuevo dentro de unos minutos.',
   notFound: 'No hemos encontrado lo que buscabas.',
   conflict: 'Ya existe un registro con esos datos.',
   server: 'Algo ha fallado en el servidor. Inténtalo de nuevo más tarde.',
@@ -44,6 +49,10 @@ function fromHttpError(error: HttpErrorResponse): ApiError {
     const details = errors.length || !failure ? errors : [{ field: null, message: failure.message }];
     return new ApiError('validation', MESSAGES.validation, status, details);
   }
+  // 401, 403 y 429: el mensaje de la API es el preciso ("Tu sesión ha caducado", "Email o contraseña incorrectos"…).
+  if (status === 401) return new ApiError('http', failure?.message ?? MESSAGES.unauthorized, status);
+  if (status === 403) return new ApiError('http', failure?.message ?? MESSAGES.forbidden, status);
+  if (status === 429) return new ApiError('http', failure?.message ?? MESSAGES.tooMany, status);
   if (status === 404) return new ApiError('http', MESSAGES.notFound, status);
   // Hay 409 de varios tipos (título repetido, registro en la papelera…): el mensaje del backend es el preciso.
   if (status === 409) return new ApiError('http', failure?.message ?? MESSAGES.conflict, status, errors);
@@ -60,6 +69,8 @@ function normalizeError(error: unknown): ApiError {
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const alert = inject(AlertService);
+  const auth = inject(AuthStore);
+  const router = inject(Router);
 
   return next(req).pipe(
     timeout(environment.requestTimeoutMs),
@@ -69,6 +80,18 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
       if (!environment.production) {
         console.error(`[API] ${req.method} ${req.urlWithParams}`, raw);
+      }
+
+      // 401 de una petición que llevaba token: la sesión ya no vale (caducada, cerrada, cuenta desactivada…).
+      // Se borra la sesión local y al login. Si fallan varias a la vez, solo la primera avisa: las demás ya
+      // encuentran la sesión borrada. El login, `/auth/me` y el logout tratan su 401 ellos (SKIP_AUTH_REDIRECT).
+      if (error.status === 401 && req.headers.has('Authorization') && !req.context.get(SKIP_AUTH_REDIRECT)) {
+        if (auth.token()) {
+          auth.clearSession();
+          void alert.error(error.message);
+          void router.navigate(['/login'], { queryParams: { returnUrl: router.url } });
+        }
+        return throwError(() => error);
       }
 
       const handledInline =

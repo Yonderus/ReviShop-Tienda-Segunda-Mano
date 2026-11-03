@@ -13,6 +13,7 @@ export const routes: Routes = [
     path: '',
     component: MainLayoutComponent,
     children: [
+      { path: '', loadChildren: () => import('./features/auth/auth.routes') },
       { path: '', loadChildren: () => import('./features/products/products.routes') },
       {
         path: '**',

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from '../../core/auth/auth.guard';
 import { APP_NAME } from '../../core/config/app.constants';
 
 /** `products/new` va antes que `products/:slug`: un producto titulado "New" tendría slug `new` y nunca sería alcanzable. */
@@ -11,6 +12,7 @@ const PRODUCTS_ROUTES: Routes = [
   },
   {
     path: 'products/new',
+    canMatch: [authGuard],
     title: `Publicar producto · ${APP_NAME}`,
     loadComponent: () =>
       import('./pages/product-create-page/product-create-page.component').then((m) => m.ProductCreatePageComponent),
@@ -23,6 +25,7 @@ const PRODUCTS_ROUTES: Routes = [
   },
   {
     path: 'products/:slug/edit',
+    canMatch: [authGuard],
     title: `Editar anuncio · ${APP_NAME}`,
     loadComponent: () =>
       import('./pages/product-edit-page/product-edit-page.component').then((m) => m.ProductEditPageComponent),

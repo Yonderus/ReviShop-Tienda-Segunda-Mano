@@ -1,5 +1,6 @@
 import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { EntityStore, byNewest } from '../../../core/store/entity.store';
+import { RemoteCollection } from '../../../core/store/remote-collection';
 import { toApiError } from '../../../core/models/api-error.model';
 import {
   PRODUCT_STATUSES,
@@ -49,27 +50,32 @@ export class ProductsStore extends EntityStore<Product, ProductInput> {
   protected readonly api = inject(ProductsService);
   private readonly variants = inject(VariantsService);
 
-  // Catálogo público (colección de activos).
-  readonly products = this.collections.active.items;
-  readonly loading = this.collections.active.loading;
-  readonly error = this.collections.active.error;
+  /**
+   * Catálogo de la tienda: `GET /products`, público. Es una colección aparte de las del panel (`active`,
+   * `inactive`, `trash`), que usan los endpoints de admin: así la tienda funciona sin sesión.
+   */
+  private readonly catalog = new RemoteCollection<Product>(() => this.api.listPublic(), byNewest);
+  readonly products = this.catalog.items;
+  readonly loading = this.catalog.loading;
+  readonly error = this.catalog.error;
   readonly count = computed(() => this.products().length);
   readonly hasError = computed(() => this.error() !== null);
-  readonly isEmpty = computed(() => this.collections.active.loaded() && this.products().length === 0);
+  readonly isEmpty = computed(() => this.catalog.loaded() && this.products().length === 0);
   readonly availableProducts = computed(() => this.products().filter((p) => p.status === 'disponible'));
 
-  // Resumen del panel.
+  // Resumen del panel (colecciones de admin).
+  private readonly activeProducts = this.collections.active.items;
   readonly inactiveProducts = this.collections.inactive.items;
   readonly trashedProducts = this.collections.trash.items;
   readonly statsReady = computed(() => Object.values(this.collections).every((c) => c.loaded()));
 
-  private readonly liveProducts = computed(() => [...this.products(), ...this.inactiveProducts()]);
+  private readonly liveProducts = computed(() => [...this.activeProducts(), ...this.inactiveProducts()]);
 
   readonly stats = computed(() => {
     const live = this.liveProducts();
     return {
       published: live.length,
-      active: this.products().length,
+      active: this.activeProducts().length,
       inactive: this.inactiveProducts().length,
       trashed: this.trashCount(),
       reserved: live.filter((p) => p.status === 'reservado').length,
@@ -104,9 +110,21 @@ export class ProductsStore extends EntityStore<Product, ProductInput> {
     return product.variants !== undefined;
   }
 
-  /** El catálogo público solo necesita los activos. */
+  /** El catálogo de la tienda (público). */
   loadAll(options: { force?: boolean } = {}): Promise<void> {
-    return this.loadCollection('active', options);
+    return this.catalog.load(options.force);
+  }
+
+  /**
+   * Tras cualquier cambio (crear, editar, visibilidad, borrar, restaurar, estado o variantes), el catálogo se
+   * vuelve a pedir si ya se había cargado: lo que sale en la tienda lo decide la API (solo activos).
+   */
+  protected override afterWrite(): void {
+    this.refreshCatalog();
+  }
+
+  private refreshCatalog(): void {
+    if (this.catalog.loaded()) void this.catalog.load(true);
   }
 
   filteredBy(filters: Signal<ProductFilters>, categoryScope?: Signal<ReadonlySet<string> | null>): Signal<Product[]> {
@@ -145,7 +163,10 @@ export class ProductsStore extends EntityStore<Product, ProductInput> {
     this._variantPendingIds.update((ids) => new Set(ids).add(key));
     try {
       await call();
-      return await this.reload(product.slug);
+      const updated = await this.reload(product.slug);
+      // El estado y el precio que enseña la tienda salen de las variantes.
+      this.refreshCatalog();
+      return updated;
     } catch (raw) {
       throw toApiError(raw);
     } finally {
@@ -167,6 +188,7 @@ export class ProductsStore extends EntityStore<Product, ProductInput> {
     try {
       const updated = await this.api.changeStatus(product._id, status);
       this.placeLive(updated);
+      this.refreshCatalog();
       return updated;
     } catch (raw) {
       this.placeLive(product);

@@ -17,9 +17,9 @@ export const USER_STATUS_TONES: Record<UserStatus, BadgeTone> = {
   suspended: 'neutral',
 };
 
-/** Los mismos límites que la API (bcrypt ignora más allá de 72 bytes). */
+/** Los mismos límites que la API (que guarda la contraseña con Argon2). */
 export const PASSWORD_MIN_LENGTH = 8;
-export const PASSWORD_MAX_LENGTH = 72;
+export const PASSWORD_MAX_LENGTH = 128;
 
 /** Usuario del panel. La API nunca devuelve la contraseña. */
 export interface User extends EntityRecord {
@@ -30,6 +30,8 @@ export interface User extends EntityRecord {
   phone?: string;
   location?: string;
   bio?: string;
+  /** Foto del perfil. No viene si no tiene. */
+  avatarUrl?: string;
   status: UserStatus;
   lastLoginAt: string | null;
   emailVerifiedAt: string | null;

@@ -1,12 +1,6 @@
 import { changedFields } from '../../../shared/utils/diff';
 import { User, UserInput } from './user.model';
 
-/** "Lucía Martín" → "LM". */
-export function initials(name: string): string {
-  const words = name.trim().split(/\s+/);
-  return (words.length > 1 ? words[0][0] + words[words.length - 1][0] : name.slice(0, 2)).toUpperCase();
-}
-
 /** Lo que el formulario necesita para editar un usuario cargado. La contraseña nunca se precarga. */
 export function userToInput(user: User): UserInput {
   return {
@@ -17,6 +11,7 @@ export function userToInput(user: User): UserInput {
     phone: user.phone ?? '',
     location: user.location ?? '',
     bio: user.bio ?? '',
+    avatarUrl: user.avatarUrl ?? null,
     status: user.status,
   };
 }

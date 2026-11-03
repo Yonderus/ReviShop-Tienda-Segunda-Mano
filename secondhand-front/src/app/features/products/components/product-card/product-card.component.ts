@@ -1,6 +1,7 @@
 import { PricePipe } from '../../../../shared/utils/price.pipe';
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { BadgeComponent } from '../../../../shared/ui/badge.component';
 import { IconComponent } from '../../../../shared/ui/icon.component';
 import { LevelMeterComponent } from '../../../../shared/ui/level-meter.component';
@@ -11,7 +12,7 @@ import {
   STATUS_LABELS,
   STATUS_TONES,
 } from '../../models/product.model';
-import { displayPrice, primaryImage } from '../../models/product.utils';
+import { displayPrice, primaryImage, sellerIdOf } from '../../models/product.utils';
 import { ProductImageComponent } from '../product-image/product-image.component';
 
 @Component({
@@ -63,32 +64,36 @@ import { ProductImageComponent } from '../product-image/product-image.component'
               <span class="text-xs font-semibold">desde </span>
             }{{ price().amount | price }}
           </p>
-          <div class="relative z-10 flex gap-1">
-            <a
-              [routerLink]="[link(), 'edit']"
-              class="icon-btn"
-              [attr.aria-label]="'Editar ' + product().title"
-              title="Editar"
-            >
-              <app-icon name="pencil" [size]="18" />
-            </a>
-            <button
-              type="button"
-              class="icon-btn hover:!bg-red-50 hover:!text-red-700"
-              [attr.aria-label]="'Eliminar ' + product().title"
-              title="Eliminar"
-              [disabled]="deleting()"
-              (click)="remove.emit(product())"
-            >
-              <app-icon name="trash" [size]="18" />
-            </button>
-          </div>
+          @if (canManage()) {
+            <div class="relative z-10 flex gap-1">
+              <a
+                [routerLink]="[link(), 'edit']"
+                class="icon-btn"
+                [attr.aria-label]="'Editar ' + product().title"
+                title="Editar"
+              >
+                <app-icon name="pencil" [size]="18" />
+              </a>
+              <button
+                type="button"
+                class="icon-btn hover:!bg-red-50 hover:!text-red-700"
+                [attr.aria-label]="'Eliminar ' + product().title"
+                title="Eliminar"
+                [disabled]="deleting()"
+                (click)="remove.emit(product())"
+              >
+                <app-icon name="trash" [size]="18" />
+              </button>
+            </div>
+          }
         </div>
       </div>
     </article>
   `,
 })
 export class ProductCardComponent {
+  private readonly auth = inject(AuthStore);
+
   readonly product = input.required<Product>();
   readonly deleting = input(false);
   readonly priority = input(false);
@@ -99,6 +104,8 @@ export class ProductCardComponent {
   protected readonly statusTones = STATUS_TONES;
 
   protected readonly link = computed(() => `/products/${this.product().slug}`);
+  /** Editar y eliminar: solo su vendedor o un admin (la API lo vuelve a comprobar). */
+  protected readonly canManage = computed(() => this.auth.isOwnerOrAdmin(sellerIdOf(this.product())));
   protected readonly conditionLevel = computed(() => CONDITION_LEVEL[this.product().condition]);
   protected readonly cover = computed(() => primaryImage(this.product()));
   protected readonly price = computed(() => displayPrice(this.product()));

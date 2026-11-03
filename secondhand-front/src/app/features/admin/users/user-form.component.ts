@@ -11,13 +11,15 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiError, ApiFieldError } from '../../../core/models/api-error.model';
 import { FormFieldErrorComponent } from '../../../shared/components/form-field-error/form-field-error.component';
+import { AvatarComponent } from '../../../shared/ui/avatar.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { applyServerErrors } from '../../../shared/utils/form-errors';
-import { notBlank, oneOf, phoneNumber } from '../../../shared/utils/validators';
+import { httpUrl, notBlank, oneOf, phoneNumber } from '../../../shared/utils/validators';
 import { Role } from '../../users/models/role.model';
 import {
   PASSWORD_MAX_LENGTH,
@@ -30,13 +32,13 @@ import {
 } from '../../users/models/user.model';
 import { userToInput } from '../../users/models/user.utils';
 
-const FIELD_ORDER = ['name', 'email', 'password', 'roleId', 'status', 'phone', 'location', 'bio'] as const;
+const FIELD_ORDER = ['name', 'email', 'password', 'roleId', 'status', 'avatarUrl', 'phone', 'location', 'bio'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
 
 @Component({
   selector: 'app-user-form',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, FormFieldErrorComponent, IconComponent],
+  imports: [ReactiveFormsModule, RouterLink, FormFieldErrorComponent, AvatarComponent, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="space-y-6">
@@ -169,6 +171,25 @@ type FieldName = (typeof FIELD_ORDER)[number];
       <section class="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6" aria-labelledby="uf-s-profile">
         <h2 id="uf-s-profile" class="text-base font-semibold text-ink">Perfil <span class="text-sm font-normal text-ink-muted">(opcional)</span></h2>
         <div class="mt-5 grid gap-5 sm:grid-cols-2">
+          <div class="sm:col-span-2">
+            <label for="uf-avatarUrl" class="field-label">Avatar (URL)</label>
+            <div class="flex items-center gap-3">
+              <app-avatar [name]="f.name.value || '?'" [src]="avatarPreview()" />
+              <input
+                id="uf-avatarUrl"
+                type="url"
+                formControlName="avatarUrl"
+                class="field-control"
+                autocomplete="off"
+                inputmode="url"
+                placeholder="https://…"
+                [attr.aria-invalid]="showError('avatarUrl')"
+                aria-describedby="uf-avatarUrl-hint uf-avatarUrl-error"
+              />
+            </div>
+            <p id="uf-avatarUrl-hint" class="field-hint">Vacío = sin foto: se ven las iniciales.</p>
+            <app-form-field-error errorId="uf-avatarUrl-error" label="El avatar" [errors]="f.avatarUrl.errors" [show]="showError('avatarUrl')" />
+          </div>
           <div>
             <label for="uf-phone" class="field-label">Teléfono</label>
             <input
@@ -268,14 +289,23 @@ export class UserFormComponent implements OnInit, OnChanges {
     phone: ['', [Validators.maxLength(20), phoneNumber]],
     location: ['', [Validators.maxLength(100)]],
     bio: ['', [Validators.maxLength(300)]],
+    avatarUrl: ['', [httpUrl]],
   });
 
   protected readonly f = this.form.controls;
 
+  private readonly avatarValue = toSignal(this.f.avatarUrl.valueChanges, { initialValue: '' });
+  /** Vista previa: solo con una URL válida; si no, las iniciales. */
+  protected readonly avatarPreview = computed(() => {
+    const url = this.avatarValue().trim();
+    return url && !httpUrl(this.f.avatarUrl) ? url : null;
+  });
+
   ngOnInit(): void {
     const user = this.user();
     if (user) {
-      this.form.patchValue(userToInput(user));
+      const input = userToInput(user);
+      this.form.patchValue({ ...input, avatarUrl: input.avatarUrl ?? '' });
       return;
     }
     this.f.password.addValidators(Validators.required);
@@ -317,6 +347,7 @@ export class UserFormComponent implements OnInit, OnChanges {
       phone: v.phone.trim(),
       location: v.location.trim(),
       bio: v.bio.trim(),
+      avatarUrl: v.avatarUrl.trim() || null,
       status: v.status,
     };
   }

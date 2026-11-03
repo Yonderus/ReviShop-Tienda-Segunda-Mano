@@ -5,12 +5,12 @@ import { AlertService } from '../../../core/services/alert.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
+import { AvatarComponent } from '../../../shared/ui/avatar.component';
 import { BadgeComponent } from '../../../shared/ui/badge.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { ToggleSwitchComponent } from '../../../shared/ui/toggle-switch.component';
 import { ROLE_TONES } from '../../users/models/role.model';
 import { USER_STATUSES, USER_STATUS_LABELS, USER_STATUS_TONES, User, UserStatus } from '../../users/models/user.model';
-import { initials } from '../../users/models/user.utils';
 import { UsersStore } from '../../users/store/users.store';
 import { prefersReducedMotion, rowLeave } from '../admin.animations';
 import { AdminTabsComponent, sectionTabs } from '../components/admin-tabs/admin-tabs.component';
@@ -22,6 +22,7 @@ export type UsersView = 'active' | 'inactive';
   standalone: true,
   imports: [
     RouterLink,
+    AvatarComponent,
     BadgeComponent,
     IconComponent,
     ToggleSwitchComponent,
@@ -95,9 +96,7 @@ export type UsersView = 'active' | 'inactive';
               <li @rowLeave class="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 transition-colors duration-150 hover:bg-canvas/60 sm:px-5">
                 <!-- En móvil, nombre y email ocupan su propia fila; en escritorio, al menos 14rem. -->
                 <div class="flex min-w-0 basis-full items-center gap-3 sm:min-w-[14rem] sm:flex-1 sm:basis-0">
-                  <span class="grid size-10 shrink-0 place-items-center rounded-full bg-primary-50 text-sm font-semibold text-primary-700" aria-hidden="true">
-                    {{ initials(user.name) }}
-                  </span>
+                  <app-avatar [name]="user.name" [src]="user.avatarUrl" />
                   <div class="min-w-0">
                     <a [routerLink]="['/admin/users', user.slug, 'edit']" class="block truncate font-medium text-ink hover:text-primary-700 hover:underline">{{ user.name }}</a>
                     <p class="truncate text-xs text-ink-muted">{{ user.email }}{{ user.location ? ' · ' + user.location : '' }}</p>
@@ -153,7 +152,6 @@ export class AdminUsersPageComponent implements OnChanges {
   protected readonly statuses = USER_STATUSES;
   protected readonly statusLabels = USER_STATUS_LABELS;
   protected readonly statusTones = USER_STATUS_TONES;
-  protected readonly initials = initials;
   protected readonly reducedMotion = prefersReducedMotion();
 
   protected readonly statusFilter = signal<UserStatus | ''>('');

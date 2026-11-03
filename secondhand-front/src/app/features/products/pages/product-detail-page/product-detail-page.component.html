@@ -110,21 +110,23 @@
               <p class="mt-2 max-w-prose whitespace-pre-line text-[0.9375rem] leading-relaxed text-ink">{{ p.description }}</p>
             </section>
 
-            <div class="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row">
-              <a [routerLink]="['/products', p.slug, 'edit']" class="btn btn-primary">
-                <app-icon name="pencil" [size]="18" />
-                Editar anuncio
-              </a>
-              <button
-                type="button"
-                class="btn btn-secondary text-red-700 hover:border-red-200 hover:bg-red-50"
-                [disabled]="store.deletingId() === p._id"
-                (click)="remove(p)"
-              >
-                <app-icon name="trash" [size]="18" />
-                {{ store.deletingId() === p._id ? 'Retirando…' : 'Retirar anuncio' }}
-              </button>
-            </div>
+            @if (canManage()) {
+              <div class="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row">
+                <a [routerLink]="['/products', p.slug, 'edit']" class="btn btn-primary">
+                  <app-icon name="pencil" [size]="18" />
+                  Editar anuncio
+                </a>
+                <button
+                  type="button"
+                  class="btn btn-secondary text-red-700 hover:border-red-200 hover:bg-red-50"
+                  [disabled]="store.deletingId() === p._id"
+                  (click)="remove(p)"
+                >
+                  <app-icon name="trash" [size]="18" />
+                  {{ store.deletingId() === p._id ? 'Retirando…' : 'Retirar anuncio' }}
+                </button>
+              </div>
+            }
           </div>
         </article>
       } @else {

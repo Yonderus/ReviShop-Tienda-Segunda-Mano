@@ -173,7 +173,12 @@
     <div class="mt-5 grid gap-5 sm:grid-cols-2">
       <div>
         <label for="pf-sellerId" class="field-label">Vendedor</label>
-        @if (catalog.loading() && !catalog.loaded()) {
+        @if (!canChooseSeller()) {
+          <!-- Un usuario solo publica a su nombre: la API pone el vendedor de la sesión. -->
+          <output id="pf-sellerId" class="flex min-h-11 items-center rounded-xl border border-line bg-canvas px-3.5 text-sm text-ink">
+            {{ sellerName() }}
+          </output>
+        } @else if (catalog.loading() && !catalog.loaded()) {
           <div class="h-11 animate-pulse rounded-xl bg-line" role="status" aria-label="Cargando vendedores"></div>
         } @else if (catalog.error()) {
           <p class="text-sm text-red-700" role="alert">No se han podido cargar los vendedores.</p>

@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { FormArray, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { ApiError, ApiFieldError } from '../../../../core/models/api-error.model';
 import { FormFieldErrorComponent } from '../../../../shared/components/form-field-error/form-field-error.component';
 import { SkeletonComponent } from '../../../../shared/components/skeleton/skeleton.component';
@@ -63,7 +64,13 @@ type FieldName = (typeof FIELD_ORDER)[number];
 export class ProductFormComponent implements OnInit, OnChanges {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly auth = inject(AuthStore);
   protected readonly catalog = inject(CatalogStore);
+
+  /** Solo el admin elige vendedor (publica o reasigna en nombre de otro); el resto vende a su nombre. */
+  protected readonly canChooseSeller = this.auth.isAdmin;
+  /** Sin select: al crear, tú; al editar, quien ya lo vendía. */
+  protected readonly sellerName = computed(() => this.product()?.seller.name ?? this.auth.user()?.name ?? '');
 
   readonly product = input<Product | null>(null);
   readonly saving = input(false);
@@ -116,6 +123,10 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     void this.catalog.load();
+    if (!this.canChooseSeller()) {
+      this.f.sellerId.clearValidators();
+      this.f.sellerId.updateValueAndValidity();
+    }
 
     const product = this.product();
     if (!product) return;
@@ -168,7 +179,8 @@ export class ProductFormComponent implements OnInit, OnChanges {
       condition: v.condition as ProductCondition,
       location: v.location.trim() || undefined,
       categoryId: v.categoryId,
-      sellerId: v.sellerId,
+      // Sin `sellerId`, la API usa el de la sesión (y al editar no lo toca).
+      ...(this.canChooseSeller() ? { sellerId: v.sellerId } : {}),
       images: v.images.map((image) => ({ url: image.url.trim(), alt: image.alt.trim() })),
     };
   }

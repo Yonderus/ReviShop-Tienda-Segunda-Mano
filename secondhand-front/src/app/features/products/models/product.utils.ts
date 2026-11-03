@@ -26,6 +26,9 @@ export function variantLabel(variant: Pick<ProductVariant, 'options'>): string {
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
+/** El id del vendedor, venga suelto o solo dentro de `seller`. */
+export const sellerIdOf = (product: Pick<Product, 'sellerId' | 'seller'>): string => product.sellerId ?? product.seller._id;
+
 /** Lo que el formulario necesita para editar un producto cargado. */
 export function productToInput(product: Product): ProductInput {
   return {
@@ -35,7 +38,7 @@ export function productToInput(product: Product): ProductInput {
     condition: product.condition,
     location: product.location,
     categoryId: product.categoryId ?? product.category._id,
-    sellerId: product.sellerId ?? product.seller._id,
+    sellerId: sellerIdOf(product),
     images: product.images.map((image) => ({ url: image.url, alt: image.alt ?? '' })),
   };
 }

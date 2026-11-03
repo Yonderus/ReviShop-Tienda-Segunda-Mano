@@ -6,10 +6,10 @@ import { AlertService } from '../../../core/services/alert.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
+import { AvatarComponent } from '../../../shared/ui/avatar.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { RelativeTimePipe } from '../../../shared/utils/relative-time.pipe';
 import { User } from '../../users/models/user.model';
-import { initials } from '../../users/models/user.utils';
 import { UsersStore } from '../../users/store/users.store';
 import { prefersReducedMotion, rowLeave } from '../admin.animations';
 import { AdminTabsComponent, sectionTabs } from '../components/admin-tabs/admin-tabs.component';
@@ -17,7 +17,7 @@ import { AdminTabsComponent, sectionTabs } from '../components/admin-tabs/admin-
 @Component({
   selector: 'app-admin-users-trash-page',
   standalone: true,
-  imports: [RouterLink, DatePipe, RelativeTimePipe, IconComponent, SkeletonComponent, EmptyStateComponent, ErrorStateComponent, AdminTabsComponent],
+  imports: [RouterLink, DatePipe, RelativeTimePipe, AvatarComponent, IconComponent,SkeletonComponent, EmptyStateComponent, ErrorStateComponent, AdminTabsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [rowLeave],
   template: `
@@ -46,9 +46,7 @@ import { AdminTabsComponent, sectionTabs } from '../components/admin-tabs/admin-
             <li @rowLeave class="retired rounded-2xl border border-slate-400 bg-surface p-4 sm:p-5">
               <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div class="flex min-w-0 flex-1 items-center gap-3">
-                  <span class="retired-dim grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600" aria-hidden="true">
-                    {{ initials(user.name) }}
-                  </span>
+                  <app-avatar class="retired-dim grayscale" [name]="user.name" [src]="user.avatarUrl" />
                   <div class="min-w-0">
                     <div class="flex flex-wrap items-center gap-2">
                       <p class="font-medium text-ink">{{ user.name }}</p>
@@ -89,7 +87,6 @@ export class AdminUsersTrashPageComponent implements OnInit {
 
   protected readonly trash = this.store.collection('trash');
   protected readonly tabs = computed(() => sectionTabs('/admin/users', this.store.counts()));
-  protected readonly initials = initials;
   protected readonly reducedMotion = prefersReducedMotion();
 
   ngOnInit(): void {

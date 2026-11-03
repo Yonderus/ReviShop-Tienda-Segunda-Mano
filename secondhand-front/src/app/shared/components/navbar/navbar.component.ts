@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { APP_NAME } from '../../../core/config/app.constants';
 import { IconComponent } from '../../ui/icon.component';
+import { UserMenuComponent } from '../user-menu/user-menu.component';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, IconComponent],
+  imports: [RouterLink, RouterLinkActive, IconComponent, UserMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'close()' },
   template: `
@@ -17,29 +18,34 @@ import { IconComponent } from '../../ui/icon.component';
           <span class="text-lg tracking-tight">{{ appName }}</span>
         </a>
 
-        <div class="hidden items-center gap-1 md:flex">
-          <a
-            routerLink="/"
-            routerLinkActive="!bg-white/10 !text-white"
-            [routerLinkActiveOptions]="{ exact: true }"
-            class="rounded-lg px-3.5 py-2 text-sm font-medium text-primary-100 transition-colors hover:bg-white/10 hover:text-white"
-          >Inicio</a>
-          <a routerLink="/products/new" class="btn btn-accent ml-2">
-            <app-icon name="plus" [size]="18" />
-            Publicar producto
-          </a>
-        </div>
+        <div class="flex items-center gap-1">
+          <div class="hidden items-center gap-1 md:flex">
+            <a
+              routerLink="/"
+              routerLinkActive="!bg-white/10 !text-white"
+              [routerLinkActiveOptions]="{ exact: true }"
+              class="rounded-lg px-3.5 py-2 text-sm font-medium text-primary-100 transition-colors hover:bg-white/10 hover:text-white"
+            >Inicio</a>
+            <a routerLink="/products/new" class="btn btn-accent mx-2">
+              <app-icon name="plus" [size]="18" />
+              Publicar producto
+            </a>
+          </div>
 
-        <button
-          type="button"
-          class="inline-flex size-10 items-center justify-center rounded-lg text-white hover:bg-white/10 md:hidden"
-          [attr.aria-expanded]="open()"
-          aria-controls="mobile-menu"
-          [attr.aria-label]="open() ? 'Cerrar menú' : 'Abrir menú'"
-          (click)="open.set(!open())"
-        >
-          <app-icon [name]="open() ? 'close' : 'menu'" [size]="22" />
-        </button>
+          <!-- La sesión se ve siempre, también en móvil (solo la foto). -->
+          <app-user-menu tone="dark" (click)="close()" />
+
+          <button
+            type="button"
+            class="inline-flex size-10 items-center justify-center rounded-lg text-white hover:bg-white/10 md:hidden"
+            [attr.aria-expanded]="open()"
+            aria-controls="mobile-menu"
+            [attr.aria-label]="open() ? 'Cerrar menú' : 'Abrir menú'"
+            (click)="open.set(!open())"
+          >
+            <app-icon [name]="open() ? 'close' : 'menu'" [size]="22" />
+          </button>
+        </div>
       </nav>
 
       @if (open()) {

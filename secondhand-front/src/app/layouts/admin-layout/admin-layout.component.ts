@@ -10,6 +10,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { LoaderComponent } from '../../shared/components/loader/loader.component';
+import { UserMenuComponent } from '../../shared/components/user-menu/user-menu.component';
 import { IconComponent } from '../../shared/ui/icon.component';
 import { AdminSidebarComponent } from '../../features/admin/components/admin-sidebar/admin-sidebar.component';
 
@@ -31,7 +32,7 @@ function deepestData(root: ActivatedRouteSnapshot): AdminRouteMeta {
 @Component({
   selector: 'app-admin-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, IconComponent, LoaderComponent, AdminSidebarComponent],
+  imports: [RouterOutlet, RouterLink, IconComponent, LoaderComponent, AdminSidebarComponent, UserMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-h-screen bg-canvas' },
   template: `
@@ -95,14 +96,7 @@ function deepestData(root: ActivatedRouteSnapshot): AdminRouteMeta {
             <span class="hidden sm:inline">Nuevo producto</span>
             <span class="sr-only sm:hidden">Nuevo producto</span>
           </a>
-          <span
-            class="hidden size-9 items-center justify-center rounded-full border border-dashed border-line text-ink-muted sm:inline-flex"
-            title="Inicio de sesión disponible próximamente"
-            aria-label="Usuario: sin sesión"
-            role="img"
-          >
-            <app-icon name="user" [size]="18" />
-          </span>
+          <app-user-menu tone="light" context="admin" />
         </div>
       </header>
 

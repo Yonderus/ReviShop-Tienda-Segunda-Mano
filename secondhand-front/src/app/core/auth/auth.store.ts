@@ -78,6 +78,12 @@ export class AuthStore {
     return (this.roles() as string[]).includes(role);
   }
 
+  /** La misma regla que la API (`utils/access.js`): lo suyo o, si es admin, cualquier cosa. */
+  isOwnerOrAdmin(ownerId: string | null | undefined): boolean {
+    const user = this._user();
+    return !!user && (this.isAdmin() || (!!ownerId && ownerId === user._id));
+  }
+
   /** Recupera la sesión guardada: si el token no ha caducado, pide el usuario a la API. */
   async restore(): Promise<void> {
     const token = storage.read();

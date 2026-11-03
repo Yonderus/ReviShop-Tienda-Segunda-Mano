@@ -102,7 +102,12 @@ npm start               # http://localhost:4200
 | Carlos Ruiz | `carlos@revishop.test` | user |
 | Pablo Sanz | `pablo@revishop.test` | user · **suspendido** (no puede vender) |
 
-Todos usan la contraseña de `SEED_DEFAULT_PASSWORD`, guardada con hash **Argon2id**. Para entrar al panel desde Swagger: `POST /auth/login` con `admin@revishop.test` y esa contraseña, y pega el `token` en **Authorize**.
+Todos usan la contraseña de `SEED_DEFAULT_PASSWORD`, guardada con hash **Argon2id**.
+
+**Cómo entrar:**
+
+- **En la web:** botón **Iniciar sesión** de la barra superior (`/login`). Con `admin@revishop.test` llegas al panel (`/admin`); con cualquier otro, a la tienda, donde puedes publicar y gestionar tus anuncios y editar **Mi perfil** (`/profile`). **Cerrar sesión** está en el menú de tu foto.
+- **En Swagger:** `POST /auth/login` con el email y esa contraseña, y pega el `token` en **Authorize**.
 
 ---
 
@@ -235,7 +240,10 @@ En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`)
 
 - **Angular 18** con componentes standalone, **Signals**, `OnPush` en todos los componentes, Reactive Forms y lazy loading con code splitting.
 - **Store genérico** (`EntityStore`): colecciones, detalle, escrituras y visibilidad optimista. Cada entidad hereda y solo añade lo suyo (`ProductsStore`, `CategoriesStore`, `UsersStore`); el hook `afterWrite` permite refrescar lo que depende de ella (al cambiar una categoría o un usuario se recargan los select de categoría y vendedor).
-- **Interceptores:** traducen los errores a mensajes en español y gestionan un loader global con retardo para que no parpadee.
+- **Sesión (`core/auth/`):** `AuthStore` con Signals guarda **solo el token** en `localStorage`; el usuario sale siempre de `GET /auth/me` al arrancar (así un cambio de rol o una desactivación se notan al recargar). Un interceptor añade `Authorization: Bearer` solo a las peticiones a la API.
+- **Rutas protegidas:** `guestGuard` en `/login`, `authGuard` en `/profile`, `/products/new` y `/products/:slug/edit`, y `adminGuard` en `/admin/**` (un usuario sin permiso va a `/forbidden`). La API vuelve a comprobarlo todo: los guards solo evitan pantallas que acabarían en error.
+- **Lo tuyo y lo de los demás:** "Editar" y "Retirar" solo salen en tus anuncios (o en todos, si eres admin), y el select **Vendedor** solo lo ve el admin: el resto publica a su nombre.
+- **Interceptores:** traducen los errores a mensajes en español y gestionan un loader global con retardo para que no parpadee. Un `401` con la sesión abierta (token caducado o revocado) la cierra y te lleva al login para volver después a donde estabas.
 - **UX:** skeletons, estados vacíos y de error con "Reintentar", View Transitions, sin scroll horizontal desde 375 px y accesibilidad (labels, `aria-*` y foco al primer error).
 
 ---
@@ -252,7 +260,8 @@ En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`)
 | El **estado del producto se calcula** a partir de sus variantes | Un solo origen de verdad: disponible, reservado o vendido |
 | Categorías con **borrador** además de `isActive` | Se puede preparar una categoría (atributos, subcategorías) antes de que salga en la tienda |
 | Borrar una categoría con productos da **409** en vez de borrar en cascada | Borrar una categoría no debería hacer desaparecer anuncios de otros usuarios |
-| **Siempre queda un admin activo** | Si no, nadie podría volver a entrar al panel cuando llegue el login |
+| **Siempre queda un admin activo** | Si no, nadie podría volver a entrar al panel |
+| El token va en **`localStorage`** con `Bearer` (no en una cookie `httpOnly`) | Más sencillo de entender y de probar con Swagger; queda apuntado pasar a cookie si hace falta más protección frente a XSS |
 | Al cambiar las fotos, **primero se crean las nuevas** y luego se retiran las anteriores | Sin transacciones (necesitan *replica set*), es la forma de que un fallo no deje un producto sin fotos. Si falla una nueva, se borran las ya creadas |
 
 ---
@@ -272,7 +281,7 @@ En cada petición se comprueba la firma, que no haya caducado (`JWT_EXPIRES_IN`)
 | Perfil separado del usuario (con avatar) + integridad referencial | ✅ |
 | Base del login: Argon2, JWT, blacklist del logout e integridad en los services | ✅ |
 | JWT en la API: login, `/me`, logout, `/profile/me`, roles (RBAC) y propiedad (ABAC) | ✅ |
-| JWT en el front: login, sesión, guards e interceptor | 🔜 |
+| JWT en el front: login, sesión, guards, interceptor, menú de usuario y Mi perfil | ✅ |
 | Carrito, reservas y pagos | 🔜 |
 
 Cada proyecto tiene su README con más detalle: [`secondhand-api`](secondhand-api/README.md) · [`secondhand-front`](secondhand-front/README.md).

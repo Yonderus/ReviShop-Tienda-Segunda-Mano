@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { APP_NAME } from '../../../../core/config/app.constants';
 import { AlertService } from '../../../../core/services/alert.service';
 import { ErrorStateComponent } from '../../../../shared/components/error-state/error-state.component';
@@ -24,7 +25,7 @@ import { ProductGalleryComponent } from '../../components/product-gallery/produc
 import { ProductImageComponent } from '../../components/product-image/product-image.component';
 import { ProductVariantPickerComponent } from '../../components/product-variant-picker/product-variant-picker.component';
 import { ProductVariant } from '../../models/product-variant.model';
-import { variantPrice } from '../../models/product.utils';
+import { sellerIdOf, variantPrice } from '../../models/product.utils';
 import {
   CONDITION_LABELS,
   CONDITION_LEVEL,
@@ -59,6 +60,7 @@ export class ProductDetailPageComponent implements OnChanges, OnDestroy {
   private readonly router = inject(Router);
   private readonly title = inject(Title);
   private readonly alert = inject(AlertService);
+  private readonly auth = inject(AuthStore);
 
   readonly slug = input.required<string>();
 
@@ -69,6 +71,11 @@ export class ProductDetailPageComponent implements OnChanges, OnDestroy {
   protected readonly statusTones = STATUS_TONES;
 
   protected readonly product = this.store.selected;
+  /** Editar y retirar: solo su vendedor o un admin. */
+  protected readonly canManage = computed(() => {
+    const product = this.product();
+    return !!product && this.auth.isOwnerOrAdmin(sellerIdOf(product));
+  });
 
   /** La foto visible; el índice puede quedar fuera de rango al cambiar de producto. */
   protected readonly activePhoto = computed(() => this.product()?.images[this.activeImage()]);

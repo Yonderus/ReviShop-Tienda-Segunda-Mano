@@ -47,5 +47,7 @@ export interface UserInput {
   phone: string;
   location: string;
   bio: string;
+  /** null = sin foto (al editar, la quita). */
+  avatarUrl: string | null;
   status: UserStatus;
 }

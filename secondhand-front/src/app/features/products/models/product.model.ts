@@ -71,7 +71,8 @@ export interface ProductInput {
   condition: ProductCondition;
   location?: string;
   categoryId: string;
-  sellerId: string;
+  /** Solo lo manda el admin; si no va, la API pone el usuario de la sesión. */
+  sellerId?: string;
   images: ProductImageInput[];
 }
 

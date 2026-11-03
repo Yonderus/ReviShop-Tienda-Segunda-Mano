@@ -97,26 +97,28 @@ sequenceDiagram
     autonumber
     participant U as Usuario
     participant F as Front (AuthStore)
+    participant B as Navegador
     participant A as API
     U->>F: email + contraseña
     F->>A: POST /auth/login
-    A-->>F: { token, user }
-    F->>F: guarda solo el token en localStorage
-    Note over F,A: Cada petición a la API lleva<br/>Authorization: Bearer token
+    A-->>B: Set-Cookie revishop_session (HttpOnly)
+    A-->>F: { user } (el token nunca llega a JavaScript)
+    Note over F,A: Cada petición a la API sale con withCredentials<br/>y el navegador añade la cookie
     U->>F: recarga la página
-    F->>A: GET /auth/me (APP_INITIALIZER)
-    A-->>F: usuario actual (rol leído de la BD)
+    F->>A: GET /auth/me (APP_INITIALIZER, siempre)
+    A-->>F: usuario actual · o 401 = no hay sesión
     U->>F: Cerrar sesión
-    F->>A: POST /auth/logout (token a la blacklist)
+    F->>A: POST /auth/logout
+    A-->>B: token a la blacklist y cookie borrada
     F->>F: borra la sesión local y vacía las colecciones del panel
 ```
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
-| **`AuthStore`** | `core/auth/auth.store.ts` | Signals `token`, `user`, `isAuthenticated`, `role`, `isAdmin`, `hasRole()` e `isOwnerOrAdmin()` (la misma regla que la API). `restore()`, `login()`, `logout()` y `onSessionEnd()` |
+| **`AuthStore`** | `core/auth/auth.store.ts` | Signals `user`, `restoring`, `isAuthenticated`, `role`, `isAdmin`, `hasRole()` e `isOwnerOrAdmin()` (la misma regla que la API). `restore()`, `login()`, `logout()` y `onSessionEnd()`. **No guarda ningún token** |
 | **`AuthService`** | `core/auth/auth.service.ts` | Solo HTTP: `login`, `me` y `logout` |
-| **`authInterceptor`** | `core/auth/auth.interceptor.ts` | Añade `Bearer` **solo** a las peticiones a `environment.apiUrl` |
-| **`errorInterceptor`** | `core/interceptors/` | `401` con sesión abierta → la cierra, avisa y lleva a `/login?returnUrl=…`. `403` y `429` → mensaje de la API |
+| **`authInterceptor`** | `core/auth/auth.interceptor.ts` | Pone `withCredentials` (para que viaje la cookie) **solo** en las peticiones a `environment.apiUrl`, y las marca con `SENT_WITH_SESSION` si salen con la sesión abierta |
+| **`errorInterceptor`** | `core/interceptors/` | `401` de una petición `SENT_WITH_SESSION` → cierra la sesión, avisa **una vez** y lleva a `/login?returnUrl=…`. `403` y `429` → mensaje de la API |
 | **Guards** (`canMatch`) | `core/auth/*.guard.ts` | Deciden qué rutas se pueden abrir (tabla de abajo) |
 
 | Guard | Rutas | Si no se cumple |
@@ -126,7 +128,21 @@ sequenceDiagram
 | `adminGuard` | `/admin/**` | Sin sesión → login · sin permiso → `/forbidden` |
 
 > [!NOTE]
-> Los guards y los botones ocultos son **comodidad**, no seguridad: la API comprueba cada permiso otra vez. El token va en `localStorage` por decisión del proyecto; pasar a una cookie `httpOnly` queda apuntado para el futuro.
+> Los guards y los botones ocultos son **comodidad**, no seguridad: la API comprueba cada permiso otra vez.
+
+### 🍪 Por qué una cookie y no `localStorage`
+
+El token vive en la cookie `revishop_session` que pone la API (`HttpOnly`, `SameSite=Strict`, `Path=/api`). El front **nunca lo ve**: `document.cookie` no la muestra y no hay nada en `localStorage` ni en `sessionStorage`. Así, un script malicioso en la página no puede copiar el token y usarlo desde otro sitio.
+
+| | Consecuencia en el front |
+|---|---|
+| No se puede leer la cookie | `restore()` no sabe si hay sesión: **siempre** pregunta a `GET /auth/me`. Sin sesión, ese `401` es silencioso (el navegador lo anota en la consola, pero la app no avisa) |
+| Front y API en orígenes distintos en desarrollo (`:4200` → `:3000`) | Las peticiones necesitan `withCredentials`; la API solo acepta el origen de `CORS_ORIGIN` |
+| JavaScript no puede borrar la cookie | La borra la API: en el logout (siempre) y en cualquier `401` por un token que ya no vale |
+| Versión anterior | Al arrancar se borra el `revishop.token` que guardaba `localStorage` |
+
+> [!TIP]
+> Si sirves el front desde otro origen (p. ej. `ng serve --port 4300`), añádelo a `CORS_ORIGIN` en el `.env` de la API; si no, CORS y la comprobación de `Origin` bloquearán las peticiones.
 
 **Lo tuyo y lo de los demás:** "Editar" y "Retirar" solo aparecen en tus anuncios (o en todos si eres admin), el select **Vendedor** solo lo ve el admin (el resto publica a su nombre) y un anuncio **inactivo** solo lo ven su vendedor y el admin.
 

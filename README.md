@@ -6,7 +6,7 @@
 
 ### Marketplace de segunda mano: cualquier usuario compra y vende, y cada objeto encuentra una segunda vida.
 
-Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una **SPA** (Angular 18) con tienda pública, sesión con JWT y panel de administración.
+Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una **SPA** (Angular 18) con tienda pública, sesión con JWT en cookie `httpOnly` y panel de administración.
 
 ![Node](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-4-000000?style=for-the-badge&logo=express&logoColor=white)
@@ -108,7 +108,7 @@ El seed crea **3 roles, 6 usuarios** con sus perfiles, **13 categorías** (una e
 
 **Cómo entrar:**
 - 🌐 **En la web:** botón **Iniciar sesión** (`/login`). El admin llega al panel; el resto, a la tienda. **Cerrar sesión** está en el menú de tu foto.
-- 📖 **En Swagger:** `POST /auth/login` con el email y la contraseña, y pega el `token` en **Authorize**.
+- 📖 **En Swagger:** *Try it out* en `POST /auth/login` con el email y la contraseña. La cookie de sesión se guarda y el resto de pruebas ya van con sesión (no hace falta **Authorize**).
 
 ---
 
@@ -120,7 +120,7 @@ flowchart LR
         direction TB
         CMP[Componentes] --> ST["Stores (Signals)"]
         ST --> SV[Services]
-        SV --> API["ApiService + interceptores<br/>(Bearer, errores, carga)"]
+        SV --> API["ApiService + interceptores<br/>(withCredentials, errores, carga)"]
     end
     subgraph BACK["🔌 secondhand-api · Express"]
         direction TB
@@ -128,7 +128,7 @@ flowchart LR
         CT --> SR["services<br/>(reglas, permisos, integridad)"]
         SR --> RP[repositories]
     end
-    API -- "HTTP · JSON · JWT" --> RT
+    API -- "HTTP · JSON · cookie httpOnly (JWT)" --> RT
     RP --> DB[("MongoDB")]
 ```
 
@@ -188,9 +188,19 @@ Base: `http://localhost:3000/api` · Documentación interactiva en **`/api/docs`
 
 <br/>
 
-1. `POST /api/auth/login` con `{ email, password }` devuelve `{ token, user }`.
-2. Las demás peticiones llevan `Authorization: Bearer <token>`.
-3. `POST /api/auth/logout` apunta el token en la blacklist: desde ese momento da `401`, aunque no haya caducado.
+1. `POST /api/auth/login` con `{ email, password }` guarda el JWT en la cookie **`revishop_session`** y devuelve solo `{ user }`.
+2. El navegador envía la cookie solo en cada petición a `/api`. JavaScript **no puede leerla**.
+3. `POST /api/auth/logout` apunta el token en la blacklist y borra la cookie: desde ese momento ese token da `401`, aunque no haya caducado.
+
+| Atributo de la cookie | Para qué |
+|---|---|
+| `HttpOnly` | Un script en la página (XSS) no puede robar el token |
+| `SameSite=Strict` | No viaja en peticiones que vienen de otra web: defensa principal contra **CSRF** |
+| `Path=/api` | Solo va a la API |
+| `Max-Age` | Dura lo que le queda al token (`JWT_EXPIRES_IN`) |
+| `Secure` (en producción) | Solo por HTTPS |
+
+Además, la API solo acepta escrituras (`POST`, `PATCH`, `DELETE`) cuyo `Origin` sea el front o la propia API (**403 "Origen no permitido"** si no), y CORS solo admite los orígenes de `CORS_ORIGIN`, con `credentials`.
 
 En cada petición se comprueban la firma, la caducidad, la blacklist, que el usuario siga activo y no suspendido, y que no se haya cambiado su contraseña después. **El rol se lee de la base de datos**, no del token.
 
@@ -231,8 +241,8 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | Código | Cuándo |
 |:-:|---|
 | `200` · `201` · `204` | Lectura o edición · creación · borrado |
-| `401` | Sin sesión, token caducado, revocado o no válido · credenciales incorrectas |
-| `403` | Sin permiso: no es admin o no es suyo · cuenta que no puede entrar |
+| `401` | Sin cookie de sesión, o con un token caducado, revocado o no válido · credenciales incorrectas |
+| `403` | Sin permiso: no es admin o no es suyo · cuenta que no puede entrar · escritura desde un origen no permitido |
 | `404` | No existe o está en la papelera |
 | `409` | Choca con otro registro o con su estado |
 | `422` | Datos no válidos (Zod, reglas del service o Mongoose) |
@@ -248,7 +258,7 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 |---|---|
 | ⚡ **Angular 18** | Standalone, **Signals**, `OnPush` en todo, Reactive Forms y lazy loading con code splitting |
 | 🗄️ **Store genérico** | `EntityStore`: colecciones, detalle, escrituras y visibilidad optimista. Cada entidad hereda y solo añade lo suyo |
-| 🔐 **Sesión** | `AuthStore` guarda **solo el token** en `localStorage`; el usuario sale siempre de `GET /auth/me`. El interceptor pone `Bearer` solo en las peticiones a la API |
+| 🔐 **Sesión** | El token va en una cookie `httpOnly` que el front **no ve ni guarda**; el usuario sale siempre de `GET /auth/me`. El interceptor pone `withCredentials` solo en las peticiones a la API |
 | 🚧 **Rutas protegidas** | `guestGuard` (`/login`), `authGuard` (`/profile`, publicar y editar) y `adminGuard` (`/admin/**` → `/forbidden` si no eres admin) |
 | 👤 **Lo tuyo** | "Editar" y "Retirar" solo en tus anuncios (o en todos si eres admin); el select **Vendedor** solo lo ve el admin |
 | 🚨 **Errores** | En español, junto al campo o en la pantalla con *Reintentar*. Un `401` con sesión la cierra y te devuelve después a donde estabas |
@@ -266,7 +276,7 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | **Perfil separado** de la cuenta, pero sin CRUD propio | Lo personal (avatar, bio…) aparte del login, siempre con el mismo ciclo de vida que su usuario |
 | **Argon2id** en lugar de bcrypt | Es la recomendación actual de OWASP; las contraseñas antiguas se migran al iniciar sesión |
 | **Blacklist** para el logout | Un JWT no se puede "borrar": así el logout invalida el token de verdad |
-| El token va en **`localStorage`** con `Bearer` | Más sencillo de entender y de probar con Swagger; queda apuntado pasar a una cookie `httpOnly` si hace falta más protección frente a XSS |
+| El token va en una **cookie `httpOnly`** (no en `localStorage`) | En `localStorage` cualquier script de la página podría copiarlo. Con `SameSite=Strict` y la comprobación de `Origin` se cubre el CSRF que traen las cookies. Los *refresh tokens* quedan para más adelante |
 | **Integridad en los services**, no en scripts | Cada service vigila su entidad, en cada petición y no solo al migrar |
 | **`isActive` y `deletedAt` independientes** | Ocultar un anuncio no es lo mismo que borrarlo |
 | El **estado del producto se calcula** a partir de sus variantes | Un solo origen de verdad: disponible, reservado o vendido |
@@ -293,6 +303,7 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | ✅ | Base del login: Argon2, JWT, blacklist del logout e integridad en los services |
 | ✅ | JWT en la API: login, `/me`, logout, `/profile/me`, roles (RBAC) y propiedad (ABAC) |
 | ✅ | JWT en el front: login, sesión, guards, interceptor, menú de usuario y Mi perfil |
+| ✅ | Sesión en cookie `httpOnly` (`SameSite=Strict`, comprobación de `Origin` y CORS con `credentials`) |
 | 🔜 | Mis anuncios, cambio de contraseña y registro |
 | 🔜 | Carrito, reservas y pagos |
 

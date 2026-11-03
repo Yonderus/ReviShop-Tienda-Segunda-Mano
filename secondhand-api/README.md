@@ -3,13 +3,13 @@
 # 🔌 Revishop · API
 
 **API REST del marketplace de segunda mano Revishop.**
-Por capas, con validación Zod, soft delete en cascada, sesión con JWT y documentación interactiva.
+Por capas, con validación Zod, soft delete en cascada, sesión con JWT en cookie `httpOnly` y documentación interactiva.
 
 ![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-4-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_8-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Zod](https://img.shields.io/badge/Zod-4-3E67B1?style=for-the-badge&logo=zod&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-HS256-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-cookie_httpOnly-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 ![Argon2](https://img.shields.io/badge/Hash-Argon2id-6A1B9A?style=for-the-badge)
 ![Swagger](https://img.shields.io/badge/Docs-Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
 
@@ -33,7 +33,7 @@ npm run dev             # http://localhost:3000/api  (node --watch)
 | | URL |
 |---|---|
 | 🔌 API | http://localhost:3000/api |
-| 📖 Swagger | http://localhost:3000/api/docs (botón **Authorize** para probar con sesión) |
+| 📖 Swagger | http://localhost:3000/api/docs (inicia sesión con *Try it out* en `POST /auth/login`: la cookie se envía sola en el resto de pruebas) |
 | 🧪 Ejemplos | [`postman.md`](postman.md) |
 
 ### ⚙️ Variables de entorno
@@ -46,11 +46,11 @@ Se validan con Zod en un único sitio (`src/config/env.js`): si falta una obliga
 | `JWT_SECRET` | ✅ | Firma de los tokens: **mínimo 32 caracteres**, aleatoria y fuera del repositorio |
 | `JWT_EXPIRES_IN` | | Caducidad de los tokens: `15m`, `1h`, `7d`… (por defecto `1d`) |
 | `PORT` | | Puerto HTTP (por defecto `3000`) |
-| `NODE_ENV` | | `development` · `production` (CORS restringido y sin logs de error) · `test` |
-| `CORS_ORIGIN` | 🏭 | Orígenes permitidos en producción, separados por comas |
+| `NODE_ENV` | | `development` · `production` (cookie `Secure` y sin logs de error) · `test` |
+| `CORS_ORIGIN` | 🏭 | Orígenes del front, separados por comas: CORS con cookies y comprobación de `Origin`. En desarrollo, si falta, `http://localhost:4200` |
 | `SEED_DEFAULT_PASSWORD` | 🌱 | Contraseña de todos los usuarios del seed (mínimo 8 caracteres) |
 
-✅ obligatoria · 🏭 obligatoria en producción · 🌱 solo para el seed
+✅ obligatoria · 🏭 obligatoria en producción (en desarrollo tiene valor por defecto) · 🌱 solo para el seed
 
 > [!TIP]
 > Genera un `JWT_SECRET` con:
@@ -93,8 +93,10 @@ npm run seed
 ```mermaid
 flowchart LR
     R([Petición]) --> RT[routes]
+    R --> OR["checkOrigin (escrituras)"]
+    OR --> RT
     RT --> RL["rateLimit (solo login)"]
-    RL --> AU["authenticate (JWT + blacklist)"]
+    RL --> AU["authenticate (cookie + JWT + blacklist)"]
     AU --> AD["requireAdmin (RBAC)"]
     AD --> V["validate (Zod)"]
     V --> C[controllers]
@@ -108,18 +110,18 @@ flowchart LR
 | Capa | Responsabilidad |
 |---|---|
 | `routes/` | URL, middlewares, validador y controlador, con su documentación Swagger al lado |
-| `middlewares/` | `authenticate` · `optionalAuthenticate` · `requireAdmin` / `adminOnly` · `loginRateLimit` · `validate` (params, query y body) |
+| `middlewares/` | `checkOrigin` (CSRF) · `authenticate` · `optionalAuthenticate` (leen la cookie) · `requireAdmin` / `adminOnly` · `loginRateLimit` · `validate` (params, query y body) |
 | `controllers/` | Funciones `const` con `try/catch` → `next(error)`; pasan el usuario de la sesión (`req.user`) al service |
 | `services/` | **Las reglas de negocio**, la propiedad (*¿es suyo?*) y la **integridad referencial** |
 | `repositories/` | Lo único que toca Mongo: consultas, `populate` y proyecciones |
 | `models/` | Esquemas, relaciones y los plugins `softDelete` y `slug` |
-| `constants/` · `utils/` | Valores fijos y funciones puras sin base de datos: `jwt`, `password`, `access`, `slugify`, `url`… |
+| `constants/` · `utils/` | Valores fijos y funciones sin base de datos: `jwt`, `sessionCookie`, `password`, `access`, `slugify`, `url`… |
 
 ```
 src/
 ├── config/          env.js (entorno validado) · db.js · swagger.js
 ├── constants/       auth · category · image · product · role · user
-├── middlewares/     auth · admin · rateLimit · validate
+├── middlewares/     auth · admin · origin · rateLimit · validate
 ├── models/          role · user · profile · category · product · productVariant · image · revokedToken
 │   └── plugins/     softDelete.plugin.js · slug.plugin.js
 ├── repositories/    uno por modelo
@@ -127,7 +129,7 @@ src/
 ├── controllers/     auth · profile · user · role · category · product · productVariant
 ├── routes/          auth · profile · user (+ /sellers) · role · category · product · productVariant
 ├── validators/      schemas Zod de entrada (+ common.validator.js)
-├── utils/           AppError · errorHandler · response · jwt · password · access · slugify · url · email…
+├── utils/           AppError · errorHandler · response · jwt · sessionCookie · password · access · slugify · url…
 ├── seed.js
 └── server.js
 ```
@@ -139,21 +141,35 @@ src/
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Cliente
+    participant C as Navegador
     participant A as API
     participant DB as MongoDB
     C->>A: POST /auth/login { email, password }
     A->>DB: usuario + hash
     A->>A: Argon2id verify (bcrypt antiguo: rehash)
-    A-->>C: { token, user }
-    C->>A: GET /profile/me + Authorization: Bearer token
+    A-->>C: { user } + Set-Cookie revishop_session (HttpOnly, SameSite=Strict)
+    Note over C: JavaScript no puede leer la cookie
+    C->>A: GET /profile/me (el navegador añade la cookie)
     A->>A: firma HS256 y caducidad
     A->>DB: ¿jti en revoked_tokens? ¿usuario activo? ¿rol vivo?
-    A-->>C: 200 · 401 · 403
+    A-->>C: 200 · 401 (y borra la cookie) · 403
     C->>A: POST /auth/logout
     A->>DB: jti → revoked_tokens (TTL hasta su exp)
-    A-->>C: 204
+    A-->>C: 204 + Set-Cookie que la borra
 ```
+
+### 🍪 La cookie de sesión
+
+| Atributo | Valor | Para qué |
+|---|---|---|
+| Nombre | `revishop_session` | Lleva el JWT |
+| `HttpOnly` | sí | JavaScript no puede leerla: un XSS no puede robar el token |
+| `SameSite` | `Strict` | No viaja en peticiones que vienen de otra web: **defensa principal contra CSRF** |
+| `Path` | `/api` | Solo va a la API, no con el HTML ni las imágenes |
+| `Max-Age` | Lo que le queda al token | Desaparece cuando el token caduca (`JWT_EXPIRES_IN`) |
+| `Secure` | Solo en producción | Solo por HTTPS (en desarrollo la API va por `http://localhost`) |
+
+**Solo cookie:** el login responde `{ user }` sin el token, y la API no acepta `Authorization: Bearer`. El logout es **idempotente**: revoca el token si es válido y siempre borra la cookie. Si llega una cookie con un token que ya no vale, la API la borra en el mismo 401.
 
 | | Cómo |
 |---|---|
@@ -165,13 +181,15 @@ sequenceDiagram
 | ⛔ **Cierre de sesiones** | Cambiar la contraseña, desactivar, suspender o borrar a un usuario invalida **todos** sus tokens (`tokensValidAfter`) |
 | 🛡️ **RBAC** | `requireAdmin` en las rutas de gestión (roles `admin` · `moderator` · `user`) |
 | 👤 **ABAC** | Los services comprueban la propiedad (`isOwnerOrAdmin`): un usuario solo toca lo suyo |
-| 🪖 **Cabeceras** | Helmet, CORS restringido en producción y logs de acceso con Morgan |
+| 🧱 **CSRF** | `SameSite=Strict` y, además, `checkOrigin`: un `POST`, `PUT`, `PATCH` o `DELETE` con un `Origin` que no sea el front ni la propia API → **403 "Origen no permitido"**. Sin `Origin` (curl, Postman) pasa: no es un navegador |
+| 🌍 **CORS** | Solo los orígenes de `CORS_ORIGIN` y con `credentials: true`, también en desarrollo (con un origen abierto el navegador no enviaría la cookie) |
+| 🪖 **Cabeceras** | Helmet y logs de acceso con Morgan |
 
 ---
 
 ## 🛣️ Endpoints
 
-**Leyenda:** 🌐 público (un token válido se tiene en cuenta) · 🔑 con sesión · 👤 su dueño o un admin · 🛡️ solo admin
+**Leyenda:** 🌐 público (si llega una cookie válida se tiene en cuenta) · 🔑 con sesión · 👤 su dueño o un admin · 🛡️ solo admin
 
 <details open>
 <summary><b>🔐 Auth y perfil</b></summary>
@@ -180,9 +198,9 @@ sequenceDiagram
 
 | | Método | Ruta | Descripción |
 |:-:|---|---|---|
-| 🌐 | `POST` | `/api/auth/login` | `{ email, password }` → `{ token, user }` (401 · 403 · 429) |
+| 🌐 | `POST` | `/api/auth/login` | `{ email, password }` → `{ user }` + cookie de sesión (401 · 403 · 429) |
 | 🔑 | `GET` | `/api/auth/me` | El usuario de la sesión, con su rol y su perfil |
-| 🔑 | `POST` | `/api/auth/logout` | Revoca el token (204) |
+| 🌐 | `POST` | `/api/auth/logout` | Revoca el token si es válido y **siempre** borra la cookie (204, idempotente) |
 | 🔑 | `GET` | `/api/profile/me` | Mi perfil |
 | 🔑 | `PATCH` | `/api/profile/me` | Teléfono, ubicación, bio y `avatarUrl` (`null` la quita) |
 
@@ -298,8 +316,8 @@ Todas las respuestas tienen la misma forma:
 | Código | Cuándo |
 |:-:|---|
 | `200` · `201` · `204` | Lectura o edición · creación · borrado |
-| `401` | Sin sesión, token caducado, revocado o no válido · credenciales incorrectas |
-| `403` | Sin permiso (no es admin o no es suyo) · cuenta que no puede entrar |
+| `401` | Sin cookie de sesión, o con un token caducado, revocado o no válido (la cookie se borra) · credenciales incorrectas |
+| `403` | Sin permiso (no es admin o no es suyo) · cuenta que no puede entrar · escritura desde un origen no permitido |
 | `404` | No existe, está en la papelera o es un anuncio inactivo ajeno · ruta inexistente |
 | `409` | Choca con otro registro (título, email) o con su estado (borrar una categoría con productos, quitar al último admin) |
 | `422` | Datos no válidos: Zod, reglas del service, Mongoose (`CastError`, `ValidationError`) o JSON mal formado |
@@ -310,7 +328,7 @@ Todas las respuestas tienen la misma forma:
 
 <div align="center">
 
-**Stack:** Express · Mongoose · Zod · Argon2 · jsonwebtoken · express-rate-limit · Helmet · Morgan · CORS · Swagger
+**Stack:** Express · Mongoose · Zod · Argon2 · jsonwebtoken · cookie-parser · express-rate-limit · Helmet · Morgan · CORS · Swagger
 <sub>bcryptjs solo para pasar a Argon2 las contraseñas antiguas</sub>
 
 [README general](../README.md) · [Frontend](../secondhand-front/README.md)

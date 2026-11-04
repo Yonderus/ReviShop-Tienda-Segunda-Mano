@@ -30,6 +30,7 @@ export class AuthStore {
   private readonly _user = signal<AuthUser | null>(null);
   private readonly _restoring = signal(true);
   private readonly sessionEndListeners = new Set<() => void>();
+  private readonly userUpdatedListeners = new Set<(user: AuthUser) => void>();
 
   readonly user = this._user.asReadonly();
   /** true mientras se comprueba la sesión al arrancar (para no parpadear entre "Iniciar sesión" y el usuario). */
@@ -89,9 +90,20 @@ export class AuthStore {
     if (hadSession) this.sessionEndListeners.forEach((listener) => listener());
   }
 
-  /** Para el perfil: el usuario actualizado sin pedirlo otra vez (p. ej. al cambiar la foto). */
+  /**
+   * El usuario de la sesión actualizado sin pedirlo otra vez (p. ej. al cambiar la foto en Mi perfil o al
+   * editarse a sí mismo en el panel). Avisa a quien guarde una copia (`onUserUpdated`), para que la foto y el
+   * nombre cambien en todas partes sin recargar.
+   */
   updateUser(changes: Partial<AuthUser>): void {
     this._user.update((user) => (user ? { ...user, ...changes } : user));
+    const user = this._user();
+    if (user) this.userUpdatedListeners.forEach((listener) => listener(user));
+  }
+
+  /** Para quien guarde una copia del usuario de la sesión (p. ej. la lista de usuarios del panel). */
+  onUserUpdated(listener: (user: AuthUser) => void): void {
+    this.userUpdatedListeners.add(listener);
   }
 
   /** Se llama al terminar una sesión (logout o token que ya no vale). */

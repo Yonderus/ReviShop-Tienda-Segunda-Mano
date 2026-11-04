@@ -269,6 +269,19 @@ export abstract class EntityStore<T extends EntityRecord, TInput> {
     });
   }
 
+  /**
+   * Corrige en memoria (listas, caché de detalle y registro abierto) un registro que ha cambiado por otro
+   * camino, sin pedirlo a la API. Si no está en memoria no hace nada: se pedirá entero cuando haga falta.
+   */
+  patchCached(id: string, changes: Partial<T>): void {
+    const byId = (entity: T) => entity._id === id;
+    const current =
+      this.collections.active.find(byId) ??
+      this.collections.inactive.find(byId) ??
+      [...this.detailCache.values()].find(byId);
+    if (current) this.placeLive({ ...current, ...changes });
+  }
+
   /** Coloca un registro no eliminado en la colección que le corresponde según isActive. */
   protected placeLive(entity: T): void {
     const [target, other] = entity.isActive

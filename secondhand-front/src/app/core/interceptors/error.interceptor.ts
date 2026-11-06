@@ -25,6 +25,9 @@ const MESSAGES = {
   tooMany: 'Demasiados intentos. Prueba de nuevo dentro de unos minutos.',
   notFound: 'No hemos encontrado lo que buscabas.',
   conflict: 'Ya existe un registro con esos datos.',
+  tooLarge: 'Lo que intentas enviar es demasiado grande.',
+  unsupported: 'El formato de lo que intentas enviar no está soportado.',
+  unavailable: 'El servicio no está disponible en este momento. Inténtalo de nuevo en unos segundos.',
   server: 'Algo ha fallado en el servidor. Inténtalo de nuevo más tarde.',
   generic: 'No hemos podido completar la operación. Inténtalo de nuevo.',
 } as const;
@@ -56,6 +59,10 @@ function fromHttpError(error: HttpErrorResponse): ApiError {
   if (status === 404) return new ApiError('http', MESSAGES.notFound, status);
   // Hay 409 de varios tipos (título repetido, registro en la papelera…): el mensaje del backend es el preciso.
   if (status === 409) return new ApiError('http', failure?.message ?? MESSAGES.conflict, status, errors);
+  // 413 (más de 100 KB), 415 (charset o compresión) y 503 (sin base de datos): la API explica qué pasa.
+  if (status === 413) return new ApiError('http', failure?.message ?? MESSAGES.tooLarge, status);
+  if (status === 415) return new ApiError('http', failure?.message ?? MESSAGES.unsupported, status);
+  if (status === 503) return new ApiError('http', failure?.message ?? MESSAGES.unavailable, status);
   if (status >= 500) return new ApiError('http', MESSAGES.server, status);
   return new ApiError('http', MESSAGES.generic, status);
 }

@@ -293,6 +293,11 @@ Al cambiar de paleta, revisa también `primary-50/100/200/400/500` y el contrast
   - Las cargas (GET) muestran el error **en la pantalla** con *Reintentar*, nunca en un modal.
   - Las escrituras muestran un modal (SweetAlert2), salvo 400/409/422 al guardar, que el formulario pinta **junto a cada campo**.
   - `401` con sesión → cierra la sesión y va al login; las peticiones de la propia sesión (`login`, `me`, `logout`) lo evitan con `SKIP_AUTH_REDIRECT`.
+  - `413`, `415` y `503` tienen su propio mensaje (cuerpo demasiado grande, formato no soportado, base de datos caída).
+- **Errores fuera de la API** (`core/errors/`):
+  - `GlobalErrorHandler`: un error de JavaScript sin capturar se registra y se avisa con la opción de recargar (como mucho un aviso cada 10 s). Los `ApiError` no se repiten: ya los mostró el interceptor.
+  - `handleNavigationError` (`withNavigationErrorHandler`): si una página no se puede descargar (sin conexión o versión nueva publicada), recarga **una vez** directamente en la página a la que ibas; si vuelve a fallar, avisa y deja elegir entre recargar o seguir en la tienda.
+  - `main.ts`: si la app no llega a arrancar, en vez de una página en blanco muestra un mensaje con un botón Recargar.
 - **Loader global** con retardo de 180 ms para que no parpadee; las pantallas con skeleton lo omiten (`SKIP_GLOBAL_LOADER`).
 - **Spinner bloqueante** (ngx-spinner) solo para lo que el usuario espera activamente (guardar, borrar, restaurar), marcado con `BLOCKING_REQUEST`.
 

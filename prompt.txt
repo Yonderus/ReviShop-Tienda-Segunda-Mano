@@ -1,0 +1,23 @@
+Servidor
+Router: 3 endpoints Categories, Host, Locations + endpoint al List Events + dos endpoints al details
+Shop.controller: req.query
+Shop.service: query string
+Shop.repo: query params
+models: Index
+
+
+Client
+Shop.service: 6 endpoints, endpoint al List Event: query params y signal
+shop.store: guarda els filters
+shop.shared: components de filter, search (debounce), pages, carrousell
+shop.features
+componets son las cards de hosts, locations, category y prodcuts
+pages
+home: carrousell con componentes de cards de hosts, locations, category Actualizar la url y store
+List: gasta components de filter, search, pages
+Tiene que mirar si hay query params
+Obtener datos de filtros
+Obtener productos abort controller en el signal
+Actualizar la url y store
+details: pintar producto y sus variants
+

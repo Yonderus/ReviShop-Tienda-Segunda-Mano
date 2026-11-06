@@ -1,19 +1,22 @@
 import { registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import localeEs from '@angular/common/locales/es';
-import { APP_INITIALIZER, ApplicationConfig, LOCALE_ID, inject, provideZoneChangeDetection } from '@angular/core';
+import { APP_INITIALIZER, ApplicationConfig, ErrorHandler, LOCALE_ID, inject, provideZoneChangeDetection } from '@angular/core';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import {
   PreloadAllModules,
   provideRouter,
   withComponentInputBinding,
   withInMemoryScrolling,
+  withNavigationErrorHandler,
   withPreloading,
   withViewTransitions,
 } from '@angular/router';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { AuthStore } from './core/auth/auth.store';
+import { GlobalErrorHandler } from './core/errors/global-error.handler';
+import { handleNavigationError } from './core/errors/navigation-error.handler';
 import { errorInterceptor } from './core/interceptors/error.interceptor';
 import { loadingInterceptor } from './core/interceptors/loading.interceptor';
 
@@ -38,7 +41,11 @@ export const appConfig: ApplicationConfig = {
       withPreloading(PreloadAllModules),
       // anchorScrolling: los enlaces con #fragmento (p. ej. …/edit#variantes) bajan hasta esa sección.
       withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' }),
+      // Una página que no se puede descargar (sin conexión o versión nueva) avisa en vez de no hacer nada.
+      withNavigationErrorHandler(handleNavigationError),
     ),
+    // Errores de JavaScript sin capturar: se registran y se avisa al usuario (no solo en la consola).
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
     // authInterceptor el primero: así el loader y el manejo de errores ven ya la petición con `withCredentials`
     // y marcada con SENT_WITH_SESSION.
     provideHttpClient(withFetch(), withInterceptors([authInterceptor, loadingInterceptor, errorInterceptor])),

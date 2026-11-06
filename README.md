@@ -247,6 +247,8 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | `409` | Choca con otro registro o con su estado |
 | `422` | Datos no válidos (Zod, reglas del service o Mongoose) |
 | `429` | Demasiados intentos de login |
+| `413` · `415` | Cuerpo de más de 100 KB · formato no soportado (charset o compresión) |
+| `503` | MongoDB no responde (en vez de dejar la petición colgada) |
 
 </details>
 

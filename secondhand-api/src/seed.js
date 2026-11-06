@@ -1,5 +1,4 @@
-import mongoose from "mongoose";
-import { connectDB } from "./config/db.js";
+import { connectDB, disconnectDB } from "./config/db.js";
 import { env } from "./config/env.js";
 import { CATEGORY_STATUS } from "./constants/category.constants.js";
 import { IMAGE_KIND, IMAGE_OWNER, IMAGE_STATUS } from "./constants/image.constants.js";
@@ -490,7 +489,7 @@ async function seedDatabase() {
     console.log(`  productvariants  ${await total(ProductVariant)}`);
     console.log(`  images           ${await total(Image)}`);
 
-    await mongoose.disconnect();
+    await disconnectDB();
     process.exit(0);
   } catch (error) {
     console.error("Error al ejecutar el seed:", error.message ?? error);

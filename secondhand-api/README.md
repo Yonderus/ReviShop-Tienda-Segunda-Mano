@@ -320,9 +320,24 @@ Todas las respuestas tienen la misma forma:
 | `403` | Sin permiso (no es admin o no es suyo) · cuenta que no puede entrar · escritura desde un origen no permitido |
 | `404` | No existe, está en la papelera o es un anuncio inactivo ajeno · ruta inexistente |
 | `409` | Choca con otro registro (título, email) o con su estado (borrar una categoría con productos, quitar al último admin) |
-| `422` | Datos no válidos: Zod, reglas del service, Mongoose (`CastError`, `ValidationError`) o JSON mal formado |
+| `413` | El cuerpo de la petición supera 100 KB |
+| `415` | Formato no soportado: un `charset` que no es UTF-8 o una compresión (`Content-Encoding`) desconocida |
+| `422` | Datos no válidos: Zod, reglas del service, Mongoose (`CastError`, `ValidationError`) o JSON mal formado. Los mensajes por defecto de Zod salen **en español** |
 | `429` | Demasiados intentos de login (espera lo que diga `Retry-After`) |
-| `500` | Cualquier otro: "Error interno del servidor" |
+| `503` | MongoDB no responde (caído o reiniciándose): tras 5 s de espera, en vez de dejar la petición colgada |
+| `500` | Cualquier otro: "Error interno del servidor". Al cliente nunca le llegan detalles; en el log queda siempre la traza, también en producción |
+
+### 🛟 Robustez del proceso
+
+| Situación | Qué hace la API |
+|---|---|
+| Falta la carpeta `logs/` (está en `.gitignore`) | La crea al arrancar |
+| MongoDB se cae y vuelve | Responde 503 mientras tanto, lo anota en el log y se reconecta sola |
+| `Ctrl+C` / `SIGTERM` | Deja de aceptar peticiones, termina las que están en curso, cierra MongoDB y sale (como mucho 10 s) |
+| Promesa rechazada sin `catch` | La registra y sigue atendiendo |
+| Excepción fuera de una petición | La registra y se cierra de forma ordenada (código 1): el proceso ya no es fiable |
+| Puerto ocupado | "El puerto … ya está en uso" y sale con código 1 |
+| El cliente corta la petición a mitad | No se trata como un fallo del servidor |
 
 ---
 

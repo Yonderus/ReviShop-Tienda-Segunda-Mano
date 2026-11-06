@@ -47,6 +47,24 @@ export class ConflictError extends AppError {
   }
 }
 
+export class PayloadTooLargeError extends AppError {
+  constructor(message = "El cuerpo de la petición es demasiado grande", errors) {
+    super(413, message, errors);
+  }
+}
+
+export class UnsupportedMediaTypeError extends AppError {
+  constructor(message = "El formato de la petición no está soportado. Envía JSON en UTF-8", errors) {
+    super(415, message, errors);
+  }
+}
+
+export class ServiceUnavailableError extends AppError {
+  constructor(message = "El servicio no está disponible en este momento. Inténtalo de nuevo en unos segundos", errors) {
+    super(503, message, errors);
+  }
+}
+
 export class TooManyRequestsError extends AppError {
   constructor(message = "Demasiadas peticiones", errors) {
     super(429, message, errors);

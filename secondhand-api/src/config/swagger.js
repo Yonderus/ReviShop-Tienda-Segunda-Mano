@@ -4,6 +4,7 @@ import swaggerJSDoc from "swagger-jsdoc";
 import { CATEGORY_STATUSES } from "../constants/category.constants.js";
 import { IMAGE_KINDS } from "../constants/image.constants.js";
 import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
+import { SHOP_PAGE } from "../constants/shop.constants.js";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, USER_STATUSES } from "../constants/user.constants.js";
 
 // Cada ruta se documenta con un comentario @openapi en su archivo de rutas. swagger-jsdoc usa globs,
@@ -57,6 +58,7 @@ export const swaggerSpec = swaggerJSDoc({
       { name: "Variantes", description: "Opciones de un producto (talla, capacidad…) con su precio, stock y estado" },
       { name: "Categorías", description: "Árbol de dos niveles, atributos de variante, visibilidad y papelera" },
       { name: "Usuarios", description: "Cuentas (cualquiera compra y vende), roles, visibilidad y papelera" },
+      { name: "Tienda", description: "Home y Shop públicos: catálogo paginado, ficha, categorías, vendedores y ubicaciones (solo lo que está a la venta)" },
     ],
     components: {
       securitySchemes: {
@@ -392,6 +394,58 @@ export const swaggerSpec = swaggerJSDoc({
           properties: { user: { $ref: "#/components/schemas/Me" } },
         }),
         MeResponse: success({ $ref: "#/components/schemas/Me" }),
+        Pagination: {
+          type: "object",
+          properties: {
+            total: { type: "integer", example: 14 },
+            page: { type: "integer", example: 1 },
+            limit: { type: "integer", example: SHOP_PAGE.DEFAULT_LIMIT },
+            totalPages: { type: "integer", example: 2 },
+            hasNext: { type: "boolean", example: true },
+            hasPrev: { type: "boolean", example: false },
+          },
+        },
+        ShopProductPageResponse: success({
+          type: "object",
+          properties: {
+            items: { type: "array", items: { $ref: "#/components/schemas/Product" } },
+            pagination: { $ref: "#/components/schemas/Pagination" },
+          },
+        }),
+        ShopCategory: {
+          type: "object",
+          properties: {
+            _id: objectId,
+            name: { type: "string", example: "Electrónica" },
+            slug: { type: "string", example: "electronica" },
+            description: { type: "string" },
+            parentId: { ...objectId, nullable: true },
+            order: { type: "integer" },
+            productsCount: { type: "integer", description: "A la venta; una principal incluye los de sus subcategorías", example: 5 },
+          },
+        },
+        ShopSeller: {
+          type: "object",
+          properties: {
+            _id: objectId,
+            name: { type: "string", example: "Lucía Martín" },
+            slug: { type: "string", example: "lucia-martin" },
+            location: { type: "string", example: "Valencia" },
+            avatarUrl: { type: "string", format: "uri", description: "No aparece si no tiene" },
+            productsCount: { type: "integer", example: 4 },
+          },
+        },
+        ShopLocation: {
+          type: "object",
+          properties: {
+            name: { type: "string", example: "Valencia" },
+            slug: { type: "string", example: "valencia" },
+            productsCount: { type: "integer", example: 6 },
+          },
+        },
+        ShopCategoryListResponse: success({ type: "array", items: { $ref: "#/components/schemas/ShopCategory" } }),
+        ShopSellerListResponse: success({ type: "array", items: { $ref: "#/components/schemas/ShopSeller" } }),
+        ShopLocationListResponse: success({ type: "array", items: { $ref: "#/components/schemas/ShopLocation" } }),
         ProfileResponse: success({ $ref: "#/components/schemas/Profile" }),
       },
       parameters: {
@@ -409,6 +463,13 @@ export const swaggerSpec = swaggerJSDoc({
         Status: { name: "status", in: "query", schema: { type: "string", enum: SALE_STATUSES } },
         MinPrice: { name: "minPrice", in: "query", schema: { type: "number", minimum: 0 } },
         MaxPrice: { name: "maxPrice", in: "query", schema: { type: "number", minimum: 0 } },
+        Page: { name: "page", in: "query", description: "Página, desde 1", schema: { type: "integer", minimum: 1, default: 1 } },
+        Limit: {
+          name: "limit",
+          in: "query",
+          description: "Productos por página",
+          schema: { type: "integer", minimum: 1, maximum: SHOP_PAGE.MAX_LIMIT, default: SHOP_PAGE.DEFAULT_LIMIT },
+        },
       },
       responses: {
         Unauthorized: errorResponse("Sin la cookie de sesión, o con un token caducado, revocado (logout) o no válido (la cookie se borra)", {

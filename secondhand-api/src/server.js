@@ -17,6 +17,7 @@ import profileRoutes from "./routes/profile.routes.js";
 import { productVariantRoutes, productVariantsOfProductRoutes } from "./routes/productVariant.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import roleRoutes from "./routes/role.routes.js";
+import shopRoutes from "./routes/shop.routes.js";
 import userRoutes, { sellerRoutes } from "./routes/user.routes.js";
 import { NotFoundError } from "./utils/AppError.js";
 import { errorHandler } from "./utils/errorHandler.js";
@@ -49,6 +50,8 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/sellers", sellerRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/roles", roleRoutes);
+// Tienda pública (Home y Shop), separada del CRUD de productos.
+app.use("/api/shop", shopRoutes);
 
 app.use((req, _res, next) => next(new NotFoundError(`Ruta no encontrada: ${req.method} ${req.originalUrl}`)));
 

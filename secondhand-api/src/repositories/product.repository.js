@@ -15,8 +15,9 @@ const SELLER_SUMMARY = { path: "seller", select: "name slug", options: WITH_DELE
 /**
  * Listados: lo justo para una card o una fila de tabla.
  * El `match` de un populate sustituye al del virtual, por eso se repite `ownerType`.
+ * Exportado: la tienda (`shop.repository`) pinta las mismas cards.
  */
-const LIST_POPULATE = [
+export const LIST_POPULATE = [
   CATEGORY_SUMMARY,
   SELLER_SUMMARY,
   { path: "images", match: { ownerType: IMAGE_OWNER.PRODUCT, isPrimary: true }, select: `${IMAGE_FIELDS} ownerId` },
@@ -34,8 +35,8 @@ const TRASH_POPULATE = [
   },
 ];
 
-/** Detalle: todas las imágenes y las variantes no eliminadas. */
-const DETAIL_POPULATE = [
+/** Detalle: todas las imágenes y las variantes no eliminadas. Exportado para la ficha de la tienda. */
+export const DETAIL_POPULATE = [
   { ...CATEGORY_SUMMARY, select: "name slug parentId attributes" },
   SELLER_SUMMARY,
   { path: "images", select: `${IMAGE_FIELDS} ownerId` },

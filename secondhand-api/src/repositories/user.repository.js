@@ -47,6 +47,19 @@ export const userRepository = {
       .lean();
   },
 
+  /** Tienda: los vendedores indicados que pueden vender, con lo público de su perfil (ubicación y avatar). */
+  findPublicSellers(ids) {
+    return User.find({ _id: { $in: ids }, ...CAN_SELL })
+      .sort({ name: 1 })
+      .select(PUBLIC_FIELDS)
+      .populate({
+        path: "profile",
+        select: "userId location",
+        populate: { path: "avatar", select: "url", match: AVATAR_MATCH },
+      })
+      .lean();
+  },
+
   /** Panel: con su rol y su perfil (y el avatar del perfil). */
   findAll(filter = {}) {
     return User.find(filter).sort({ name: 1 }).select(ADMIN_FIELDS).populate(ADMIN_POPULATE).lean();

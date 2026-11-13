@@ -3,6 +3,7 @@ import {
   getShopCategories,
   getShopLocations,
   getShopProduct,
+  getShopProductVariants,
   getShopProducts,
   getShopSellers,
 } from "../controllers/shop.controller.js";
@@ -65,6 +66,24 @@ router.get("/products", validate({ query: shopListQuerySchema }), getShopProduct
  *       404: { $ref: '#/components/responses/NotFound' }
  */
 router.get("/products/:slug", validate({ params: slugParamsSchema }), getShopProduct);
+
+/**
+ * @openapi
+ * /shop/products/{slug}/variants:
+ *   get:
+ *     tags: [Tienda]
+ *     summary: Variantes que se pueden elegir de un producto a la venta
+ *     description: Solo las activas, en su orden, con precio (null = el base), stock, estado y fotos. Si el producto no está a la venta, 404.
+ *     security: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProductSlug'
+ *     responses:
+ *       200:
+ *         description: Variantes
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/VariantListResponse' } } }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.get("/products/:slug/variants", validate({ params: slugParamsSchema }), getShopProductVariants);
 
 /**
  * @openapi

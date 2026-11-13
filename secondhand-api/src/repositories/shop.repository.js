@@ -1,4 +1,5 @@
 import { Product } from "../models/product.model.js";
+import { ProductVariant } from "../models/productVariant.model.js";
 import { DETAIL_POPULATE, LIST_POPULATE } from "./product.repository.js";
 
 /*
@@ -23,6 +24,19 @@ export const shopRepository = {
   /** La ficha: solo si está a la venta (activo y no eliminado). */
   findProductBySlug(slug) {
     return Product.findOne({ slug, ...ON_SALE }).populate(DETAIL_POPULATE);
+  },
+
+  /** Solo el id de un producto a la venta (para pedir sus variantes sin cargar la ficha entera). */
+  async findOnSaleIdBySlug(slug) {
+    return (await Product.findOne({ slug, ...ON_SALE }).select("_id").lean())?._id ?? null;
+  },
+
+  /** Las variantes que se pueden elegir (activas, no eliminadas), en su orden, con sus fotos. */
+  findOnSaleVariants(productId) {
+    return ProductVariant.find({ productId, isActive: true })
+      .sort({ order: 1, _id: 1 })
+      .select("-__v -deletedBy")
+      .populate({ path: "images", select: "url alt kind isPrimary order width height ownerId" });
   },
 
   /**

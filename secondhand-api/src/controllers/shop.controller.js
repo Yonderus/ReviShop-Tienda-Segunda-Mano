@@ -17,6 +17,14 @@ export const getShopProduct = async (req, res, next) => {
   }
 };
 
+export const getShopProductVariants = async (req, res, next) => {
+  try {
+    sendSuccess(res, await shopService.getProductVariants(req.params.slug));
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getShopCategories = async (_req, res, next) => {
   try {
     sendSuccess(res, await shopService.listCategories());

@@ -13,7 +13,7 @@ Por capas, con validación Zod, soft delete en cascada, sesión con JWT en cooki
 ![Argon2](https://img.shields.io/badge/Hash-Argon2id-6A1B9A?style=for-the-badge)
 ![Swagger](https://img.shields.io/badge/Docs-Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
 
-[Puesta en marcha](#-puesta-en-marcha) · [Seed](#-seed) · [Arquitectura](#️-arquitectura) · [Sesión](#-sesión-y-seguridad) · [Endpoints](#️-endpoints) · [Modelo](#️-modelo-de-datos) · [Errores](#-errores)
+[Puesta en marcha](#-puesta-en-marcha) · [Seed](#-seed) · [Arquitectura](#️-arquitectura) · [Sesión](#-sesión-y-seguridad) · [Endpoints](#️-endpoints) · [Tienda](#️-tienda-home-y-shop) · [Modelo](#️-modelo-de-datos) · [Errores](#-errores)
 
 </div>
 
@@ -257,6 +257,65 @@ sequenceDiagram
 **Reglas:** email único (si es de uno de la papelera, el `409` dice que lo restaures) · el rol tiene que existir · **siempre queda un admin activo** · no se borra un usuario con productos (sí se puede desactivar o suspender).
 
 </details>
+
+---
+
+## 🛍️ Tienda (Home y Shop)
+
+Módulo propio (`shop.routes` → `shop.controller` → `shop.service` → `shop.repository`), separado del CRUD de productos. **Todo es público, de solo lectura y nunca devuelve nada inactivo ni eliminado** (tampoco a su dueño: su vista previa sigue en `/products/slug/:slug`).
+
+| | Método | Ruta | Para |
+|:-:|---|---|---|
+| 🌐 | `GET` | `/api/shop/categories` | Carrusel del Home: publicadas, con `productsCount` (una principal suma sus subcategorías) |
+| 🌐 | `GET` | `/api/shop/sellers` | Carrusel del Home: vendedores con algo a la venta, con avatar y `productsCount` |
+| 🌐 | `GET` | `/api/shop/locations` | Carrusel del Home: `{ name, slug, productsCount }` |
+| 🌐 | `GET` | `/api/shop/products` | El shop: filtros, búsqueda, orden y paginación → `{ items, pagination, search? }` |
+| 🌐 | `GET` | `/api/shop/products/:slug` | Details: el producto con sus fotos |
+| 🌐 | `GET` | `/api/shop/products/:slug/variants` | Details: las variantes que se pueden elegir (activas, en orden, con precio, stock y estado) |
+
+### 🔎 Query params de `/api/shop/products`
+
+Todos opcionales; **varios filtros se combinan (Y)** y **cada filtro admite varios valores (O)**, con comas o repitiendo el parámetro:
+
+```
+/api/shop/products?category=moviles,ordenadores&condition=nuevo&condition=como_nuevo&maxPrice=500&sort=price-asc&page=2
+/api/shop/products?location=valencia&search=bici
+/api/shop/products?seller=lucia-martin&status=disponible,reservado
+```
+
+| Param | Valores | Filtro en Mongo |
+|---|---|---|
+| `category` | slugs (incluye subcategorías) | `categoryId: { $in }` |
+| `seller` | slugs | `sellerId: { $in }` |
+| `location` | slugs (`/shop/locations`) | `locationSlug: { $in }` |
+| `condition` · `status` | sus valores válidos | `condition` / `status: { $in }` |
+| `minPrice` · `maxPrice` | números ≥ 0 (`min ≤ max`) | `basePrice: { $gte, $lte }` |
+| `search` | 2 a 80 caracteres | `$text` y, si no hay resultados, regex sobre `title` |
+| `sort` | `recent` · `price-asc` · `price-desc` · `relevance` | siempre con desempate por `_id` |
+| `page` · `limit` | `≥ 1` · `1–48` (12 por defecto) | `skip` + `limit`, y `countDocuments` en paralelo |
+
+**Cómo se monta la query (`buildShopFilter`):** cada filtro es una función pequeña que devuelve su trozo, nada si no se pidió o `null` si se pidió y ninguno de sus slugs existe (entonces la respuesta es vacía sin consultar productos). Los slugs se pasan a ids **en paralelo** y en una consulta por filtro (`$in`). Todo llega validado por Zod: un valor no permitido, más de 10 valores, `?category[$gt]=…` o `minPrice > maxPrice` dan **422** por campo.
+
+**Búsqueda en dos pasos:** primero `$text` con el índice de texto en español (palabras completas, sin distinguir tildes; "zapatillas" encuentra "zapatilla") y orden por relevancia. Si no encuentra nada, una **regex escapada** sobre el título que tampoco distingue tildes (`"iph"` → "iPhone", `"pade"` → "pádel"). La respuesta dice cuál se usó: `search: { term, mode: "text" | "partial" }`. Lo que escribe el usuario nunca se interpreta como regex.
+
+### ⚡ Índices de `products`
+
+Regla **ESR** (igualdad → orden → rango). Todas las consultas de la tienda llevan `isActive: true` y `deletedAt: null`, y el orden desempata por `_id` para que la paginación sea estable, así que `_id` va al final: sin él, MongoDB tendría que terminar de ordenar en memoria.
+
+| Índice | Consulta |
+|---|---|
+| `{ isActive, deletedAt, createdAt: -1, _id: -1 }` | Sin filtros, por fecha (y las listas del panel) |
+| `{ isActive, deletedAt, categoryId, createdAt: -1, _id: -1 }` | Por categoría |
+| `{ isActive, deletedAt, sellerId, createdAt: -1, _id: -1 }` | Por vendedor |
+| `{ isActive, deletedAt, locationSlug, createdAt: -1, _id: -1 }` | Por ubicación |
+| `{ isActive, deletedAt, basePrice, _id }` | Orden por precio (en los dos sentidos) y rango de precio |
+| Texto `{ title: 3, description: 1 }` en español | Búsqueda (solo puede haber uno por colección) |
+| `{ categoryId }` · `{ sellerId }` | Comprobaciones de integridad (¿tiene productos?) |
+
+Comprobado con `explain("executionStats")`: cada forma de consulta usa su índice (`IXSCAN`, nunca `COLLSCAN`), examina exactamente los documentos que devuelve y no ordena en memoria.
+
+> [!NOTE]
+> Si tu base se sembró antes de estos índices, vuelve a ejecutar `npm run seed`: sincroniza los índices (borra los antiguos, como el primer índice de texto, y crea los nuevos).
 
 ---
 

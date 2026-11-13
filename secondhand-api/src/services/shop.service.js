@@ -120,6 +120,16 @@ export const shopService = {
   },
 
   /**
+   * Las variantes que se pueden elegir de un producto a la venta (activas y en su orden), con precio, stock y
+   * estado: lo que necesitará la reserva. Si el producto no está a la venta, 404 (como su ficha).
+   */
+  async getProductVariants(slug) {
+    const productId = await shopRepository.findOnSaleIdBySlug(slug);
+    if (!productId) throw new NotFoundError("Producto no encontrado");
+    return shopRepository.findOnSaleVariants(productId);
+  },
+
+  /**
    * Categorías publicadas y activas, con cuántos productos hay a la venta. Una principal cuenta también los
    * de sus subcategorías (filtrar por ella los incluye).
    */

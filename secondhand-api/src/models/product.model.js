@@ -73,10 +73,24 @@ productSchema.pre("findOneAndUpdate", function () {
 });
 
 // ── Índices ──
-productSchema.index({ deletedAt: 1, isActive: 1, createdAt: -1 });
+// Todas las consultas de la tienda llevan `isActive: true` y `deletedAt: null` (el plugin de soft delete).
+// Regla ESR: primero los campos de igualdad, después el de orden y al final el de rango. Así el índice filtra
+// y además da el orden hecho (sin ordenar en memoria). El orden de la tienda desempata por `_id` (paginación
+// estable), así que `_id` va al final: sin él, MongoDB tendría que acabar de ordenar en memoria.
+// Comprobados con explain() (ver README, Tienda).
+productSchema.index({ isActive: 1, deletedAt: 1, createdAt: -1, _id: -1 }); // sin filtros, por fecha (y el panel)
+productSchema.index({ isActive: 1, deletedAt: 1, categoryId: 1, createdAt: -1, _id: -1 }); // por categoría
+productSchema.index({ isActive: 1, deletedAt: 1, sellerId: 1, createdAt: -1, _id: -1 }); // por vendedor
+productSchema.index({ isActive: 1, deletedAt: 1, locationSlug: 1, createdAt: -1, _id: -1 }); // por ubicación
+productSchema.index({ isActive: 1, deletedAt: 1, basePrice: 1, _id: 1 }); // orden y rango de precio (también al revés)
+// Sueltos, sin isActive: las comprobaciones de integridad (¿tiene productos esta categoría o este usuario?).
 productSchema.index({ categoryId: 1 });
 productSchema.index({ sellerId: 1 });
-productSchema.index({ title: "text", description: "text" }, { default_language: "spanish" });
+// Búsqueda. Solo puede haber uno de texto por colección; el título pesa más que la descripción.
+productSchema.index(
+  { title: "text", description: "text" },
+  { default_language: "spanish", weights: { title: 3, description: 1 }, name: "product_text_search" },
+);
 
 // ── Plugins ──
 // Sin sufijo: un título repetido es un 409 (el service lo comprueba antes para dar un mensaje claro).

@@ -26,6 +26,11 @@ import { UserMenuComponent } from '../user-menu/user-menu.component';
               [routerLinkActiveOptions]="{ exact: true }"
               class="rounded-lg px-3.5 py-2 text-sm font-medium text-primary-100 transition-colors hover:bg-white/10 hover:text-white"
             >Inicio</a>
+            <a
+              routerLink="/shop"
+              routerLinkActive="!bg-white/10 !text-white"
+              class="rounded-lg px-3.5 py-2 text-sm font-medium text-primary-100 transition-colors hover:bg-white/10 hover:text-white"
+            >Tienda</a>
             <a routerLink="/products/new" class="btn btn-accent mx-2">
               <app-icon name="plus" [size]="18" />
               Publicar producto
@@ -58,6 +63,12 @@ import { UserMenuComponent } from '../user-menu/user-menu.component';
               class="rounded-lg px-3 py-2.5 font-medium text-primary-50 hover:bg-white/10"
               (click)="close()"
             >Inicio</a>
+            <a
+              routerLink="/shop"
+              routerLinkActive="bg-white/10"
+              class="rounded-lg px-3 py-2.5 font-medium text-primary-50 hover:bg-white/10"
+              (click)="close()"
+            >Tienda</a>
             <a routerLink="/products/new" class="btn btn-accent mt-1 w-full" (click)="close()">
               <app-icon name="plus" [size]="18" />
               Publicar producto

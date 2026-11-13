@@ -64,10 +64,10 @@ import { ProductImageComponent } from '../product-image/product-image.component'
               <span class="text-xs font-semibold">desde </span>
             }{{ price().amount | price }}
           </p>
-          @if (canManage()) {
+          @if (actions() && canManage()) {
             <div class="relative z-10 flex gap-1">
               <a
-                [routerLink]="[link(), 'edit']"
+                [routerLink]="['/products', product().slug, 'edit']"
                 class="icon-btn"
                 [attr.aria-label]="'Editar ' + product().title"
                 title="Editar"
@@ -97,13 +97,17 @@ export class ProductCardComponent {
   readonly product = input.required<Product>();
   readonly deleting = input(false);
   readonly priority = input(false);
+  /** Adónde lleva la card: `/shop` (ficha pública de la tienda) o `/products` (vista del vendedor). */
+  readonly detailBase = input<'/shop' | '/products'>('/products');
+  /** Botones Editar/Eliminar (solo para su vendedor o un admin). La tienda no los enseña. */
+  readonly actions = input(true);
   readonly remove = output<Product>();
 
   protected readonly conditionLabels = CONDITION_LABELS;
   protected readonly statusLabels = STATUS_LABELS;
   protected readonly statusTones = STATUS_TONES;
 
-  protected readonly link = computed(() => `/products/${this.product().slug}`);
+  protected readonly link = computed(() => `${this.detailBase()}/${this.product().slug}`);
   /** Editar y eliminar: solo su vendedor o un admin (la API lo vuelve a comprobar). */
   protected readonly canManage = computed(() => this.auth.isOwnerOrAdmin(sellerIdOf(this.product())));
   protected readonly conditionLevel = computed(() => CONDITION_LEVEL[this.product().condition]);

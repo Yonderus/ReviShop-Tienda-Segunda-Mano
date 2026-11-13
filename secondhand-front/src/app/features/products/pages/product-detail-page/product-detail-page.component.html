@@ -14,11 +14,11 @@
     <div class="container-page py-6 sm:py-10">
       <nav aria-label="Ruta de navegación" class="mb-6">
         <ol class="flex flex-wrap items-center gap-1.5 text-sm text-ink-muted">
-          <li><a routerLink="/" class="rounded hover:text-primary-700 hover:underline">Catálogo</a></li>
+          <li><a routerLink="/shop" class="rounded hover:text-primary-700 hover:underline">Catálogo</a></li>
           @if (product(); as p) {
             <li aria-hidden="true">/</li>
             <li>
-              <a routerLink="/" [queryParams]="{ category: p.category.slug }" class="rounded hover:text-primary-700 hover:underline">
+              <a routerLink="/shop" [queryParams]="{ category: p.category.slug }" class="rounded hover:text-primary-700 hover:underline">
                 {{ p.category.name }}
               </a>
             </li>

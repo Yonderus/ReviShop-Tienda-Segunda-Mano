@@ -38,7 +38,7 @@ import { INLINE_FORM_STATUSES } from '../../../../core/config/app.constants';
               </app-empty-state>
             } @else {
               <nav aria-label="Ruta de navegación" class="mb-4 text-sm text-ink-muted">
-                <a routerLink="/" class="hover:text-primary-700 hover:underline">Catálogo</a>
+                <a routerLink="/shop" class="hover:text-primary-700 hover:underline">Catálogo</a>
                 <span aria-hidden="true"> / </span>
                 <a [routerLink]="['/products', product.slug]" class="hover:text-primary-700 hover:underline">{{ product.title }}</a>
                 <span aria-hidden="true"> / </span>

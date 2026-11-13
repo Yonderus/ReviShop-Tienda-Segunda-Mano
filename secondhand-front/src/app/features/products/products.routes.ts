@@ -5,7 +5,8 @@ import { APP_NAME } from '../../core/config/app.constants';
 /** `products/new` va antes que `products/:slug`: un producto titulado "New" tendría slug `new` y nunca sería alcanzable. */
 const PRODUCTS_ROUTES: Routes = [
   {
-    path: '',
+    // Provisional: el catálogo de siempre en /shop hasta que llegue el shop nuevo (fase S8).
+    path: 'shop',
     title: `Catálogo · ${APP_NAME}`,
     loadComponent: () =>
       import('./pages/product-list-page/product-list-page.component').then((m) => m.ProductListPageComponent),

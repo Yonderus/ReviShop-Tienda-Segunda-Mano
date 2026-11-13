@@ -47,6 +47,11 @@ export const userRepository = {
       .lean();
   },
 
+  /** Tienda: los ids de varios usuarios por slug, en una sola consulta (los que no existen no salen). */
+  findIdsBySlugs(slugs) {
+    return User.find({ slug: { $in: slugs } }).distinct("_id");
+  },
+
   /** Tienda: los vendedores indicados que pueden vender, con lo público de su perfil (ubicación y avatar). */
   findPublicSellers(ids) {
     return User.find({ _id: { $in: ids }, ...CAN_SELL })

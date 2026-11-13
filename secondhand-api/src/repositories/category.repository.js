@@ -39,6 +39,16 @@ export const categoryRepository = {
     return Category.find({ parentId }).distinct("_id");
   },
 
+  /** Tienda: los ids de varias categorías por slug, en una sola consulta (los que no existen no salen). */
+  findIdsBySlugs(slugs) {
+    return Category.find({ slug: { $in: slugs } }).distinct("_id");
+  },
+
+  /** Tienda: las subcategorías de varias categorías a la vez. */
+  findChildrenIdsOf(parentIds) {
+    return Category.find({ parentId: { $in: parentIds } }).distinct("_id");
+  },
+
   listPublished() {
     return Category.find({ ...ACTIVE, status: CATEGORY_STATUS.PUBLISHED })
       .sort({ parentId: 1, order: 1, name: 1 })

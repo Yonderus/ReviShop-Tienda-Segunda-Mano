@@ -410,6 +410,14 @@ export const swaggerSpec = swaggerJSDoc({
           properties: {
             items: { type: "array", items: { $ref: "#/components/schemas/Product" } },
             pagination: { $ref: "#/components/schemas/Pagination" },
+            search: {
+              type: "object",
+              description: "Solo si se ha buscado",
+              properties: {
+                term: { type: "string", example: "iph" },
+                mode: { type: "string", enum: ["text", "partial"], description: "text: palabras completas · partial: trozos del título" },
+              },
+            },
           },
         }),
         ShopCategory: {

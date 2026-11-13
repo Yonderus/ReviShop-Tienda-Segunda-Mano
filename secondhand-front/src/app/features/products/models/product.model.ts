@@ -47,6 +47,8 @@ export interface Product {
   basePrice: number;
   condition: ProductCondition;
   location?: string;
+  /** La ubicación normalizada (la calcula la API): para enlazar a `/shop?location=…`. */
+  locationSlug?: string | null;
   /** Calculado por la API a partir de las variantes. */
   status: ProductStatus;
   isActive: boolean;

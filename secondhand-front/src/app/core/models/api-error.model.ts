@@ -32,3 +32,9 @@ export class ApiError extends Error {
 
 export const toApiError = (error: unknown): ApiError =>
   error instanceof ApiError ? error : ApiError.unexpected();
+
+/** Una petición cancelada a propósito (AbortController): no es un error que haya que enseñar. */
+export const abortError = (): DOMException => new DOMException('La petición se ha cancelado', 'AbortError');
+
+export const isAbortError = (error: unknown): boolean =>
+  !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError';

@@ -1,6 +1,6 @@
 import { ErrorHandler, Injectable, inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { ApiError } from '../models/api-error.model';
+import { ApiError, isAbortError } from '../models/api-error.model';
 import { AlertService } from '../services/alert.service';
 import { APP_ERROR_MESSAGES, isChunkLoadError } from './app-errors';
 
@@ -25,6 +25,9 @@ export class GlobalErrorHandler implements ErrorHandler {
 
   handleError(error: unknown): void {
     const cause = unwrap(error);
+
+    // Una petición cancelada a propósito (p. ej. al cambiar de filtro antes de que llegue la respuesta).
+    if (isAbortError(cause)) return;
 
     if (cause instanceof ApiError) {
       if (!environment.production) console.warn('[ApiError sin capturar]', cause);

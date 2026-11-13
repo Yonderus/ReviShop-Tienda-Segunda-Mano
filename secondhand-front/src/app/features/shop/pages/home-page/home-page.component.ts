@@ -55,15 +55,15 @@ const LATEST = 8;
       @if (store.facetsError(); as error) {
         <app-error-state title="No hemos podido cargar las categorías, los vendedores y las ubicaciones" [error]="error" (retry)="store.loadFacets(true)" />
       } @else {
-        <app-carousel label="Categorías" subtitle="Elige por qué empezar" [items]="categories()" [loading]="store.facetsLoading()">
+        <app-carousel label="Categorías" subtitle="Elige por qué empezar" [items]="categories()" [loading]="firstLoad()">
           <ng-template let-item><app-category-card [category]="item" /></ng-template>
         </app-carousel>
 
-        <app-carousel label="Vendedores" subtitle="Quién tiene más cosas a la venta" [items]="sellers()" [loading]="store.facetsLoading()">
+        <app-carousel label="Vendedores" subtitle="Quién tiene más cosas a la venta" [items]="sellers()" [loading]="firstLoad()">
           <ng-template let-item><app-seller-card [seller]="item" /></ng-template>
         </app-carousel>
 
-        <app-carousel label="Ubicaciones" subtitle="Lo que se vende cerca de ti" [items]="locations()" [loading]="store.facetsLoading()" itemWidth="min(16rem, 75vw)">
+        <app-carousel label="Ubicaciones" subtitle="Lo que se vende cerca de ti" [items]="locations()" [loading]="firstLoad()" itemWidth="min(16rem, 75vw)">
           <ng-template let-item><app-location-card [location]="item" /></ng-template>
         </app-carousel>
       }
@@ -83,7 +83,7 @@ const LATEST = 8;
         } @else {
           <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             @for (product of latest(); track product._id; let i = $index) {
-              <li><app-product-card [product]="product" [priority]="i < 4" [actions]="false" /></li>
+              <li><app-product-card [product]="product" [priority]="i < 4" detailBase="/shop" [actions]="false" /></li>
             }
           </ul>
         }
@@ -99,12 +99,15 @@ export class HomePageComponent implements OnInit {
   protected readonly categories = computed<ShopCategory[]>(() => this.store.mainCategories().filter((c) => c.productsCount > 0));
   protected readonly sellers = computed<ShopSeller[]>(() => this.store.sellers());
   protected readonly locations = computed<ShopLocation[]>(() => this.store.locations());
+  /** Skeleton solo si aún no hay nada que enseñar (al volver al Home se refresca sin parpadear). */
+  protected readonly firstLoad = computed(() => this.store.facetsLoading() && this.store.categories().length === 0);
 
   protected readonly latest = signal<Product[] | null>(null);
   protected readonly latestError = signal<ApiError | null>(null);
 
   ngOnInit(): void {
-    void this.store.loadFacets();
+    // Siempre al día (alguien puede haber publicado): sin parpadeo, porque el skeleton solo sale la primera vez.
+    void this.store.loadFacets(true);
     void this.loadLatest();
   }
 

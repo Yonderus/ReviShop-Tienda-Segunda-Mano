@@ -14,9 +14,11 @@ const isEmpty = (value) => value === undefined || value === null || value === ""
  * @param {readonly string[]} [allowed] valores permitidos; sin ellos, cada valor tiene que ser un slug
  */
 function listParam(field, allowed) {
-  const item = allowed
-    ? z.enum(allowed, { error: `${field} solo admite: ${allowed.join(", ")}` })
-    : z.string().max(80, `Cada ${field} puede tener como mucho 80 caracteres`).regex(SLUG, `${field} debe ser un slug (minúsculas, números y guiones)`);
+  // Se valida la lista entera (y no cada elemento) para que el error salga en `condition` y no en `condition.0`.
+  const isValid = allowed ? (value) => allowed.includes(value) : (value) => value.length <= 80 && SLUG.test(value);
+  const message = allowed
+    ? `${field} solo admite: ${allowed.join(", ")}`
+    : `Cada ${field} debe ser un slug (minúsculas, números y guiones, como mucho 80 caracteres)`;
 
   return z.preprocess(
     (value) => {
@@ -26,7 +28,11 @@ function listParam(field, allowed) {
       const clean = [...new Set(parts.flatMap((part) => part.split(",")).map((part) => part.trim().toLowerCase()).filter(Boolean))];
       return clean.length ? clean : undefined;
     },
-    z.array(item).max(MAX_FILTER_VALUES, `${field} admite como mucho ${MAX_FILTER_VALUES} valores`).optional(),
+    z
+      .array(z.string({ error: `${field} debe ser un texto` }), { error: `${field} debe ser un texto` })
+      .max(MAX_FILTER_VALUES, `${field} admite como mucho ${MAX_FILTER_VALUES} valores`)
+      .refine((values) => values.every(isValid), message)
+      .optional(),
   );
 }
 

@@ -6,7 +6,6 @@ import {
   getInactiveProducts,
   getProductById,
   getProductBySlug,
-  getProducts,
   getTrashedProducts,
   restoreProduct,
   setProductActive,
@@ -20,7 +19,6 @@ import { idParamsSchema, restoreSchema, setActiveSchema, slugParamsSchema } from
 import {
   changeStatusSchema,
   createProductSchema,
-  listQuerySchema,
   stateListQuerySchema,
   updateProductSchema,
 } from "../validators/product.validator.js";
@@ -29,28 +27,9 @@ const router = Router();
 
 // Documentación: cada ruta lleva su bloque @openapi (se publica en /api/docs). Los esquemas
 // compartidos están en config/swagger.js.
-
-/**
- * @openapi
- * /products:
- *   get:
- *     tags: [Productos]
- *     summary: Público — catálogo (solo los activos)
- *     security: []
- *     parameters:
- *       - $ref: '#/components/parameters/Category'
- *       - $ref: '#/components/parameters/Seller'
- *       - $ref: '#/components/parameters/Condition'
- *       - $ref: '#/components/parameters/Status'
- *       - $ref: '#/components/parameters/MinPrice'
- *       - $ref: '#/components/parameters/MaxPrice'
- *     responses:
- *       200:
- *         description: Productos, del más reciente al más antiguo
- *         content: { application/json: { schema: { $ref: '#/components/schemas/ProductListResponse' } } }
- *       422: { $ref: '#/components/responses/ValidationError' }
- */
-router.get("/", validate({ query: listQuerySchema }), getProducts);
+//
+// El catálogo público ya no está aquí: es /api/shop/products (filtros, búsqueda y paginación en el servidor).
+// Estas rutas son el CRUD: las listas del panel (admin) y las escrituras del vendedor o del admin.
 
 /**
  * @openapi

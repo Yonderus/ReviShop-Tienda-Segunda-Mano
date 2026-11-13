@@ -5,7 +5,7 @@
 # Revishop · Frontend
 
 **Cada objeto merece una segunda vida.**
-SPA del marketplace de segunda mano Revishop: catálogo público, publicación de anuncios, Mi perfil y un panel de administración completo.
+SPA del marketplace de segunda mano Revishop: Home y tienda públicas, publicación de anuncios, Mi perfil y un panel de administración completo.
 
 ![Angular](https://img.shields.io/badge/Angular-18-DD0031?style=for-the-badge&logo=angular&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
@@ -26,7 +26,8 @@ SPA del marketplace de segunda mano Revishop: catálogo público, publicación d
 <td width="50%" valign="top">
 
 ### 🛍️ Tienda
-- Catálogo con filtros (categoría, condición, estado, precio y orden) **guardados en la URL**.
+- **Home** con carruseles de categorías, vendedores y ubicaciones que abren la tienda filtrada.
+- **Shop** con búsqueda (debounce), filtros, orden y paginación **en el servidor**, guardados en la URL.
 - Ficha por **slug** con galería, variantes y la *escala de segunda vida*.
 - Publicar, editar y retirar **tus** anuncios.
 - **Mi perfil**: foto, teléfono, ubicación y bio.
@@ -156,8 +157,10 @@ El token vive en la cookie `revishop_session` que pone la API (`HttpOnly`, `Same
 
 | Ruta | | Pantalla |
 |---|:-:|---|
-| `/` | 🌐 | Catálogo: recuento real, filtros en la URL y tarjetas (con *Editar / Eliminar* en lo tuyo) |
-| `/products/:slug` | 🌐 | Ficha: galería diferida, variantes con su precio, condición, vendedor y ubicación |
+| `/` | 🌐 | **Home**: carruseles de categorías, vendedores y ubicaciones (cada tarjeta abre el shop filtrado) y lo último publicado |
+| `/shop` | 🌐 | **Shop**: búsqueda, filtros con varios valores, rango de precio, orden y paginación; todo en la URL (`?category=moviles,ordenadores&sort=price-asc&page=2`) |
+| `/shop/:slug` | 🌐 | **Ficha de la tienda**: producto y sus variantes activas, enlaces al shop por vendedor, categoría y ubicación; *Editar* solo a su dueño o un admin |
+| `/products/:slug` | 🌐 | Ficha clásica (galería y variantes, con *Editar / Eliminar* en lo tuyo); a ella llevan Publicar y Editar |
 | `/login` | 🚪 | Iniciar sesión, con los errores de la API (credenciales, cuenta bloqueada, demasiados intentos) |
 | `/profile` | 🔑 | **Mi perfil**: foto con vista previa, teléfono, ubicación y bio (`PATCH` solo con lo cambiado) |
 | `/products/new` | 🔑 | Publicar un anuncio |
@@ -187,7 +190,8 @@ Base: `environment.apiUrl` · respuestas `{ success: true, data }` o `{ success:
 |---|---|---|
 | 🔐 **Auth** | `POST /auth/login` · `GET /auth/me` · `POST /auth/logout` | Sesión |
 | 👤 **Perfil** | `GET` · `PATCH /profile/me` | Mi perfil |
-| 📦 **Productos** | `GET /products` · `/slug/:slug` | Catálogo público y ficha |
+| 🛍️ **Tienda** | `GET /shop/categories` · `/shop/sellers` · `/shop/locations` · `/shop/products` · `/shop/products/:slug` · `/:slug/variants` | Home, shop y ficha (`ShopService`) |
+| 📦 **Productos** | `GET /products/slug/:slug` | Ficha de gestión |
 | | `GET /products/actives` · `/inactives` · `/trash` | Pestañas del panel |
 | | `POST /products` · `PATCH /:id` · `/:id/status` · `/:id/active` · `/:id/restore` · `DELETE /:id` | Escrituras |
 | 🎨 **Variantes** | `/products/:id/variants` · `/variants/:id` (+ `/status`, `/active`) | Editor de variantes |
@@ -208,7 +212,8 @@ src/app/
 │   ├── services/            ApiService (Observable → Promise), EntityApiService, LoadingService, AlertService
 │   └── store/               EntityStore y RemoteCollection (base de todos los stores)
 ├── shared/
-│   ├── components/          navbar, user-menu, loader, skeleton, empty-state, error-state, page-not-found…
+│   ├── components/          navbar, user-menu, loader, skeleton, empty-state, error-state, page-not-found,
+│   │                        search-box, filter-panel, pagination, carousel…
 │   ├── ui/                  icon, avatar, badge, level-meter, stat-card, toggle-switch
 │   └── utils/               validadores, mensajes de error, diff para PATCH, pipes
 ├── layouts/                 main-layout (tienda) y admin-layout (sidebar + drawer móvil)
@@ -216,6 +221,7 @@ src/app/
 │   ├── auth/                login y acceso denegado
 │   ├── profile/             Mi perfil
 │   ├── catalog/             categorías y vendedores compartidos (CatalogStore)
+│   ├── shop/                Home, shop y ficha: ShopService, ShopStore, shop-query (URL ⇄ filtros), cards
 │   ├── products/            modelo, servicios, ProductsStore, componentes y páginas
 │   ├── users/               modelo, servicios y UsersStore
 │   └── admin/               panel: dashboard, products, categories, users
@@ -278,7 +284,9 @@ Al cambiar de paleta, revisa también `primary-50/100/200/400/500` y el contrast
 
 - **Capa asíncrona sin RxJS:** `ApiService` convierte el `Observable` de `HttpClient` en `Promise` (el único `firstValueFrom` de la app). Services y stores usan `async/await`; RxJS solo queda en los interceptores.
 - **Store genérico (`EntityStore`):** colecciones (activos, inactivos, papelera), caché de detalle y escrituras optimistas. Cada entidad hereda y solo añade lo suyo; `afterWrite` refresca lo que depende de ella. Los signals son privados y se exponen con `asReadonly()` y `computed()`.
-- **Catálogo público aparte:** la tienda usa `GET /products` (solo activos) y el panel sus propias colecciones, así un usuario nunca pide endpoints de admin.
+- **Tienda aparte del CRUD:** Home, shop y ficha usan `/api/shop` (`ShopService` + `ShopStore`) y el panel sus propias colecciones, así un usuario nunca pide endpoints de admin.
+- **La URL manda en el shop:** `filtersFromParams` / `paramsFromFilters` (`features/shop/models/shop-query.ts`) traducen query params ⇄ filtros; cambiar un filtro navega, y la página carga cuando cambian los params. Recargar, compartir el enlace o volver atrás deja la tienda igual.
+- **Peticiones cancelables:** `ShopStore.load()` aborta la anterior con un `AbortController` (`ApiService` acepta `signal`); el `AbortError` no se muestra ni llega al `ErrorHandler`. La búsqueda espera 300 ms sin teclear y al menos 2 caracteres.
 - **`CatalogStore`:** categorías y vendedores se cargan una vez y los comparten el formulario, los filtros y las etiquetas. Ninguna categoría está escrita en el código.
 - **Slug en las URLs, `_id` en las escrituras:** las rutas son legibles, pero `PATCH` y `DELETE` usan el `_id`. Tras editar se navega al slug de la respuesta, porque cambia con el título.
 

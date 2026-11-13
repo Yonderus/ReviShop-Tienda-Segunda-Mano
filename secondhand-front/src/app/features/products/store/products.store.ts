@@ -1,15 +1,7 @@
-import { Injectable, Signal, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { EntityStore, byNewest } from '../../../core/store/entity.store';
-import { RemoteCollection } from '../../../core/store/remote-collection';
 import { toApiError } from '../../../core/models/api-error.model';
-import {
-  PRODUCT_STATUSES,
-  Product,
-  ProductFilters,
-  ProductInput,
-  ProductStatus,
-  STATUS_LABELS,
-} from '../models/product.model';
+import { PRODUCT_STATUSES, Product, ProductInput, ProductStatus, STATUS_LABELS } from '../models/product.model';
 import { ProductVariant, VariantInput } from '../models/product-variant.model';
 import { ProductsService } from '../services/products.service';
 import { VariantsService } from '../services/variants.service';
@@ -20,48 +12,15 @@ export interface Breakdown<K extends string> {
   count: number;
 }
 
-/** `categoryScope`: slugs válidos para el filtro de categoría (la categoría y sus subcategorías). */
-export function applyFilters(
-  products: readonly Product[],
-  filters: ProductFilters,
-  categoryScope: ReadonlySet<string> | null = null,
-): Product[] {
-  const { category, condition, status, minPrice, maxPrice, sort = 'recent' } = filters;
-  const scope = category ? (categoryScope ?? new Set([category])) : null;
-  const result = products.filter(
-    (p) =>
-      (!scope || scope.has(p.category?.slug)) &&
-      (!condition || p.condition === condition) &&
-      (!status || p.status === status) &&
-      (minPrice === undefined || p.basePrice >= minPrice) &&
-      (maxPrice === undefined || p.basePrice <= maxPrice),
-  );
-  if (sort === 'price-asc') return result.sort((a, b) => a.basePrice - b.basePrice);
-  if (sort === 'price-desc') return result.sort((a, b) => b.basePrice - a.basePrice);
-  return result.sort(byNewest);
-}
-
 /**
  * Carga, detalle, escrituras y visibilidad optimista vienen de EntityStore. Aquí solo lo propio de
- * productos: el catálogo público con sus filtros, el estado de venta y las estadísticas del resumen.
+ * productos: el estado de venta, las variantes y las estadísticas del resumen del panel. La tienda pública
+ * tiene su propio store (ShopStore), que pide los productos a `/shop` con los filtros en el servidor.
  */
 @Injectable({ providedIn: 'root' })
 export class ProductsStore extends EntityStore<Product, ProductInput> {
   protected readonly api = inject(ProductsService);
   private readonly variants = inject(VariantsService);
-
-  /**
-   * Catálogo de la tienda: `GET /products`, público. Es una colección aparte de las del panel (`active`,
-   * `inactive`, `trash`), que usan los endpoints de admin: así la tienda funciona sin sesión.
-   */
-  private readonly catalog = new RemoteCollection<Product>(() => this.api.listPublic(), byNewest);
-  readonly products = this.catalog.items;
-  readonly loading = this.catalog.loading;
-  readonly error = this.catalog.error;
-  readonly count = computed(() => this.products().length);
-  readonly hasError = computed(() => this.error() !== null);
-  readonly isEmpty = computed(() => this.catalog.loaded() && this.products().length === 0);
-  readonly availableProducts = computed(() => this.products().filter((p) => p.status === 'disponible'));
 
   // Resumen del panel (colecciones de admin).
   private readonly activeProducts = this.collections.active.items;
@@ -110,27 +69,6 @@ export class ProductsStore extends EntityStore<Product, ProductInput> {
     return product.variants !== undefined;
   }
 
-  /** El catálogo de la tienda (público). */
-  loadAll(options: { force?: boolean } = {}): Promise<void> {
-    return this.catalog.load(options.force);
-  }
-
-  /**
-   * Tras cualquier cambio (crear, editar, visibilidad, borrar, restaurar, estado o variantes), el catálogo se
-   * vuelve a pedir si ya se había cargado: lo que sale en la tienda lo decide la API (solo activos).
-   */
-  protected override afterWrite(): void {
-    this.refreshCatalog();
-  }
-
-  private refreshCatalog(): void {
-    if (this.catalog.loaded()) void this.catalog.load(true);
-  }
-
-  filteredBy(filters: Signal<ProductFilters>, categoryScope?: Signal<ReadonlySet<string> | null>): Signal<Product[]> {
-    return computed(() => applyFilters(this.products(), filters(), categoryScope?.() ?? null));
-  }
-
   // Variantes. Después de cada cambio se vuelve a pedir el producto: su estado y su nº de variantes los
   // calcula la API a partir de ellas.
 
@@ -163,10 +101,7 @@ export class ProductsStore extends EntityStore<Product, ProductInput> {
     this._variantPendingIds.update((ids) => new Set(ids).add(key));
     try {
       await call();
-      const updated = await this.reload(product.slug);
-      // El estado y el precio que enseña la tienda salen de las variantes.
-      this.refreshCatalog();
-      return updated;
+      return await this.reload(product.slug);
     } catch (raw) {
       throw toApiError(raw);
     } finally {
@@ -188,7 +123,6 @@ export class ProductsStore extends EntityStore<Product, ProductInput> {
     try {
       const updated = await this.api.changeStatus(product._id, status);
       this.placeLive(updated);
-      this.refreshCatalog();
       return updated;
     } catch (raw) {
       this.placeLive(product);

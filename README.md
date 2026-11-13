@@ -38,8 +38,9 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 <td width="33%" valign="top">
 
 ### 🛍️ Tienda
-- **Catálogo** con filtros (categoría y sus subcategorías, condición, estado y precio) y orden.
-- **Ficha** con galería, nivel de conservación y **variantes** (talla, capacidad…) con su precio y estado.
+- **Home** con carruseles de categorías, vendedores y ubicaciones que llevan a la tienda ya filtrada.
+- **Shop** con búsqueda, varios filtros a la vez (y varios valores por filtro), orden y paginación **en el servidor**, todo guardado en la URL.
+- **Ficha** (`/shop/:slug`) con galería, nivel de conservación y **variantes** (talla, capacidad…) con su precio y estado.
 - Errores del servidor **junto al campo** que los provoca.
 
 </td>
@@ -178,7 +179,8 @@ Base: `http://localhost:3000/api` · Documentación interactiva en **`/api/docs`
 |---|---|
 | 🔐 **Auth** | 🌐 `POST /auth/login` · 🔑 `GET /auth/me` · 🔑 `POST /auth/logout` |
 | 👤 **Perfil** | 🔑 `GET /profile/me` · 🔑 `PATCH /profile/me` |
-| 📦 **Productos** | 🌐 `GET /products` (solo activos) · 🌐 `/slug/:slug` · 🔑 `POST` · 👤 `PATCH /:id` · `/:id/status` · `/:id/active` · `DELETE /:id` · 🛡️ `/actives` · `/inactives` · `/trash` · `/:id` · `PATCH /:id/restore` |
+| 🛍️ **Tienda** | 🌐 `GET /shop/categories` · `/shop/sellers` · `/shop/locations` · `/shop/products` (filtros, búsqueda, orden y paginación) · `/shop/products/:slug` · `/shop/products/:slug/variants` |
+| 📦 **Productos** | 🌐 `/slug/:slug` · 🔑 `POST` · 👤 `PATCH /:id` · `/:id/status` · `/:id/active` · `DELETE /:id` · 🛡️ `/actives` · `/inactives` · `/trash` · `/:id` · `PATCH /:id/restore` |
 | 🎨 **Variantes** | 🌐 `GET /products/:id/variants` · 👤 `POST /products/:id/variants` · `PATCH` · `DELETE /variants/:id` |
 | 🏷️ **Categorías** | 🌐 `GET /categories` · 🛡️ el resto del CRUD |
 | 🙋 **Usuarios** | 🛡️ CRUD completo · 🛡️ `GET /roles` · 🌐 `GET /sellers` |
@@ -306,6 +308,7 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | ✅ | JWT en la API: login, `/me`, logout, `/profile/me`, roles (RBAC) y propiedad (ABAC) |
 | ✅ | JWT en el front: login, sesión, guards, interceptor, menú de usuario y Mi perfil |
 | ✅ | Sesión en cookie `httpOnly` (`SameSite=Strict`, comprobación de `Origin` y CORS con `credentials`) |
+| ✅ | Home y Shop: módulo `/api/shop`, query dinámica, búsqueda en dos pasos, índices ESR, carruseles, filtros en la URL y peticiones cancelables |
 | 🔜 | Mis anuncios, cambio de contraseña y registro |
 | 🔜 | Carrito, reservas y pagos |
 

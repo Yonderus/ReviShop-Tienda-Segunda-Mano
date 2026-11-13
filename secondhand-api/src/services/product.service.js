@@ -95,11 +95,7 @@ export const productService = {
   /** Para las variantes: un producto (y sus variantes) solo lo modifica su vendedor o un admin. */
   assertCanModify,
 
-  /** Público: solo los activos. Los inactivos solo los ve el panel (`/products/inactives`, admin). */
-  async list(query = {}) {
-    return listWith(query, { isActive: true });
-  },
-
+  // El catálogo público está en shop.service (/api/shop/products). Estas listas son las del panel (admin).
   async listActives(query = {}) {
     return listWith(query, { isActive: true });
   },

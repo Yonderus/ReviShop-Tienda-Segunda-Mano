@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { APP_NAME } from '../../core/config/app.constants';
 
-/** La tienda pública: el Home (portada) y el shop (`/shop`, con los filtros en la URL). */
+/** La tienda pública: el Home (portada), el shop (`/shop`, con los filtros en la URL) y su details. */
 const SHOP_ROUTES: Routes = [
   {
     path: '',
@@ -14,6 +14,11 @@ const SHOP_ROUTES: Routes = [
     pathMatch: 'full',
     title: `Tienda · ${APP_NAME}`,
     loadComponent: () => import('./pages/shop-page/shop-page.component').then((m) => m.ShopPageComponent),
+  },
+  {
+    path: 'shop/:slug',
+    title: `Anuncio · ${APP_NAME}`,
+    loadComponent: () => import('./pages/shop-detail-page/shop-detail-page.component').then((m) => m.ShopDetailPageComponent),
   },
 ];
 

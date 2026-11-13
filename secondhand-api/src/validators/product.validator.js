@@ -41,7 +41,8 @@ export const changeStatusSchema = z.object({
   status: z.enum(SALE_STATUSES, { error: `status debe ser: ${SALE_STATUSES.join(", ")}` }),
 });
 
-export const listQuerySchema = z.object({
+/** Filtros de los listados del panel (activos, inactivos, papelera). Los de la tienda están en shop.validator. */
+export const stateListQuerySchema = z.object({
   category: z.string().trim().optional(),
   seller: z.string().trim().optional(),
   condition: z.enum(PRODUCT_CONDITIONS, { error: `condition debe ser: ${PRODUCT_CONDITIONS.join(", ")}` }).optional(),
@@ -49,6 +50,3 @@ export const listQuerySchema = z.object({
   minPrice: z.coerce.number({ error: "minPrice debe ser un número" }).min(0, "minPrice debe ser positivo").optional(),
   maxPrice: z.coerce.number({ error: "maxPrice debe ser un número" }).min(0, "maxPrice debe ser positivo").optional(),
 });
-
-/** Los listados del panel (activos, inactivos, papelera) aceptan los mismos filtros que el público. */
-export const stateListQuerySchema = listQuerySchema;

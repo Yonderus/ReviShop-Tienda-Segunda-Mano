@@ -213,9 +213,11 @@ sequenceDiagram
 
 | | Método | Ruta | Descripción |
 |:-:|---|---|---|
-| 🌐 | `GET` | `/api/products` | Catálogo: **solo activos**, con categoría, vendedor y portada |
 | 🌐 | `GET` | `/api/products/slug/:slug` | Detalle con imágenes y variantes. Uno **inactivo** solo lo ven su dueño y el admin (al resto, 404) |
 | 🛡️ | `GET` | `/api/products/actives` · `/inactives` · `/trash` · `/:id` | Para el panel |
+
+> El catálogo público ya no está en `/api/products` (que no tiene `GET /`): es [`/api/shop/products`](#️-tienda-home-y-shop), con filtros, búsqueda y paginación en el servidor.
+
 | 🔑 | `POST` | `/api/products` | Crear (el vendedor es el de la sesión; el admin puede indicar otro) |
 | 👤 | `PATCH` | `/api/products/:id` | Edición parcial (solo el admin puede cambiar el vendedor) |
 | 👤 | `PATCH` | `/api/products/:id/status` · `/:id/active` | Estado de venta · visibilidad |

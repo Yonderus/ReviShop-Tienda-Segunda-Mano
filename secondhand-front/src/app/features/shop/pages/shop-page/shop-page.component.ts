@@ -114,7 +114,7 @@ const LIST_KEYS: readonly string[] = ['category', 'seller', 'location', 'conditi
               aria-label="Anuncios"
             >
               @for (product of store.items(); track product._id; let i = $index) {
-                <li><app-product-card [product]="product" [priority]="i < 3" [actions]="false" /></li>
+                <li><app-product-card [product]="product" [priority]="i < 3" detailBase="/shop" [actions]="false" /></li>
               }
             </ul>
             @if (store.pagination(); as page) {
@@ -175,10 +175,13 @@ export class ShopPageComponent implements OnInit, OnDestroy {
   });
 
   constructor() {
-    // Cada vez que cambia la URL: si los filtros son otros (o aún no hay nada cargado), se piden los productos.
+    // Al entrar se piden siempre (lo de antes puede haber cambiado: alguien publicó o editó un anuncio); después,
+    // cada vez que la URL trae otros filtros.
+    let first = true;
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
       const filters = filtersFromParams(paramsOf(params));
-      if (!this.store.loaded() || this.store.error() || !sameFilters(filters, this.store.filters())) void this.store.load(filters);
+      if (first || this.store.error() || !sameFilters(filters, this.store.filters())) void this.store.load(filters);
+      first = false;
     });
   }
 

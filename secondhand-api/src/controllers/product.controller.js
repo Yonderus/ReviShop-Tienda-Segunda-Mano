@@ -1,15 +1,6 @@
 import { productService } from "../services/product.service.js";
 import { sendCreated, sendNoContent, sendSuccess } from "../utils/response.js";
 
-export const getProducts = async (req, res, next) => {
-  try {
-    const products = await productService.list(req.query);
-    sendSuccess(res, products);
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const getActiveProducts = async (req, res, next) => {
   try {
     const products = await productService.listActives(req.query);

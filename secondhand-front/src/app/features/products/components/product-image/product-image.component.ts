@@ -1,5 +1,5 @@
 import { NgOptimizedImage } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, input, signal } from '@angular/core';
 
 const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'para', 'y', 'en', 'a', 'un', 'una']);
 
@@ -16,7 +16,7 @@ const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'para',
         [alt]="alt()"
         fill
         [sizes]="sizes()"
-        [priority]="priority()"
+        [priority]="eager"
         class="object-cover"
         (error)="failedSrc.set(src() ?? null)"
       />
@@ -34,12 +34,19 @@ const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'para',
     }
   `,
 })
-export class ProductImageComponent {
+export class ProductImageComponent implements OnInit {
   readonly src = input<string | undefined>(undefined);
   readonly alt = input.required<string>();
   readonly sizes = input('(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw');
   readonly priority = input(false);
   readonly large = input(false);
+
+  /**
+   * NgOptimizedImage no admite que `priority` cambie después de crearse (NG02953). En las listas paginadas
+   * una tarjeta se reutiliza (`track` por id) y puede pasar de los primeros puestos a otro, así que se
+   * toma el valor de la primera vez.
+   */
+  protected eager = false;
 
   protected readonly failedSrc = signal<string | null>(null);
   protected readonly word = computed(() =>
@@ -49,4 +56,8 @@ export class ProductImageComponent {
       .slice(0, 2)
       .join(' '),
   );
+
+  ngOnInit(): void {
+    this.eager = this.priority();
+  }
 }

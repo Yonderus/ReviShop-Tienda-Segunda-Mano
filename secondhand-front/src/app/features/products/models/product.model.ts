@@ -79,15 +79,3 @@ export interface ProductInput {
 }
 
 export type ProductUpdate = Partial<ProductInput>;
-
-export type ProductSort = 'recent' | 'price-asc' | 'price-desc';
-
-export type ProductFilters = {
-  /** Slug de la categoría (incluye sus subcategorías). */
-  category?: string;
-  condition?: ProductCondition;
-  status?: ProductStatus;
-  minPrice?: number;
-  maxPrice?: number;
-  sort?: ProductSort;
-};

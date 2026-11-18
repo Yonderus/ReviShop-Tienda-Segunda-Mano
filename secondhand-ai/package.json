@@ -16,6 +16,7 @@
     "express-rate-limit": "^8.7.2",
     "helmet": "^8.0.0",
     "morgan": "^1.10.0",
+    "openai": "^7.60.0",
     "zod": "^4.6.5"
   }
 }

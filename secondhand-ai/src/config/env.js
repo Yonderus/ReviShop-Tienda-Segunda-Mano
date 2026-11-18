@@ -20,6 +20,9 @@ const envSchema = z.object({
   OPENROUTER_API_KEY: z.string().trim().optional(),
   XAI_API_KEY: z.string().trim().optional(),
   AI_MODEL: z.string().trim().optional(),
+  // Opcional: otra URL compatible con la API de OpenAI (un proxy, un servidor local de pruebas…).
+  // Sin ella se usa la del proveedor (AI_BASE_URLS en ai.constants).
+  AI_BASE_URL: z.url("AI_BASE_URL debe ser una URL").optional(),
 
   AI_MAX_TOKENS: positiveInt(600),
   AI_TIMEOUT_MS: positiveInt(25_000),

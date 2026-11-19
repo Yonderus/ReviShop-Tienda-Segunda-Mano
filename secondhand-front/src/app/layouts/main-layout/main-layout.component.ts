@@ -3,11 +3,12 @@ import { RouterLink, RouterOutlet } from '@angular/router';
 import { APP_NAME } from '../../core/config/app.constants';
 import { LoaderComponent } from '../../shared/components/loader/loader.component';
 import { NavbarComponent } from '../../shared/components/navbar/navbar.component';
+import { AssistantWidgetComponent } from '../../features/assistant/components/assistant-widget/assistant-widget.component';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, NavbarComponent, LoaderComponent],
+  imports: [RouterOutlet, RouterLink, NavbarComponent, LoaderComponent, AssistantWidgetComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // Globales a propósito: los pseudo-elementos de View Transitions viven en la raíz del documento.
   encapsulation: ViewEncapsulation.None,
@@ -43,6 +44,9 @@ import { NavbarComponent } from '../../shared/components/navbar/navbar.component
         <a routerLink="/products/new" class="font-medium text-primary-700 hover:underline">Publicar un producto</a>
       </div>
     </footer>
+
+    <!-- Asistente de compra (IA): solo en la tienda, no en el panel admin. -->
+    <app-assistant-widget />
   `,
 })
 export class MainLayoutComponent {

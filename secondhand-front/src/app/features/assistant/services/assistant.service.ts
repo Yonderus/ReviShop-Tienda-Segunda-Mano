@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { environment } from '../../../../environments/environment';
 import { ApiRequestOptions, ApiService } from '../../../core/services/api.service';
-import { ListingDraft, ListingDraftInput } from '../models/assistant.model';
+import { ChatResponse, ChatTurn, ListingDraft, ListingDraftInput } from '../models/assistant.model';
 
 /**
  * Peticiones al servicio de IA (`/api/ai`). Todas:
@@ -19,6 +19,11 @@ const AI_REQUEST: ApiRequestOptions = {
 @Injectable({ providedIn: 'root' })
 export class AssistantService {
   private readonly api = inject(ApiService);
+
+  /** Una vuelta del asistente de compra. `messages`: el historial (ya recortado), el último del usuario. */
+  chat(messages: readonly ChatTurn[], signal?: AbortSignal): Promise<ChatResponse> {
+    return this.api.post<ChatResponse>('/ai/chat', { messages }, { ...AI_REQUEST, signal });
+  }
 
   /** Descripción sugerida y rango de precio. No guarda nada. */
   draftListing(input: ListingDraftInput, signal?: AbortSignal): Promise<ListingDraft> {

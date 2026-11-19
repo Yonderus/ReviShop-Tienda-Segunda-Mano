@@ -10,7 +10,14 @@ import { TimeoutError, catchError, map, throwError, timeout } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Router } from '@angular/router';
 import { AuthStore } from '../auth/auth.store';
-import { INLINE_ERROR_STATUSES, SENT_WITH_SESSION, SKIP_AUTH_REDIRECT, SKIP_ERROR_ALERT } from '../config/api.tokens';
+import { isOwnApiUrl } from '../config/api-urls';
+import {
+  INLINE_ERROR_STATUSES,
+  REQUEST_TIMEOUT_MS,
+  SENT_WITH_SESSION,
+  SKIP_AUTH_REDIRECT,
+  SKIP_ERROR_ALERT,
+} from '../config/api.tokens';
 import { ApiError } from '../models/api-error.model';
 import { failureErrors, isApiFailure, isApiSuccess } from '../models/api-response.model';
 import { AlertService } from '../services/alert.service';
@@ -32,7 +39,7 @@ const MESSAGES = {
   generic: 'No hemos podido completar la operación. Inténtalo de nuevo.',
 } as const;
 
-const isApiRequest = (req: HttpRequest<unknown>) => req.url.startsWith(environment.apiUrl);
+const isApiRequest = (req: HttpRequest<unknown>) => isOwnApiUrl(req.url);
 
 function assertValidEnvelope(req: HttpRequest<unknown>, event: HttpEvent<unknown>): HttpEvent<unknown> {
   if (event instanceof HttpResponse && event.status !== 204 && isApiRequest(req) && !isApiSuccess(event.body)) {
@@ -63,6 +70,9 @@ function fromHttpError(error: HttpErrorResponse): ApiError {
   if (status === 413) return new ApiError('http', failure?.message ?? MESSAGES.tooLarge, status);
   if (status === 415) return new ApiError('http', failure?.message ?? MESSAGES.unsupported, status);
   if (status === 503) return new ApiError('http', failure?.message ?? MESSAGES.unavailable, status);
+  // 502/504 con nuestro formato: los da el servicio de IA cuando el modelo falla o tarda ("El asistente ha
+  // tardado demasiado…"). Su mensaje ya es para el usuario.
+  if ((status === 502 || status === 504) && failure) return new ApiError('http', failure.message, status);
   if (status >= 500) return new ApiError('http', MESSAGES.server, status);
   return new ApiError('http', MESSAGES.generic, status);
 }
@@ -80,7 +90,8 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
 
   return next(req).pipe(
-    timeout(environment.requestTimeoutMs),
+    // Cada petición puede pedir su propio límite (los asistentes de IA tardan más); si no, el general.
+    timeout(req.context.get(REQUEST_TIMEOUT_MS) ?? environment.requestTimeoutMs),
     map((event) => assertValidEnvelope(req, event)),
     catchError((raw: unknown) => {
       const error = normalizeError(raw);

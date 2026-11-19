@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import {
   BLOCKING_REQUEST,
   INLINE_ERROR_STATUSES,
+  REQUEST_TIMEOUT_MS,
   SKIP_AUTH_REDIRECT,
   SKIP_ERROR_ALERT,
   SKIP_GLOBAL_LOADER,
@@ -28,6 +29,10 @@ export interface ApiRequestOptions {
   blocking?: boolean;
   /** Ver SKIP_AUTH_REDIRECT. */
   skipAuthRedirect?: boolean;
+  /** Otra API propia (p. ej. `environment.aiApiUrl`). Por defecto, `environment.apiUrl`. */
+  baseUrl?: string;
+  /** Límite de espera de esta petición (ver REQUEST_TIMEOUT_MS). Por defecto, el general. */
+  timeoutMs?: number;
 }
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
@@ -61,7 +66,7 @@ export class ApiService {
     const { signal } = options;
     if (signal?.aborted) throw abortError();
 
-    const request$ = this.http.request<ApiSuccess<T> | null>(method, `${this.baseUrl}${path}`, {
+    const request$ = this.http.request<ApiSuccess<T> | null>(method, `${options.baseUrl ?? this.baseUrl}${path}`, {
       body,
       params: this.buildParams(options.params),
       context: this.buildContext(options),
@@ -91,6 +96,7 @@ export class ApiService {
       .set(SKIP_GLOBAL_LOADER, options.skipGlobalLoader ?? false)
       .set(INLINE_ERROR_STATUSES, options.inlineErrorStatuses ?? [])
       .set(BLOCKING_REQUEST, options.blocking ?? false)
-      .set(SKIP_AUTH_REDIRECT, options.skipAuthRedirect ?? false);
+      .set(SKIP_AUTH_REDIRECT, options.skipAuthRedirect ?? false)
+      .set(REQUEST_TIMEOUT_MS, options.timeoutMs ?? null);
   }
 }

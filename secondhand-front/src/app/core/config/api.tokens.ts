@@ -23,3 +23,6 @@ export const SENT_WITH_SESSION = new HttpContextToken<boolean>(() => false);
 
 /** Códigos HTTP que el llamador pinta en línea (p. ej. en el formulario) en lugar de en un modal. */
 export const INLINE_ERROR_STATUSES = new HttpContextToken<readonly number[]>(() => []);
+
+/** Límite de espera propio de esta petición, en ms (`null`: el general, `environment.requestTimeoutMs`). */
+export const REQUEST_TIMEOUT_MS = new HttpContextToken<number | null>(() => null);

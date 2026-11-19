@@ -1,7 +1,8 @@
-import { NgClass } from '@angular/common';
+import { DecimalPipe, NgClass } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   OnChanges,
   OnInit,
@@ -12,10 +13,14 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthStore } from '../../../../core/auth/auth.store';
-import { ApiError, ApiFieldError } from '../../../../core/models/api-error.model';
+import { ApiError, ApiFieldError, isAbortError } from '../../../../core/models/api-error.model';
+import { IconComponent } from '../../../../shared/ui/icon.component';
+import { PriceRange } from '../../../assistant/models/assistant.model';
+import { AssistantService } from '../../../assistant/services/assistant.service';
 import { FormFieldErrorComponent } from '../../../../shared/components/form-field-error/form-field-error.component';
 import { SkeletonComponent } from '../../../../shared/components/skeleton/skeleton.component';
 import { ErrorStateComponent } from '../../../../shared/components/error-state/error-state.component';
@@ -57,6 +62,8 @@ type FieldName = (typeof FIELD_ORDER)[number];
     BadgeComponent,
     LevelMeterComponent,
     ProductImagesFieldComponent,
+    IconComponent,
+    DecimalPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './product-form.component.html',
@@ -65,6 +72,8 @@ export class ProductFormComponent implements OnInit, OnChanges {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly auth = inject(AuthStore);
+  private readonly assistant = inject(AssistantService);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly catalog = inject(CatalogStore);
 
   /** Solo el admin elige vendedor (publica o reasigna en nombre de otro); el resto vende a su nombre. */
@@ -121,7 +130,109 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
   protected readonly f = this.form.controls;
 
+  // ── Asistente de anuncio (IA): descripción sugerida y rango de precio. Nada se guarda sin que el vendedor lo
+  // acepte: si la descripción está vacía se rellena; si ya tiene texto, la sugerencia espera a que elija.
+
+  protected readonly drafting = signal(false);
+  protected readonly draftError = signal<string | null>(null);
+  /** Sugerencia pendiente de aceptar (solo cuando ya había una descripción escrita). */
+  protected readonly suggestion = signal<string | null>(null);
+  protected readonly priceHint = signal<{ range: PriceRange; categoryName: string } | null>(null);
+  /** Para avisar a los lectores de pantalla cuando llega la sugerencia. */
+  protected readonly draftStatus = signal('');
+  private draftController: AbortController | null = null;
+  /** Título, categoría y estado con los que se pidió el rango: si cambian, el rango ya no vale. */
+  private draftKey = '';
+
+  private readonly draftKeyOf = () => `${this.f.title.value.trim()}|${this.f.categoryId.value}|${this.f.condition.value}`;
+
+  /** Lo que le falta al formulario para poder sugerir (o null si está todo). */
+  protected draftMissing(): string | null {
+    const missing = [
+      this.f.title.invalid && 'el título',
+      !this.f.categoryId.value && 'la categoría',
+      !this.f.condition.value && 'el estado',
+    ].filter(Boolean);
+    return missing.length ? `Para sugerir una descripción, rellena ${missing.join(', ').replace(/, ([^,]*)$/, ' y $1')}.` : null;
+  }
+
+  protected async suggestDescription(): Promise<void> {
+    const missing = this.draftMissing();
+    if (missing) {
+      this.draftError.set(missing);
+      return;
+    }
+    this.draftController?.abort();
+    const controller = new AbortController();
+    this.draftController = controller;
+    this.drafting.set(true);
+    this.draftError.set(null);
+    this.draftStatus.set('Preparando una sugerencia…');
+
+    try {
+      const draft = await this.assistant.draftListing(
+        {
+          title: this.f.title.value.trim(),
+          categoryId: this.f.categoryId.value,
+          condition: this.f.condition.value as ProductCondition,
+          ...(this.product() ? { excludeSlug: this.product()!.slug } : {}),
+        },
+        controller.signal,
+      );
+      this.draftKey = this.draftKeyOf();
+      this.priceHint.set(draft.priceRange ? { range: draft.priceRange, categoryName: draft.category.name } : null);
+      if (this.f.description.value.trim()) {
+        this.suggestion.set(draft.description);
+        this.draftStatus.set('Sugerencia lista. Elige si sustituye a tu descripción.');
+      } else {
+        this.applyDescription(draft.description);
+        this.draftStatus.set('Descripción sugerida añadida. Revísala antes de publicar.');
+      }
+    } catch (error) {
+      if (isAbortError(error)) return;
+      const apiError = error instanceof ApiError ? error : null;
+      // Sin conexión: el servicio de IA está caído o no se llega a él (un timeout tiene su propio mensaje). El
+      // resto del formulario sigue funcionando, porque publicar va a la API de la tienda.
+      const message =
+        apiError?.kind === 'network'
+          ? 'El asistente no está disponible ahora mismo. Puedes escribir la descripción tú y publicar igualmente.'
+          : (apiError?.errors[0]?.message ?? apiError?.message ?? 'No se ha podido preparar la sugerencia.');
+      this.draftError.set(message);
+      this.draftStatus.set('');
+    } finally {
+      if (this.draftController === controller) {
+        this.drafting.set(false);
+        this.draftController = null;
+      }
+    }
+  }
+
+  protected acceptSuggestion(): void {
+    const text = this.suggestion();
+    if (text) this.applyDescription(text);
+    this.suggestion.set(null);
+    this.focus('pf-description');
+  }
+
+  protected discardSuggestion(): void {
+    this.suggestion.set(null);
+    this.focus('pf-description');
+  }
+
+  private applyDescription(text: string): void {
+    this.f.description.setValue(text);
+    this.f.description.markAsDirty();
+    this.f.description.markAsTouched();
+  }
+
   ngOnInit(): void {
+    // Si cambia el título, la categoría o el estado, el rango de precio que se enseña ya no es de este anuncio.
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (this.priceHint() && this.draftKeyOf() !== this.draftKey) this.priceHint.set(null);
+      if (this.draftError() && !this.draftMissing()) this.draftError.set(null);
+    });
+    this.destroyRef.onDestroy(() => this.draftController?.abort());
+
     void this.catalog.load();
     if (!this.canChooseSeller()) {
       this.f.sellerId.clearValidators();

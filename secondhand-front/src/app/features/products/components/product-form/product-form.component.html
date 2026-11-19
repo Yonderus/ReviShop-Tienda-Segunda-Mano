@@ -51,6 +51,38 @@
           [attr.aria-describedby]="describedBy('description')"
         ></textarea>
         <app-form-field-error errorId="pf-description-error" label="La descripción" [errors]="f.description.errors" [show]="showError('description')" />
+
+        <!-- Asistente de anuncio (IA) -->
+        <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <button
+            type="button"
+            class="btn btn-secondary min-h-9 px-3"
+            [disabled]="drafting()"
+            [attr.aria-busy]="drafting()"
+            aria-describedby="pf-draft-hint"
+            (click)="suggestDescription()"
+          >
+            <app-icon name="sparkles" [size]="16" />
+            {{ drafting() ? 'Preparando…' : 'Sugerir descripción' }}
+          </button>
+          <span id="pf-draft-hint" class="text-xs text-ink-muted">Con el título, la categoría y el estado. La redacta una IA: revísala.</span>
+        </div>
+        <p class="sr-only" aria-live="polite">{{ draftStatus() }}</p>
+        @if (draftError(); as message) {
+          <p class="mt-2 text-sm text-red-700" role="alert">{{ message }}</p>
+        }
+        @if (suggestion(); as text) {
+          <div class="mt-3 rounded-xl border border-primary-200 bg-primary-50 p-4" role="group" aria-labelledby="pf-suggestion-title">
+            <p id="pf-suggestion-title" class="flex items-center gap-1.5 text-sm font-semibold text-ink">
+              <app-icon name="sparkles" [size]="16" /> Descripción sugerida
+            </p>
+            <p class="mt-2 whitespace-pre-line text-sm text-ink">{{ text }}</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button type="button" class="btn btn-primary min-h-9 px-3" (click)="acceptSuggestion()">Sustituir mi descripción</button>
+              <button type="button" class="btn btn-secondary min-h-9 px-3" (click)="discardSuggestion()">Descartar</button>
+            </div>
+          </div>
+        }
       </div>
 
       <div class="grid gap-5 sm:grid-cols-2">
@@ -69,6 +101,18 @@
             [attr.aria-describedby]="describedBy('basePrice')"
           />
           <app-form-field-error errorId="pf-basePrice-error" label="El precio" [errors]="f.basePrice.errors" [show]="showError('basePrice')" />
+          @if (priceHint(); as hint) {
+            <p class="mt-2 text-sm text-ink-muted" data-testid="price-hint">
+              @if (hint.range.basis === 'similar') {
+                Productos parecidos se venden entre
+              } @else {
+                En {{ hint.categoryName }}, la mayoría está entre
+              }
+              <strong class="font-semibold tabular-nums text-ink">{{ hint.range.min | number: '1.0-0' }} €</strong> y
+              <strong class="font-semibold tabular-nums text-ink">{{ hint.range.max | number: '1.0-0' }} €</strong>
+              ({{ hint.range.basedOn }} anuncios).
+            </p>
+          }
         </div>
 
         <div>

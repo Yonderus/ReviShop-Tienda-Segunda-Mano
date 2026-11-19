@@ -8,7 +8,9 @@
  * - "#loop"                              → pide herramientas sin parar (para probar el máximo de vueltas).
  * - "#many"                              → 6 herramientas en la misma vuelta (para probar el máximo por vuelta).
  * - cualquier otra cosa                  → "Eco: …".
+ * Con las instrucciones del asistente de anuncio, redacta una descripción con los datos (ver listingDraft).
  */
+import { LISTING_ASSISTANT_PROMPT } from "../prompts/listing.prompt.js";
 
 let counter = 0;
 const toolCall = (name, args) => ({
@@ -36,9 +38,25 @@ function summarize(toolMessage) {
   return "Hecho.";
 }
 
+/**
+ * Asistente de anuncio: una descripción con los datos recibidos. Para probar la limpieza, si el título lleva
+ * "#sucio" devuelve formato, enlace, correo y teléfono; "#largo", un texto enorme; "#corto", casi nada.
+ */
+function listingDraft(userMessage) {
+  const field = (name) => new RegExp(`^${name}: (.*)$`, "m").exec(userMessage)?.[1] ?? "";
+  const title = field("Título");
+  if (title.includes("#sucio")) {
+    return '"**Vendo** esto. Escríbeme a vendedor@correo.es o al 612 345 678.\n- Más fotos en https://ejemplo.com/fotos"';
+  }
+  if (title.includes("#largo")) return "Está como nuevo y funciona perfectamente. ".repeat(40);
+  if (title.includes("#corto")) return "Ok";
+  return `Vendo ${title} (${field("Categoría")}) en estado "${field("Estado").toLowerCase()}". Lo vendo porque ya no lo uso. Si tienes dudas o quieres más fotos, pregúntame.`;
+}
+
 /** @param {{ messages: { role: string, content: string }[] }} input */
 export async function complete({ messages }) {
   const lastUser = messages.findLast((message) => message.role === "user")?.content ?? "";
+  if (messages[0]?.content === LISTING_ASSISTANT_PROMPT) return reply(listingDraft(lastUser));
   const last = messages.at(-1);
 
   if (lastUser.startsWith("#loop")) return reply("", [toolCall("list_categories", {})]);

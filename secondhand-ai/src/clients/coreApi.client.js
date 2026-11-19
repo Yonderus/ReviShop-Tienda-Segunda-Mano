@@ -1,6 +1,6 @@
 import { env } from "../config/env.js";
 import { AI_MESSAGES, SESSION_COOKIE_NAME } from "../constants/ai.constants.js";
-import { ForbiddenError, NotFoundError, ServiceUnavailableError, UnauthorizedError } from "../utils/AppError.js";
+import { ForbiddenError, NotFoundError, ServiceUnavailableError, UnauthorizedError, ValidationError } from "../utils/AppError.js";
 
 /*
  * Cliente de la API de la tienda. Es la ÚNICA fuente de datos de este servicio: no hay base de datos.
@@ -48,6 +48,8 @@ async function get(path, { cookie, query } = {}) {
   if (response.status === 401) throw new UnauthorizedError(message);
   if (response.status === 403) throw new ForbiddenError(message);
   if (response.status === 404) throw new NotFoundError(message);
+  // Parámetros que la API no acepta (p. ej. un filtro mal formado): con el detalle de cada campo.
+  if (response.status === 400 || response.status === 422) throw new ValidationError(message, body?.errors);
   console.warn(`[core-api] GET ${path}: ${response.status}`);
   throw new ServiceUnavailableError(AI_MESSAGES.CORE_UNAVAILABLE);
 }

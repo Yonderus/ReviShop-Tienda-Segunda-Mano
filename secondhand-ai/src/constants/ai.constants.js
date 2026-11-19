@@ -28,6 +28,8 @@ export const AI_MESSAGES = Object.freeze({
   BUSY: "El asistente está saturado ahora mismo. Prueba de nuevo en unos segundos",
   TIMEOUT: "El asistente ha tardado demasiado en responder. Prueba de nuevo",
   FAILED: "El asistente no ha podido responder. Prueba de nuevo",
+  /** Respuesta (no error) cuando el agente agota sus vueltas de herramientas sin llegar a contestar. */
+  INCOMPLETE: "No he podido completar la búsqueda. Prueba a concretar un poco más (categoría, precio o ubicación).",
   CORE_UNAVAILABLE: "La tienda no responde ahora mismo. Inténtalo de nuevo en unos segundos",
   TOO_MANY: "Has hecho muchas preguntas seguidas. Prueba de nuevo dentro de un rato",
   ORIGIN_NOT_ALLOWED: "Origen no permitido",

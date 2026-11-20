@@ -69,32 +69,32 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 
 ## 🚀 Puesta en marcha
 
-> **Requisitos:** Node.js 18+ y MongoDB en local (o una URI de Atlas).
+> **Requisitos:** Node.js ^18.19.1, ^20.11.1 o 22+ (lo pide Angular 18) y MongoDB en local (o una URI de Atlas).
 
 ```bash
-# 1 · Dependencias de todo (raíz, API, IA y front) de una vez
-npm run install:all
-
-# 2 · Configuración (una sola vez)
+# 1 · Configuración (una sola vez)
 cp secondhand-api/.env.example secondhand-api/.env   # MONGODB_URI, JWT_SECRET y SEED_DEFAULT_PASSWORD
 cp secondhand-ai/.env.example secondhand-ai/.env     # AI_PROVIDER, la key y AI_MODEL (o AI_PROVIDER=fake)
-npm run seed            # ⚠️ vacía la base y carga los datos de prueba
+npm run seed            # ⚠️ pide confirmación: vacía la base y carga los datos de prueba
 
-# 3 · Todo a la vez, en una sola terminal
+# 2 · Todo a la vez, en una sola terminal (instala lo que falte la primera vez)
 npm run dev             # API :3000 · IA :3001 · front :4200
 ```
 
-`npm run dev` (desde la raíz) arranca los tres con [concurrently](https://www.npmjs.com/package/concurrently): cada línea lleva delante de quién es (`[api]`, `[ia]`, `[front]`) y **Ctrl+C los para todos**. Si uno falla, los demás siguen (la tienda funciona aunque la IA esté caída).
+Los comandos de la raíz son scripts propios (`scripts/*.mjs`) que **solo usan Node**: no hay que instalar nada en la raíz.
 
-| Script (en la raíz) | Qué arranca |
+| Comando (en la raíz) | Qué hace |
 |---|---|
-| `npm run dev` | API, IA y front |
-| `npm run dev:back` | API e IA (sin el front) |
-| `npm run dev:api` · `dev:ai` · `dev:front` | Solo uno |
-| `npm run seed` | El seed de la API |
+| `npm run dev` | **Comprueba** Node, MongoDB, los `.env` y que los puertos estén libres (si algo impide arrancar, no arranca nada y dice cómo arreglarlo), instala las dependencias que falten y arranca **API, IA y front** con su prefijo (`[api]`, `[ia]`, `[front]`) y los errores en rojo. Cuando todos responden, muestra el resumen **«En marcha»** con las direcciones. **Ctrl+C lo para todo** |
+| `npm run dev -- api ia` | Solo los que digas (`api`, `ia` o `ai`, `front`) |
+| `npm run seed` | El seed de la API, **después de confirmarlo** (`npm run seed -- --yes` sin preguntar). La URI se enseña sin usuario ni contraseña |
+| `npm run check` | Antes de un commit: sintaxis de la API y la IA, que la IA siga **sin acceso a la base de datos** y build de producción del front |
+| `npm run install:all` | Instala las dependencias de los tres (`npm run dev` ya instala las que falten) |
 
 > [!NOTE]
-> Si ya tienes alguno arrancado en otra terminal, páralo antes: la API diría «El puerto 3000 ya está en uso» y `ng serve` se quedaría preguntando si quieres otro puerto.
+> Si un servicio se cae (p. ej. un error al guardar), `npm run dev` lo avisa en rojo con sus últimas líneas y **los demás siguen**: la tienda funciona aunque la IA esté caída. Al guardar el arreglo, `node --watch` lo reinicia solo.
+>
+> Para levantar una **segunda copia** en otros puertos sin parar la primera: `DEV_PORT_API`, `DEV_PORT_IA` y `DEV_PORT_FRONT` (la IA busca la API en su puerto y ambas aceptan al front en el suyo).
 
 | | URL |
 |:-:|---|

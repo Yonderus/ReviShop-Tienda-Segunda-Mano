@@ -1,4 +1,4 @@
-# Dependencias de la raíz (concurrently, para `npm run dev`)
+# Por si alguna vez la raíz tiene dependencias (hoy los scripts de scripts/ solo usan Node)
 node_modules/
 
 # Ignorar todos los archivos con extensión .md

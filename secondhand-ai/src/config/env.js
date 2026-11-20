@@ -15,8 +15,9 @@ const envSchema = z.object({
   // Orígenes del front, separados por comas (CORS y comprobación de Origin). Obligatoria en producción.
   CORS_ORIGIN: z.string().optional(),
 
-  AI_PROVIDER: z.enum(AI_PROVIDERS, { error: `AI_PROVIDER solo admite: ${AI_PROVIDERS.join(", ")}` }).default("openrouter"),
+  AI_PROVIDER: z.enum(AI_PROVIDERS, { error: `AI_PROVIDER solo admite: ${AI_PROVIDERS.join(", ")}` }).default("groq"),
   // Opcionales: sin la del proveedor elegido el servicio arranca igual y el asistente responde 503.
+  GROQ_API_KEY: z.string().trim().optional(),
   OPENROUTER_API_KEY: z.string().trim().optional(),
   XAI_API_KEY: z.string().trim().optional(),
   AI_MODEL: z.string().trim().optional(),
@@ -54,7 +55,7 @@ const corsOrigins = (data.CORS_ORIGIN?.trim() || DEV_CORS_ORIGIN)
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-const API_KEYS = { openrouter: data.OPENROUTER_API_KEY, xai: data.XAI_API_KEY, fake: "fake" };
+const API_KEYS = { groq: data.GROQ_API_KEY, openrouter: data.OPENROUTER_API_KEY, xai: data.XAI_API_KEY, fake: "fake" };
 
 export const env = Object.freeze({
   ...data,

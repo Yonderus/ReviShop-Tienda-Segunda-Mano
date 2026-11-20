@@ -1,8 +1,12 @@
 /** Proveedores del modelo. `fake` responde con guiones fijos: para probar sin gastar ni depender de internet. */
-export const AI_PROVIDERS = Object.freeze(["openrouter", "xai", "fake"]);
+export const AI_PROVIDERS = Object.freeze(["groq", "openrouter", "xai", "fake"]);
 
-/** Los dos proveedores reales hablan la API de OpenAI: solo cambia la URL (y la key). */
+/**
+ * Los proveedores reales hablan la API de OpenAI: solo cambian la URL y la key.
+ * Groq (no confundir con Grok, el modelo de xAI) ejecuta modelos abiertos y tiene plan gratuito.
+ */
 export const AI_BASE_URLS = Object.freeze({
+  groq: "https://api.groq.com/openai/v1",
   openrouter: "https://openrouter.ai/api/v1",
   xai: "https://api.x.ai/v1",
 });

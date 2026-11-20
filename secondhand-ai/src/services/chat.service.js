@@ -32,7 +32,9 @@ export const chatService = {
 
       // Se atienden como mucho MAX_CALLS_PER_STEP llamadas por vuelta; el resto no se ejecuta, pero la API de
       // OpenAI exige una respuesta para cada `tool_call_id`, así que también se le contesta.
-      messages.push({ role: "assistant", content: content || null, tool_calls: toolCalls });
+      // Sin texto, `content` se omite (la API de OpenAI lo permite cuando hay `tool_calls`): no todos los
+      // proveedores compatibles aceptan `content: null`.
+      messages.push({ role: "assistant", ...(content ? { content } : {}), tool_calls: toolCalls });
       for (const [index, call] of toolCalls.entries()) {
         const result =
           index < AGENT_SHOP.MAX_CALLS_PER_STEP

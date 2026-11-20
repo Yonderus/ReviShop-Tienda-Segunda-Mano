@@ -1,7 +1,6 @@
 import "./config/zod.js";
 import express from "express";
 import cookieParser from "cookie-parser";
-import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env.js";
@@ -17,14 +16,13 @@ import { errorHandler } from "./utils/errorHandler.js";
  */
 const app = express();
 
-// Delante irá el API Gateway (en la misma máquina): con esto, `req.ip` y `req.protocol` salen de
+// Delante está el API Gateway (en la misma máquina): con esto, `req.ip` y `req.protocol` salen de
 // X-Forwarded-For / X-Forwarded-Proto, pero solo si quien los pone es un proxy local.
 app.set("trust proxy", "loopback");
 
 app.use(helmet());
-// Temporal, hasta que exista el gateway: el front llama directamente a este servicio. Cuando el gateway se
-// ocupe de CORS, esto se quita (si lo pusieran los dos, la cabecera saldría duplicada y el navegador la rechaza).
-app.use(cors({ origin: [...env.corsOrigins], credentials: true }));
+// CORS lo pone el gateway (si también lo pusiera este servicio, la cabecera saldría dos veces y el navegador
+// rechazaría la respuesta). La comprobación de Origin (checkOrigin) sigue aquí.
 // Un historial de 20 mensajes de 1000 caracteres cabe de sobra en 32 kB.
 app.use(express.json({ limit: "32kb" }));
 app.use(cookieParser());

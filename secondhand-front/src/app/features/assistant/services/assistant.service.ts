@@ -5,12 +5,11 @@ import { ChatResponse, ChatTurn, ListingDraft, ListingDraftInput } from '../mode
 
 /**
  * Peticiones al servicio de IA (`/api/ai`). Todas:
- * - van a `environment.aiApiUrl` (hasta el gateway, otro puerto; después, el mismo origen);
+ * - van a la misma API que el resto: el gateway las manda al servicio de IA por la ruta;
  * - esperan más que el resto (`aiRequestTimeoutMs`): el modelo puede tardar varios segundos;
  * - pintan su error donde se pidieron (sin modal ni loader global).
  */
 const AI_REQUEST: ApiRequestOptions = {
-  baseUrl: environment.aiApiUrl,
   timeoutMs: environment.aiRequestTimeoutMs,
   skipErrorAlert: true,
   skipGlobalLoader: true,

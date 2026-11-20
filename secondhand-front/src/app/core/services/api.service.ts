@@ -29,8 +29,6 @@ export interface ApiRequestOptions {
   blocking?: boolean;
   /** Ver SKIP_AUTH_REDIRECT. */
   skipAuthRedirect?: boolean;
-  /** Otra API propia (p. ej. `environment.aiApiUrl`). Por defecto, `environment.apiUrl`. */
-  baseUrl?: string;
   /** Límite de espera de esta petición (ver REQUEST_TIMEOUT_MS). Por defecto, el general. */
   timeoutMs?: number;
 }
@@ -66,7 +64,7 @@ export class ApiService {
     const { signal } = options;
     if (signal?.aborted) throw abortError();
 
-    const request$ = this.http.request<ApiSuccess<T> | null>(method, `${options.baseUrl ?? this.baseUrl}${path}`, {
+    const request$ = this.http.request<ApiSuccess<T> | null>(method, `${this.baseUrl}${path}`, {
       body,
       params: this.buildParams(options.params),
       context: this.buildContext(options),

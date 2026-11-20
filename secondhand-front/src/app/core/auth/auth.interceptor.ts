@@ -6,8 +6,8 @@ import { AuthStore } from './auth.store';
 
 /**
  * Pizarra ③, con cookie: el token va en la cookie `httpOnly` de la API y el navegador la envía solo, pero en
- * peticiones a otro origen (en desarrollo, `localhost:4200` → `localhost:3000` o `:3001`) únicamente con
- * `withCredentials`. Se pone **solo** hacia nuestras APIs (también en las públicas: así el dueño puede abrir su
+ * peticiones a otro origen (en desarrollo, `localhost:4200` → el gateway en `localhost:4000`) únicamente con
+ * `withCredentials`. Se pone **solo** hacia nuestra API (también en las públicas: así el dueño puede abrir su
  * anuncio inactivo), nunca hacia otros dominios. Además marca si la petición sale con la sesión abierta
  * (`SENT_WITH_SESSION`), para que el errorInterceptor sepa qué significa un 401.
  */

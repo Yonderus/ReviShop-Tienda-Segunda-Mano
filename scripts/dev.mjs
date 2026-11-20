@@ -1,7 +1,7 @@
-// npm run dev: la API, el servicio de IA y el front en una sola terminal.
+// npm run dev: la API, el servicio de IA, el API Gateway y el front en una sola terminal.
 //
 //   npm run dev               todos
-//   npm run dev -- api ia     solo esos (también vale "ai")
+//   npm run dev -- api ia     solo esos (también valen "ai" y "gw")
 //
 // Antes de arrancar comprueba lo que suele fallar (Node, MongoDB, los .env, las dependencias y los puertos) y
 // dice cómo arreglarlo; si algo impide arrancar, no arranca nada. Cada línea lleva el nombre de quien la
@@ -21,6 +21,7 @@ import {
   looksLikeError,
   mongoUp,
   mongoUri,
+  NODE_REQUIREMENT,
   nodeIsSupported,
   ok,
   portInUse,
@@ -39,7 +40,7 @@ const TAIL_LINES = 15;
 
 const selected = selectServices(process.argv.slice(2));
 const has = (svc) => selected.includes(svc);
-const { api, ia, front } = SERVICES;
+const { api, ia, gateway, front } = SERVICES;
 
 // ── Comprobaciones ──
 
@@ -47,7 +48,7 @@ title("Comprobando…");
 const problems = [];
 
 if (nodeIsSupported()) ok(`Node ${process.versions.node}`);
-else problems.push(`Node ${process.versions.node} es antiguo: Angular 18 pide ^18.19.1, ^20.11.1 o 22 o más. Instala la LTS de https://nodejs.org`);
+else problems.push(`Node ${process.versions.node} es antiguo: el proyecto pide Node ${NODE_REQUIREMENT}. Instala la LTS de https://nodejs.org`);
 
 if (has(api)) {
   const env = readEnvFile(path.join(dirOf(api), ".env"));
@@ -84,7 +85,11 @@ if (has(ia)) {
   if (!has(api)) warn(`La IA pide la sesión y los productos a la API (puerto ${api.port}): si no está arrancada, responderá 503.`);
 }
 
-if (has(front) && !has(api)) warn(`El front llama a la API en el puerto ${api.port}: si no está arrancada, la tienda no cargará datos.`);
+if (has(gateway) && !(has(api) && has(ia))) {
+  const missing = [api, ia].filter((svc) => !has(svc)).map((svc) => `${svc.name} (${svc.port})`);
+  warn(`El gateway reparte a ${missing.join(" y ")}, que no se va a arrancar: esas rutas responderán 502.`);
+}
+if (has(front) && !has(gateway)) warn(`El front solo habla con el gateway (puerto ${gateway.port}): si no está arrancado, la tienda no cargará datos.`);
 
 for (const svc of selected) {
   if (await portInUse(svc.port)) {
@@ -150,17 +155,19 @@ process.on("SIGINT", stopAll);
 process.on("SIGTERM", stopAll);
 
 /*
- * Cada servicio con su puerto: un PORT que venga del entorno no puede mandar la API y la IA al mismo sitio.
- * Si se han movido de puerto (DEV_PORT_*), la IA busca la API en el suyo y ambas aceptan al front en el suyo.
+ * Cada servicio con su puerto: un PORT que venga del entorno no puede mandar a dos al mismo sitio.
+ * Si se han movido de puerto (DEV_PORT_*), cada uno busca a los demás en el suyo: la IA a la API, el gateway a la
+ * API y a la IA, y todos aceptan al front en el suyo.
  */
-const movedApi = Boolean(process.env.DEV_PORT_API);
-const movedFront = Boolean(process.env.DEV_PORT_FRONT);
+const moved = (name) => Boolean(process.env[`DEV_PORT_${name.toUpperCase()}`]);
 const envFor = (svc) => {
   if (svc === front) return {};
   return {
     PORT: String(svc.port),
-    ...(svc === ia && movedApi ? { CORE_API_URL: `http://localhost:${api.port}/api` } : {}),
-    ...(movedFront ? { CORS_ORIGIN: `http://localhost:${front.port}` } : {}),
+    ...(svc === ia && moved("api") ? { CORE_API_URL: `http://localhost:${api.port}/api` } : {}),
+    ...(svc === gateway && moved("api") ? { API_URL: `http://localhost:${api.port}` } : {}),
+    ...(svc === gateway && moved("ia") ? { AI_URL: `http://localhost:${ia.port}` } : {}),
+    ...(moved("front") ? { CORS_ORIGIN: `http://localhost:${front.port}` } : {}),
   };
 };
 
@@ -200,10 +207,12 @@ async function waitReady(svc) {
 const results = await Promise.all(selected.map(async (svc) => [svc, await waitReady(svc)]));
 if (!stopping) {
   console.log(`\n${green(bold("━━ En marcha ━━"))}`);
+  // Las direcciones alineadas en columna: el ancho sale de la etiqueta más larga (+1 espacio).
+  const labelWidth = Math.max(...results.flatMap(([svc]) => svc.links.map(([label]) => label.length))) + 1;
   for (const [svc, ready] of results) {
     for (const [label, url, note] of svc.links) {
-      if (ready) console.log(`   ${green("●")} ${bold(label.padEnd(7))}${url}   ${dim(note)}`);
-      else console.log(`   ${red("●")} ${bold(label.padEnd(7))}${red("no responde: mira sus líneas en rojo")}`);
+      if (ready) console.log(`   ${green("●")} ${bold(label.padEnd(labelWidth))}${url}   ${dim(note)}`);
+      else console.log(`   ${red("●")} ${bold(label.padEnd(labelWidth))}${red("no responde: mira sus líneas en rojo")}`);
     }
   }
   console.log(dim("   Ctrl+C para todo."));

@@ -8,8 +8,9 @@ import { TooManyRequestsError } from "../utils/AppError.js";
  * siempre y las cabeceras `RateLimit` / `Retry-After` (cuánto falta).
  *
  * Los contadores viven en memoria: se reinician al reiniciar la API y no se comparten entre varias instancias
- * (para eso haría falta un store compartido, p. ej. Redis). En producción detrás de un proxy hay que poner
- * `app.set("trust proxy", 1)` para que `req.ip` sea la IP real del cliente.
+ * (para eso haría falta un store compartido, p. ej. Redis). `req.ip` es la IP real del cliente aunque llegue por
+ * el API Gateway: server.js confía en el X-Forwarded-For de los proxies locales (`trust proxy: "loopback"`) y el
+ * gateway pone ahí la IP de quien se le conecta, sin fiarse de la que diga el cliente.
  */
 
 // `ipKeyGenerator` agrupa las IPv6 de una misma red: cambiar de dirección dentro de ella no esquiva el límite.

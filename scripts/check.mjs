@@ -1,5 +1,5 @@
 // npm run check: lo de antes de un commit. No arranca nada ni toca la base de datos.
-//   1. La API y la IA no tienen errores de sintaxis (node --check en cada archivo de src/).
+//   1. La API, la IA y el gateway no tienen errores de sintaxis (node --check en cada archivo de src/).
 //   2. La IA sigue sin acceso a la base de datos (ni mongoose/mongodb en sus dependencias, ni imports de la API).
 //   3. El front compila como en producción (npm run build).
 // Termina con código 1 si algo falla, y dice qué.
@@ -8,9 +8,9 @@ import path from "node:path";
 import { SERVICES, bold, dim, dirOf, fail, finished, green, installMissing, looksLikeError, ok, red, run, title } from "./lib.mjs";
 
 let broken = false;
-const { api, ia, front } = SERVICES;
+const { api, ia, gateway, front } = SERVICES;
 
-if (!(await installMissing([api, ia, front]))) process.exit(1);
+if (!(await installMissing([api, ia, gateway, front]))) process.exit(1);
 
 /** Todos los .js de una carpeta, recursivamente. */
 function jsFiles(dir) {
@@ -21,8 +21,8 @@ function jsFiles(dir) {
   });
 }
 
-// 1 · Sintaxis de la API y la IA
-for (const svc of [api, ia]) {
+// 1 · Sintaxis de la API, la IA y el gateway
+for (const svc of [api, ia, gateway]) {
   title(`Sintaxis de ${svc.name} ${dim("(node --check)")}`);
   const files = jsFiles(path.join(dirOf(svc), "src"));
   const errors = [];

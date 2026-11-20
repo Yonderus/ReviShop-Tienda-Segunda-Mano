@@ -6,8 +6,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
   MONGODB_URI: z.string().min(1, "MONGODB_URI es obligatoria"),
-  // Orígenes del front, separados por comas. La sesión va en una cookie, así que CORS nunca puede estar abierto:
-  // en desarrollo, por defecto el front de `ng serve`; en producción es obligatoria (se comprueba abajo).
+  // Orígenes del front, separados por comas: los únicos desde los que se aceptan escrituras (checkOrigin). CORS lo
+  // pone el gateway. En desarrollo, por defecto el front de `ng serve`; en producción es obligatoria (abajo).
   CORS_ORIGIN: z.string().optional(),
   // Firma de los JWT: quien la conozca puede fabricar tokens válidos. Larga, aleatoria y fuera del repositorio.
   JWT_SECRET: z
@@ -48,6 +48,6 @@ const corsOrigins = (parsed.data.CORS_ORIGIN?.trim() || DEV_CORS_ORIGIN)
 export const env = Object.freeze({
   ...parsed.data,
   isProduction: parsed.data.NODE_ENV === "production",
-  /** Orígenes del front permitidos (CORS y comprobación de `Origin`), ya separados. */
+  /** Orígenes del front permitidos (comprobación de `Origin`), ya separados. */
   corsOrigins: Object.freeze(corsOrigins),
 });

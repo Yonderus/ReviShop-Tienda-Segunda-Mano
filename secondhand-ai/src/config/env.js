@@ -12,7 +12,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: positiveInt(3001),
   CORE_API_URL: z.url("CORE_API_URL debe ser una URL (p. ej. http://localhost:3000/api)").default("http://localhost:3000/api"),
-  // Orígenes del front, separados por comas (CORS y comprobación de Origin). Obligatoria en producción.
+  // Orígenes del front, separados por comas, para la comprobación de Origin (CORS lo pone el gateway).
+  // Obligatoria en producción.
   CORS_ORIGIN: z.string().optional(),
 
   AI_PROVIDER: z.enum(AI_PROVIDERS, { error: `AI_PROVIDER solo admite: ${AI_PROVIDERS.join(", ")}` }).default("groq"),

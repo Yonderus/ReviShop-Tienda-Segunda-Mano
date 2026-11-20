@@ -70,8 +70,8 @@ function fromHttpError(error: HttpErrorResponse): ApiError {
   if (status === 413) return new ApiError('http', failure?.message ?? MESSAGES.tooLarge, status);
   if (status === 415) return new ApiError('http', failure?.message ?? MESSAGES.unsupported, status);
   if (status === 503) return new ApiError('http', failure?.message ?? MESSAGES.unavailable, status);
-  // 502/504 con nuestro formato: los da el servicio de IA cuando el modelo falla o tarda ("El asistente ha
-  // tardado demasiado…"). Su mensaje ya es para el usuario.
+  // 502/504 con nuestro formato: los dan el gateway cuando un servicio está caído o no responde ("La tienda no
+  // responde…") y el servicio de IA cuando el modelo falla o tarda. Su mensaje ya es para el usuario.
   if ((status === 502 || status === 504) && failure) return new ApiError('http', failure.message, status);
   if (status >= 500) return new ApiError('http', MESSAGES.server, status);
   return new ApiError('http', MESSAGES.generic, status);

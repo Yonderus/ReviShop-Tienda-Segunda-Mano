@@ -51,6 +51,15 @@ export const SERVICES = {
     color: 35,
     links: (base) => [["IA", `${base}/api/ai/health`, "Asistente de compra y de anuncio (sin base de datos)"]],
   }),
+  gateway: service({
+    name: "gateway",
+    dir: "secondhand-gateway",
+    command: "npm run dev",
+    port: 4000,
+    readyPath: "/health",
+    color: 34,
+    links: (base) => [["Gateway", `${base}/api`, "Lo que usa el front: /api/ai → IA y el resto de /api → API"]],
+  }),
   front: service({
     name: "front",
     dir: "secondhand-front",
@@ -66,8 +75,8 @@ export const SERVICES = {
   }),
 };
 
-/** `npm run dev -- ai` también vale para la IA. */
-export const ALIASES = { ai: "ia", web: "front" };
+/** `npm run dev -- ai` también vale para la IA, y `gw` para el gateway. */
+export const ALIASES = { ai: "ia", web: "front", gw: "gateway" };
 
 export const dirOf = (svc) => path.join(ROOT, svc.dir);
 
@@ -203,13 +212,12 @@ export async function mongoUp(uri = mongoUri()) {
   return portInUse(Number(match[2] ?? 27017), host);
 }
 
-/** ¿Cumple Node lo que pide Angular 18 (^18.19.1 || ^20.11.1 || >=22)? */
+/** Lo que pide el proyecto: Angular 18 admite 18.19+, 20.11+ y 22+, pero el gateway (http-proxy-middleware 4) pide 22.15+ o 24+. */
+export const NODE_REQUIREMENT = "22.15 o más (o 24+)";
+
 export function nodeIsSupported(version = process.versions.node) {
-  const [major, minor, patch] = version.split(".").map(Number);
-  if (major >= 22) return true;
-  if (major === 20) return minor > 11 || (minor === 11 && patch >= 1);
-  if (major === 18) return minor > 19 || (minor === 19 && patch >= 1);
-  return false;
+  const [major, minor] = version.split(".").map(Number);
+  return major >= 24 || (major === 22 && minor >= 15);
 }
 
 export const hasModules = (svc) => existsSync(path.join(dirOf(svc), "node_modules"));

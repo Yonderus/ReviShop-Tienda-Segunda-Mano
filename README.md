@@ -69,7 +69,7 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 
 ## 🚀 Puesta en marcha
 
-> **Requisitos:** Node.js ^18.19.1, ^20.11.1 o 22+ (lo pide Angular 18) y MongoDB en local (o una URI de Atlas).
+> **Requisitos:** Node.js 22.15+ o 24+ (lo pide el gateway, `http-proxy-middleware` 4) y MongoDB en local (o una URI de Atlas).
 
 ```bash
 # 1 · Configuración (una sola vez)
@@ -78,29 +78,30 @@ cp secondhand-ai/.env.example secondhand-ai/.env     # AI_PROVIDER, la key y AI_
 npm run seed            # ⚠️ pide confirmación: vacía la base y carga los datos de prueba
 
 # 2 · Todo a la vez, en una sola terminal (instala lo que falte la primera vez)
-npm run dev             # API :3000 · IA :3001 · front :4200
+npm run dev             # API :3000 · IA :3001 · gateway :4000 · front :4200
 ```
 
 Los comandos de la raíz son scripts propios (`scripts/*.mjs`) que **solo usan Node**: no hay que instalar nada en la raíz.
 
 | Comando (en la raíz) | Qué hace |
 |---|---|
-| `npm run dev` | **Comprueba** Node, MongoDB, los `.env` y que los puertos estén libres (si algo impide arrancar, no arranca nada y dice cómo arreglarlo), instala las dependencias que falten y arranca **API, IA y front** con su prefijo (`[api]`, `[ia]`, `[front]`) y los errores en rojo. Cuando todos responden, muestra el resumen **«En marcha»** con las direcciones. **Ctrl+C lo para todo** |
-| `npm run dev -- api ia` | Solo los que digas (`api`, `ia` o `ai`, `front`) |
+| `npm run dev` | **Comprueba** Node, MongoDB, los `.env` y que los puertos estén libres (si algo impide arrancar, no arranca nada y dice cómo arreglarlo), instala las dependencias que falten y arranca **API, IA, gateway y front** con su prefijo (`[api]`, `[ia]`, `[gateway]`, `[front]`) y los errores en rojo. Cuando todos responden, muestra el resumen **«En marcha»** con las direcciones. **Ctrl+C lo para todo** |
+| `npm run dev -- api ia` | Solo los que digas (`api`, `ia` o `ai`, `gateway` o `gw`, `front`) |
 | `npm run seed` | El seed de la API, **después de confirmarlo** (`npm run seed -- --yes` sin preguntar). La URI se enseña sin usuario ni contraseña |
-| `npm run check` | Antes de un commit: sintaxis de la API y la IA, que la IA siga **sin acceso a la base de datos** y build de producción del front |
-| `npm run install:all` | Instala las dependencias de los tres (`npm run dev` ya instala las que falten) |
+| `npm run check` | Antes de un commit: sintaxis de la API, la IA y el gateway, que la IA siga **sin acceso a la base de datos** y build de producción del front |
+| `npm run install:all` | Instala las dependencias de los cuatro (`npm run dev` ya instala las que falten) |
 
 > [!NOTE]
 > Si un servicio se cae (p. ej. un error al guardar), `npm run dev` lo avisa en rojo con sus últimas líneas y **los demás siguen**: la tienda funciona aunque la IA esté caída. Al guardar el arreglo, `node --watch` lo reinicia solo.
 >
-> Para levantar una **segunda copia** en otros puertos sin parar la primera: `DEV_PORT_API`, `DEV_PORT_IA` y `DEV_PORT_FRONT` (la IA busca la API en su puerto y ambas aceptan al front en el suyo).
+> Para levantar una **segunda copia** en otros puertos sin parar la primera: `DEV_PORT_API`, `DEV_PORT_IA`, `DEV_PORT_GATEWAY` y `DEV_PORT_FRONT` (cada uno busca a los demás en su puerto y todos aceptan al front en el suyo).
 
 | | URL |
 |:-:|---|
 | 🛍️ | **Tienda** · http://localhost:4200 |
 | 🛡️ | **Panel** · http://localhost:4200/admin |
-| 📖 | **Swagger** · http://localhost:3000/api/docs |
+| 🚪 | **API Gateway** (lo único que usa el front) · http://localhost:4000/api |
+| 📖 | **Swagger** · http://localhost:4000/api/docs (por el gateway) o http://localhost:3000/api/docs |
 
 > [!TIP]
 > El entorno se valida con Zod al arrancar: si falta algo obligatorio, la API no arranca y dice qué falta. Todas las variables están explicadas en el [README de la API](secondhand-api/README.md#️-variables-de-entorno).

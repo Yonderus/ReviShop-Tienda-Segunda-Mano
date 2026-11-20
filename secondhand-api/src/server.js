@@ -4,7 +4,6 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import express from "express";
 import cookieParser from "cookie-parser";
-import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
@@ -27,10 +26,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
+// Delante está el API Gateway (secondhand-gateway, en la misma máquina). Con esto, `req.ip` y `req.protocol`
+// salen de X-Forwarded-For / X-Forwarded-Proto, que pone el gateway, pero SOLO si quien los manda es un proxy
+// local. Sin ello, todas las peticiones tendrían la IP del gateway y el límite de intentos de login bloquearía a
+// todo el mundo a la vez.
+app.set("trust proxy", "loopback");
+
 app.use(helmet());
-// La sesión va en una cookie: solo los orígenes del front (CORS_ORIGIN) y con `credentials`, también en
-// desarrollo. Con un origen abierto (`*`), el navegador no enviaría la cookie.
-app.use(cors({ origin: [...env.corsOrigins], credentials: true }));
+// CORS lo pone el gateway: si también lo pusiera la API, la cabecera saldría dos veces y el navegador rechazaría la
+// respuesta. La defensa contra CSRF sigue aquí (cookie SameSite=Strict + checkOrigin, que usa CORS_ORIGIN).
 app.use(express.json());
 app.use(cookieParser());
 

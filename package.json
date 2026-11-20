@@ -1,0 +1,18 @@
+{
+  "name": "revishop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Revishop: API, servicio de IA y front. Desde aquí se arrancan todos a la vez.",
+  "scripts": {
+    "dev": "concurrently --names api,ia,front --prefix-colors blue,magenta,green \"npm:dev:api\" \"npm:dev:ai\" \"npm:dev:front\"",
+    "dev:back": "concurrently --names api,ia --prefix-colors blue,magenta \"npm:dev:api\" \"npm:dev:ai\"",
+    "dev:api": "npm run dev --prefix secondhand-api",
+    "dev:ai": "npm run dev --prefix secondhand-ai",
+    "dev:front": "npm start --prefix secondhand-front",
+    "install:all": "npm install && npm install --prefix secondhand-api && npm install --prefix secondhand-ai && npm install --prefix secondhand-front",
+    "seed": "npm run seed --prefix secondhand-api"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7"
+  }
+}

@@ -1,3 +1,6 @@
+# Dependencias de la raíz (concurrently, para `npm run dev`)
+node_modules/
+
 # Ignorar todos los archivos con extensión .md
 *.md
 

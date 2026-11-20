@@ -72,18 +72,29 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 > **Requisitos:** Node.js 18+ y MongoDB en local (o una URI de Atlas).
 
 ```bash
-# 1 · API
-cd secondhand-api
-npm install
-cp .env.example .env    # rellena MONGODB_URI, JWT_SECRET y SEED_DEFAULT_PASSWORD
-npm run seed            # ⚠️ vacía la base y carga los datos de prueba
-npm run dev             # http://localhost:3000
+# 1 · Dependencias de todo (raíz, API, IA y front) de una vez
+npm run install:all
 
-# 2 · Front (en otra terminal)
-cd secondhand-front
-npm install
-npm start               # http://localhost:4200
+# 2 · Configuración (una sola vez)
+cp secondhand-api/.env.example secondhand-api/.env   # MONGODB_URI, JWT_SECRET y SEED_DEFAULT_PASSWORD
+cp secondhand-ai/.env.example secondhand-ai/.env     # AI_PROVIDER, la key y AI_MODEL (o AI_PROVIDER=fake)
+npm run seed            # ⚠️ vacía la base y carga los datos de prueba
+
+# 3 · Todo a la vez, en una sola terminal
+npm run dev             # API :3000 · IA :3001 · front :4200
 ```
+
+`npm run dev` (desde la raíz) arranca los tres con [concurrently](https://www.npmjs.com/package/concurrently): cada línea lleva delante de quién es (`[api]`, `[ia]`, `[front]`) y **Ctrl+C los para todos**. Si uno falla, los demás siguen (la tienda funciona aunque la IA esté caída).
+
+| Script (en la raíz) | Qué arranca |
+|---|---|
+| `npm run dev` | API, IA y front |
+| `npm run dev:back` | API e IA (sin el front) |
+| `npm run dev:api` · `dev:ai` · `dev:front` | Solo uno |
+| `npm run seed` | El seed de la API |
+
+> [!NOTE]
+> Si ya tienes alguno arrancado en otra terminal, páralo antes: la API diría «El puerto 3000 ya está en uso» y `ng serve` se quedaría preguntando si quieres otro puerto.
 
 | | URL |
 |:-:|---|

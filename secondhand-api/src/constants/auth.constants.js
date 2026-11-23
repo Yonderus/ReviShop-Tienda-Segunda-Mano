@@ -8,6 +8,11 @@ export const AUTH_MESSAGES = Object.freeze({
   FORBIDDEN: "No tienes permiso para esto",
   TOO_MANY_ATTEMPTS: "Demasiados intentos de inicio de sesión. Prueba de nuevo dentro de unos minutos",
   ORIGIN_NOT_ALLOWED: "Origen no permitido",
+  // Refresh token
+  REFRESH_MISSING: "Necesitas iniciar sesión",
+  REFRESH_INVALID: "Tu sesión ha caducado. Vuelve a iniciar sesión",
+  REFRESH_REUSED: "Tu sesión se ha cerrado por seguridad. Vuelve a iniciar sesión",
+  REFRESH_RACE: "La sesión ya se ha renovado",
 });
 
 /**
@@ -32,6 +37,30 @@ export const LOGIN_RATE_LIMIT = Object.freeze({
   PER_ACCOUNT: 10,
   PER_IP: 50,
 });
+
+/**
+ * La cookie del refresh token. Las mismas defensas que la del access y, además, `path: "/api/auth"`: el navegador
+ * solo la envía a /api/auth/refresh y /api/auth/logout, nunca al resto de la API (el token más valioso viaja lo
+ * mínimo). `secure` y `maxAge` se ponen en `utils/sessionCookie.js`.
+ */
+export const REFRESH_COOKIE = Object.freeze({
+  NAME: "revishop_refresh",
+  OPTIONS: Object.freeze({ httpOnly: true, sameSite: "strict", path: "/api/auth" }),
+});
+
+/** Por qué se revocó una sesión de refresh (colección `refresh_tokens`). */
+export const REFRESH_REVOKE_REASON = Object.freeze({
+  LOGOUT: "logout",
+  LOGOUT_ALL: "logout_all",
+  /** Se presentó un refresh ya usado fuera del margen: hay dos copias, una puede ser robada. */
+  REUSE: "reuse",
+  PASSWORD_CHANGE: "password_change",
+  /** Un admin suspendió, desactivó o borró la cuenta. */
+  ADMIN: "admin",
+  /** La cuenta ya no puede entrar (detectado al refrescar). */
+  ACCOUNT_DISABLED: "account_disabled",
+});
+export const REFRESH_REVOKE_REASONS = Object.freeze(Object.values(REFRESH_REVOKE_REASON));
 
 /** Por qué se revocó un token (colección `revoked_tokens`). */
 export const REVOKE_REASON = Object.freeze({

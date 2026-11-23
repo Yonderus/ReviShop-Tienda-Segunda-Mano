@@ -12,15 +12,16 @@ import { env } from "../config/env.js";
 const ALGORITHM = "HS256";
 
 /**
- * Token de la sesión: `sub` (id del usuario), `email`, `role` (slug), `jti` (id único del token, para poder
- * revocarlo en el logout) y `exp` (caducidad, a partir de JWT_EXPIRES_IN).
+ * Access token: `sub` (id del usuario), `email`, `role` (slug), `jti` (id único del token, para poder revocarlo en
+ * el logout) y `exp` (caducidad, a partir de JWT_ACCESS_EXPIRES_IN). Es el único JWT: el refresh token es un valor
+ * aleatorio que se guarda (como hash) en la base de datos, ver utils/refreshToken.js.
  */
 export function createToken({ id, email, role }) {
   return jwt.sign({ email, role }, env.JWT_SECRET, {
     algorithm: ALGORITHM,
     subject: String(id),
     jwtid: randomUUID(),
-    expiresIn: env.JWT_EXPIRES_IN,
+    expiresIn: env.accessTokenExpiresIn,
   });
 }
 

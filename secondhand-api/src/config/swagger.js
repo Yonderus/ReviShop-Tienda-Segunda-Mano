@@ -67,8 +67,16 @@ export const swaggerSpec = swaggerJSDoc({
           in: "cookie",
           name: "revishop_session",
           description:
-            "La pone `POST /auth/login` y el navegador la envía sola: no hace falta pulsar **Authorize**. " +
-            "`HttpOnly`, `SameSite=Strict` y `Path=/api`.",
+            "El **access token** (JWT corto). La pone `POST /auth/login` (y la renueva `POST /auth/refresh`) y el " +
+            "navegador la envía sola: no hace falta pulsar **Authorize**. `HttpOnly`, `SameSite=Strict` y `Path=/api`.",
+        },
+        refreshCookie: {
+          type: "apiKey",
+          in: "cookie",
+          name: "revishop_refresh",
+          description:
+            "El **refresh token** (opaco, 7 días, de un solo uso). La pone el login y la cambia cada `POST /auth/refresh`. " +
+            "`HttpOnly`, `SameSite=Strict` y `Path=/api/auth`: el navegador solo la envía a /auth/refresh y /auth/logout.",
         },
       },
       schemas: {
@@ -390,8 +398,17 @@ export const swaggerSpec = swaggerJSDoc({
         },
         LoginResponse: success({
           type: "object",
-          description: "Solo el usuario: el token va en la cookie `revishop_session` (cabecera Set-Cookie).",
-          properties: { user: { $ref: "#/components/schemas/Me" } },
+          description:
+            "El usuario y cuándo caduca el access. Los tokens van en las cookies `revishop_session` y `revishop_refresh` " +
+            "(cabeceras Set-Cookie), nunca aquí.",
+          properties: {
+            user: { $ref: "#/components/schemas/Me" },
+            accessExpiresAt: {
+              type: "string",
+              format: "date-time",
+              description: "Cuándo caduca el access token: el front renueva un poco antes (POST /auth/refresh).",
+            },
+          },
         }),
         MeResponse: success({ $ref: "#/components/schemas/Me" }),
         Pagination: {

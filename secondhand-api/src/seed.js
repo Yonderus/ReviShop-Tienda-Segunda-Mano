@@ -9,6 +9,7 @@ import { Image } from "./models/image.model.js";
 import { Product } from "./models/product.model.js";
 import { ProductVariant } from "./models/productVariant.model.js";
 import { Profile } from "./models/profile.model.js";
+import { RefreshToken } from "./models/refreshToken.model.js";
 import { RevokedToken } from "./models/revokedToken.model.js";
 import { Role } from "./models/role.model.js";
 import { User } from "./models/user.model.js";
@@ -330,7 +331,8 @@ const PRODUCTS = [
   },
 ];
 
-const MODELS = [Role, User, Profile, Category, Product, ProductVariant, Image, RevokedToken];
+// Las sesiones (refresh_tokens) y la blacklist (revoked_tokens) también se vacían: los usuarios se crean de nuevo.
+const MODELS = [Role, User, Profile, Category, Product, ProductVariant, Image, RevokedToken, RefreshToken];
 
 /* ---------- Pasos (en orden de dependencias) ---------- */
 

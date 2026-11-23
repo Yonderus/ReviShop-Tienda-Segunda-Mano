@@ -1,7 +1,9 @@
-import { AUTH_MESSAGES } from "../constants/auth.constants.js";
+import { AUTH_MESSAGES, REFRESH_REVOKE_REASON } from "../constants/auth.constants.js";
 import { ROLE } from "../constants/role.constants.js";
 import { USER_STATUS } from "../constants/user.constants.js";
 import { productRepository } from "../repositories/product.repository.js";
+// El repository y no refreshTokenService: el service ya importa este (assertCanLogIn) y se cerraría un círculo.
+import { refreshTokenRepository } from "../repositories/refreshToken.repository.js";
 import { roleRepository } from "../repositories/role.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/AppError.js";
@@ -29,6 +31,13 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
  * cambia su contraseña: si después recupera el acceso, tiene que volver a iniciar sesión.
  */
 const closeSessions = () => ({ tokensValidAfter: new Date() });
+
+/**
+ * La otra mitad de cerrar sus sesiones: las de refresh. Sin esto, sus access dejarían de valer, pero podría pedir
+ * otros con su refresh. (Si la cuenta ya no puede entrar, el refresh también lo detecta al renovar: esto cierra la
+ * sesión al momento y deja constancia del motivo.)
+ */
+const revokeRefreshSessions = (userId, reason) => refreshTokenRepository.revokeAllForUser(userId, reason);
 
 async function findLiveUser(id) {
   const user = await userRepository.findRawById(id);
@@ -182,6 +191,8 @@ export const userService = {
     if (data.password || suspending) Object.assign(account, closeSessions());
 
     if (Object.keys(account).length) await userRepository.updateById(id, account);
+    if (suspending) await revokeRefreshSessions(id, REFRESH_REVOKE_REASON.ADMIN);
+    else if (data.password) await revokeRefreshSessions(id, REFRESH_REVOKE_REASON.PASSWORD_CHANGE);
     await profileService.updateFor({ _id: current._id, name: account.name ?? current.name }, data, actor?.id ?? null);
     return this.getById(id);
   },
@@ -193,6 +204,7 @@ export const userService = {
     if (!isActive) await assertNotLastAdmin(user, "desactivar");
     // Desactivar cierra sus sesiones: al reactivarlo tendrá que volver a iniciar sesión.
     await userRepository.updateById(id, isActive ? { isActive } : { isActive, ...closeSessions() });
+    if (!isActive) await revokeRefreshSessions(id, REFRESH_REVOKE_REASON.ADMIN);
     await profileService.setActiveFor(id, isActive);
     return this.getById(id);
   },
@@ -212,6 +224,7 @@ export const userService = {
     // fecha, su perfil y su avatar.
     const date = new Date();
     await userRepository.updateById(id, closeSessions());
+    await revokeRefreshSessions(id, REFRESH_REVOKE_REASON.ADMIN);
     await userRepository.softDeleteById(id, date, actor?.id ?? null);
     await profileService.softDeleteFor(id, date, actor?.id ?? null);
   },

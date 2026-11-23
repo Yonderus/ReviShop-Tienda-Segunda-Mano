@@ -1,5 +1,5 @@
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
-import { AUTH_MESSAGES, LOGIN_RATE_LIMIT } from "../constants/auth.constants.js";
+import { AUTH_MESSAGES, LOGIN_RATE_LIMIT, REFRESH_RATE_LIMIT } from "../constants/auth.constants.js";
 import { TooManyRequestsError } from "../utils/AppError.js";
 
 /*
@@ -35,3 +35,17 @@ export const loginRateLimit = [
   loginLimiter(LOGIN_RATE_LIMIT.PER_ACCOUNT, (req) => `${clientIp(req)}|${emailOf(req)}`),
   loginLimiter(LOGIN_RATE_LIMIT.PER_IP, clientIp),
 ];
+
+/**
+ * Límite de renovaciones de sesión (`POST /auth/refresh`) por IP: con el access de 15 minutos, un navegador renueva
+ * unas 4 veces por hora, así que 60 cada 15 minutos solo lo alcanza un bucle o alguien probando tokens. Cuentan
+ * todas (también las correctas).
+ */
+export const refreshRateLimit = rateLimit({
+  windowMs: REFRESH_RATE_LIMIT.WINDOW_MS,
+  limit: REFRESH_RATE_LIMIT.PER_IP,
+  keyGenerator: clientIp,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: (_req, _res, next) => next(new TooManyRequestsError(AUTH_MESSAGES.TOO_MANY_REFRESHES)),
+});

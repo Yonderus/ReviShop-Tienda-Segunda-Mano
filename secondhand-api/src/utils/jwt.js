@@ -17,7 +17,9 @@ const ALGORITHM = "HS256";
  * aleatorio que se guarda (como hash) en la base de datos, ver utils/refreshToken.js.
  */
 export function createToken({ id, email, role }) {
-  return jwt.sign({ email, role }, env.JWT_SECRET, {
+  // `issuedAtMs`: el `iat` estándar va en segundos, y para "cerrar las sesiones abiertas antes de ahora"
+  // (`tokensValidAfter`) un token emitido en el mismo segundo tiene que poder distinguirse.
+  return jwt.sign({ email, role, issuedAtMs: Date.now() }, env.JWT_SECRET, {
     algorithm: ALGORITHM,
     subject: String(id),
     jwtid: randomUUID(),

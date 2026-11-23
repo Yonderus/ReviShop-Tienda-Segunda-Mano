@@ -13,6 +13,7 @@ export const AUTH_MESSAGES = Object.freeze({
   REFRESH_INVALID: "Tu sesión ha caducado. Vuelve a iniciar sesión",
   REFRESH_REUSED: "Tu sesión se ha cerrado por seguridad. Vuelve a iniciar sesión",
   REFRESH_RACE: "La sesión ya se ha renovado",
+  TOO_MANY_REFRESHES: "Demasiadas renovaciones de sesión. Prueba de nuevo dentro de unos minutos",
 });
 
 /**
@@ -61,6 +62,12 @@ export const REFRESH_REVOKE_REASON = Object.freeze({
   ACCOUNT_DISABLED: "account_disabled",
 });
 export const REFRESH_REVOKE_REASONS = Object.freeze(Object.values(REFRESH_REVOKE_REASON));
+
+/** Límite de `POST /auth/refresh` por IP (todas cuentan, también las correctas). */
+export const REFRESH_RATE_LIMIT = Object.freeze({
+  WINDOW_MS: 15 * 60 * 1000,
+  PER_IP: 60,
+});
 
 /** Por qué se revocó un token (colección `revoked_tokens`). */
 export const REVOKE_REASON = Object.freeze({

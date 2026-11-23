@@ -28,6 +28,7 @@ const MESSAGES = {
   invalidResponse: 'Hemos recibido una respuesta inesperada del servidor. Inténtalo de nuevo.',
   validation: 'Algunos datos no son válidos. Revísalos e inténtalo de nuevo.',
   unauthorized: 'Necesitas iniciar sesión.',
+  sessionEnded: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
   forbidden: 'No tienes permiso para esto.',
   tooMany: 'Demasiados intentos. Prueba de nuevo dentro de unos minutos.',
   notFound: 'No hemos encontrado lo que buscabas.',
@@ -100,14 +101,17 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         console.error(`[API] ${req.method} ${req.urlWithParams}`, raw);
       }
 
-      // 401 de una petición que salió con la sesión abierta: la sesión ya no vale (caducada, cerrada, cuenta
-      // desactivada…). Se borra la sesión local y al login (la cookie ya la ha borrado la API). Si fallan varias
-      // a la vez, solo la primera avisa: las demás ya encuentran la sesión borrada. El login, `/auth/me` y el
-      // logout tratan su 401 ellos (SKIP_AUTH_REDIRECT).
+      // 401 de una petición que salió con la sesión abierta. Antes de llegar aquí, el refreshInterceptor ya ha
+      // intentado renovar la sesión y reintentar: si el 401 llega, es que no se podía (refresh caducado, revocado,
+      // cuenta desactivada…). Se borra la sesión local y al login (las cookies ya las ha borrado la API). Si fallan
+      // varias a la vez, solo la primera avisa: las demás ya encuentran la sesión borrada. El login, `/auth/me`, el
+      // refresh y el logout tratan su 401 ellos (SKIP_AUTH_REDIRECT).
       if (error.status === 401 && req.context.get(SENT_WITH_SESSION) && !req.context.get(SKIP_AUTH_REDIRECT)) {
         if (auth.isAuthenticated()) {
           auth.clearSession();
-          void alert.error(error.message);
+          // El mismo mensaje sea cual sea la petición: lo que ha pasado es que la sesión no se ha podido renovar
+          // (el 401 concreto podría ser de la IA, "Inicia sesión para usar el asistente", y despistaría).
+          void alert.error(MESSAGES.sessionEnded);
           void router.navigate(['/login'], { queryParams: { returnUrl: router.url } });
         }
         return throwError(() => error);

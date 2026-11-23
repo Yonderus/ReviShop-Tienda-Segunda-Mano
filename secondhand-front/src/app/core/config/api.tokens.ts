@@ -26,3 +26,9 @@ export const INLINE_ERROR_STATUSES = new HttpContextToken<readonly number[]>(() 
 
 /** Límite de espera propio de esta petición, en ms (`null`: el general, `environment.requestTimeoutMs`). */
 export const REQUEST_TIMEOUT_MS = new HttpContextToken<number | null>(() => null);
+
+/**
+ * Lo pone el interceptor de refresco al reintentar una petición después de renovar la sesión: si el reintento vuelve
+ * a dar 401, no se renueva otra vez (sin bucles) y la sesión se cierra.
+ */
+export const REFRESH_RETRIED = new HttpContextToken<boolean>(() => false);

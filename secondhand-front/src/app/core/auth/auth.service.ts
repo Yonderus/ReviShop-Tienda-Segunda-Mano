@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from '../services/api.service';
-import { AuthUser, LoginInput, LoginResponse } from './auth.models';
+import { AuthUser, LoginInput, LoginResponse, RefreshResponse } from './auth.models';
 
 /** Lo que pinta el formulario de login (credenciales, cuenta bloqueada, demasiados intentos, datos no válidos). */
 export const LOGIN_INLINE_STATUSES: readonly number[] = [401, 403, 422, 429];
@@ -27,10 +27,24 @@ export class AuthService {
   }
 
   /**
-   * Revoca el token en el servidor (blacklist) y borra la cookie, que desde JavaScript no se puede tocar.
-   * Es idempotente; si falla (sin red), da igual: la sesión local se borra igualmente.
+   * Renueva la sesión: el navegador manda la cookie del refresh (solo viaja a /api/auth) y la API pone las dos cookies
+   * nuevas. Sin avisos ni loader: pasa sin que el usuario lo note. Errores: 401 (no se puede renovar) o 409 (otra
+   * pestaña acaba de hacerlo).
+   */
+  refresh(): Promise<RefreshResponse> {
+    return this.api.post<RefreshResponse>('/auth/refresh', null, { skipErrorAlert: true, skipGlobalLoader: true, skipAuthRedirect: true });
+  }
+
+  /**
+   * Revoca la sesión en el servidor (el access a la blacklist y la sesión de refresh entera) y borra las dos cookies,
+   * que desde JavaScript no se pueden tocar. Es idempotente; si falla (sin red), da igual: la sesión local se borra.
    */
   logout(): Promise<void> {
     return this.api.post<void>('/auth/logout', null, { skipErrorAlert: true, skipGlobalLoader: true, skipAuthRedirect: true });
+  }
+
+  /** Cierra la sesión en todos los dispositivos (todas las sesiones de refresh y los access de los demás). */
+  logoutAll(): Promise<void> {
+    return this.api.post<void>('/auth/logout-all', null, { blocking: true, skipAuthRedirect: true });
   }
 }

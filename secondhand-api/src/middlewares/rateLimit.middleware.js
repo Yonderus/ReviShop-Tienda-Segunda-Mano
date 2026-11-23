@@ -37,9 +37,8 @@ export const loginRateLimit = [
 ];
 
 /**
- * Límite de renovaciones de sesión (`POST /auth/refresh`) por IP: con el access de 15 minutos, un navegador renueva
- * unas 4 veces por hora, así que 60 cada 15 minutos solo lo alcanza un bucle o alguien probando tokens. Cuentan
- * todas (también las correctas).
+ * Límite de renovaciones de sesión (`POST /auth/refresh`) por IP (ver REFRESH_RATE_LIMIT): un navegador renueva al
+ * cargar la web y unas 4 veces por hora; el tope solo lo alcanza un bucle o alguien probando tokens.
  */
 export const refreshRateLimit = rateLimit({
   windowMs: REFRESH_RATE_LIMIT.WINDOW_MS,

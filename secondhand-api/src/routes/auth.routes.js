@@ -62,7 +62,7 @@ router.post("/login", loginRateLimit, validate({ body: loginSchema }), login);
  *         llega uno ya usado (fuera del margen), hay dos copias y se revoca toda la sesión. Borra las dos cookies.
  *       - **409**: ese refresh se acaba de renovar hace menos de `REFRESH_REUSE_GRACE_SECONDS` (dos pestañas a la
  *         vez). No borra nada: el navegador ya tiene las cookies nuevas; basta con reintentar la petición.
- *       - **429**: más de 60 renovaciones en 15 minutos desde la misma IP.
+ *       - **429**: más de 300 renovaciones en 15 minutos desde la misma IP.
  *     responses:
  *       200:
  *         description: Sesión renovada

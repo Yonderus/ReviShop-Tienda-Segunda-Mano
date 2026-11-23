@@ -13,17 +13,14 @@ const envSchema = z.object({
   JWT_SECRET: z
     .string({ error: "JWT_SECRET es obligatoria (genera una con: node -e \"console.log(require('crypto').randomBytes(48).toString('hex'))\")" })
     .min(32, "JWT_SECRET debe tener al menos 32 caracteres"),
-  // Duración del access token (formato de jsonwebtoken: 15m, 1h, 7d…). Mientras el front no renueve la sesión solo
-  // (fase R3), si falta se usa la antigua JWT_EXPIRES_IN, así nadie pasa a tener sesiones de 15 minutos sin refresco.
+  // Duración del access token (formato de jsonwebtoken: 15m, 1h, 7d…). Corto a propósito: el front lo renueva solo
+  // con el refresh token, así que si alguien lo roba le dura poco.
   JWT_ACCESS_EXPIRES_IN: z
     .string()
     .regex(/^\d+(ms|s|m|h|d|w|y)$/, "JWT_ACCESS_EXPIRES_IN debe ser un número con unidad: 15m, 1h, 7d…")
-    .optional(),
-  // La duración de antes (un solo token). Queda como respaldo de JWT_ACCESS_EXPIRES_IN.
-  JWT_EXPIRES_IN: z
-    .string()
-    .regex(/^\d+(ms|s|m|h|d|w|y)$/, "JWT_EXPIRES_IN debe ser un número con unidad: 15m, 1h, 7d…")
-    .default("1d"),
+    .default("15m"),
+  // La duración de antes, cuando había un solo token. Ya no se usa (ver el aviso de abajo).
+  JWT_EXPIRES_IN: z.string().optional(),
   // Refresh token: cuántos días vale cada uno, el tope de una sesión desde el login (rotar no lo alarga) y el margen
   // en el que reutilizar uno recién rotado no cuenta como robo (dos pestañas refrescando a la vez).
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number({ error: "REFRESH_TOKEN_TTL_DAYS debe ser un número" }).int().positive().default(7),
@@ -61,6 +58,14 @@ export const env = Object.freeze({
   isProduction: parsed.data.NODE_ENV === "production",
   /** Orígenes del front permitidos (comprobación de `Origin`), ya separados. */
   corsOrigins: Object.freeze(corsOrigins),
-  /** Lo que dura el access token: JWT_ACCESS_EXPIRES_IN o, si falta, la antigua JWT_EXPIRES_IN. */
-  accessTokenExpiresIn: parsed.data.JWT_ACCESS_EXPIRES_IN ?? parsed.data.JWT_EXPIRES_IN,
+  /** Lo que dura el access token. */
+  accessTokenExpiresIn: parsed.data.JWT_ACCESS_EXPIRES_IN,
 });
+
+// Un .env de antes de los dos tokens: se avisa en vez de usarla (un access de 1 día anularía la ventaja del refresh).
+if (parsed.data.JWT_EXPIRES_IN && !process.env.JWT_ACCESS_EXPIRES_IN) {
+  console.warn(
+    `JWT_EXPIRES_IN ya no se usa: el access token dura JWT_ACCESS_EXPIRES_IN (${env.accessTokenExpiresIn}) y el front lo ` +
+      "renueva solo con el refresh token. Quita JWT_EXPIRES_IN del .env (o pon JWT_ACCESS_EXPIRES_IN si quieres otra duración).",
+  );
+}

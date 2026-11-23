@@ -63,10 +63,14 @@ export const REFRESH_REVOKE_REASON = Object.freeze({
 });
 export const REFRESH_REVOKE_REASONS = Object.freeze(Object.values(REFRESH_REVOKE_REASON));
 
-/** Límite de `POST /auth/refresh` por IP (todas cuentan, también las correctas). */
+/**
+ * Límite de `POST /auth/refresh` por IP (todas cuentan, también las correctas). Cada carga de la web renueva la sesión
+ * (así el front sabe cuándo caduca el access) y varios usuarios pueden compartir IP (una clase, una oficina): por eso
+ * es holgado. Solo lo alcanza un bucle o alguien probando tokens.
+ */
 export const REFRESH_RATE_LIMIT = Object.freeze({
   WINDOW_MS: 15 * 60 * 1000,
-  PER_IP: 60,
+  PER_IP: 300,
 });
 
 /** Por qué se revocó un token (colección `revoked_tokens`). */

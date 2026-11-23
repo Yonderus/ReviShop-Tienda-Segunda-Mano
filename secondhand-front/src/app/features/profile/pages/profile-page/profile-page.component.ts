@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { ApiError, ApiFieldError } from '../../../../core/models/api-error.model';
 import { AlertService } from '../../../../core/services/alert.service';
@@ -140,6 +141,29 @@ type FieldName = (typeof FIELD_ORDER)[number];
           </div>
         </form>
       }
+
+      @if (auth.user()) {
+        <!-- Fuera del formulario: no guarda nada del perfil. -->
+        <section class="mt-6 rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6" aria-labelledby="pp-s-security">
+          <h2 id="pp-s-security" class="text-base font-semibold text-ink">Seguridad</h2>
+          <p class="mt-2 text-sm text-ink-muted">
+            Tu sesión se renueva sola mientras usas la tienda. Si has entrado desde un ordenador que no es tuyo o crees
+            que alguien más tiene acceso a tu cuenta, cierra la sesión en todos los dispositivos: tendrás que volver a
+            entrar en todos, también en este.
+          </p>
+          <div class="mt-4">
+            <button
+              type="button"
+              class="btn btn-secondary w-full text-red-700 hover:border-red-200 hover:bg-red-50 sm:w-auto"
+              [disabled]="closingAll()"
+              [attr.aria-busy]="closingAll()"
+              (click)="logoutEverywhere()"
+            >
+              {{ closingAll() ? 'Cerrando sesiones…' : 'Cerrar sesión en todos los dispositivos' }}
+            </button>
+          </div>
+        </section>
+      }
     </div>
   `,
 })
@@ -149,7 +173,9 @@ export class ProfilePageComponent implements OnInit {
   private readonly alert = inject(AlertService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly router = inject(Router);
 
+  protected readonly closingAll = signal(false);
   protected readonly profile = signal<Profile | null>(null);
   protected readonly loadError = signal<ApiError | null>(null);
   protected readonly saving = signal(false);
@@ -182,6 +208,33 @@ export class ProfilePageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+  }
+
+  /**
+   * Cierra todas las sesiones de la cuenta (la API revoca todos los refresh y deja sin valor los access de los demás
+   * dispositivos al momento). Esta pestaña va al login; las otras de este navegador se enteran por el AuthChannel, y
+   * los demás dispositivos, en su siguiente petición. Si la API falla, el aviso lo da el errorInterceptor y la sesión
+   * sigue abierta.
+   */
+  protected async logoutEverywhere(): Promise<void> {
+    const confirmed = await this.alert.confirm({
+      title: '¿Cerrar sesión en todos los dispositivos?',
+      text: 'Se cerrarán todas tus sesiones abiertas, también esta. Tendrás que volver a iniciar sesión en cada dispositivo.',
+      confirmText: 'Cerrar todas',
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    this.closingAll.set(true);
+    try {
+      await this.auth.logoutAll();
+      void this.alert.success('Has cerrado sesión en todos los dispositivos');
+      void this.router.navigate(['/login']);
+    } catch {
+      // El errorInterceptor ya ha mostrado el aviso.
+    } finally {
+      this.closingAll.set(false);
+    }
   }
 
   protected async load(): Promise<void> {

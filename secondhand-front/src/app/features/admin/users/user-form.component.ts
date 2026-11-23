@@ -118,7 +118,7 @@ type FieldName = (typeof FIELD_ORDER)[number];
               </button>
             </div>
             <p id="uf-password-hint" class="field-hint">
-              {{ isEdit() ? 'Déjala vacía para no cambiarla. ' : '' }}Mínimo {{ passwordMin }} caracteres. Se guarda cifrada: nadie puede verla después.
+              {{ isEdit() ? 'Déjala vacía para no cambiarla; si la cambias, se cierran sus sesiones abiertas. ' : '' }}Mínimo {{ passwordMin }} caracteres. Se guarda cifrada: nadie puede verla después.
             </p>
             <app-form-field-error errorId="uf-password-error" label="La contraseña" [errors]="f.password.errors" [show]="showError('password')" />
           </div>
@@ -162,7 +162,7 @@ type FieldName = (typeof FIELD_ORDER)[number];
                 <option [value]="s">{{ statusLabels[s] }}</option>
               }
             </select>
-            <p id="uf-status-hint" class="field-hint">Un usuario suspendido no puede vender.</p>
+            <p id="uf-status-hint" class="field-hint">Un usuario suspendido no puede iniciar sesión ni vender: al suspenderlo se cierran sus sesiones abiertas.</p>
             <app-form-field-error errorId="uf-status-error" label="El estado" [errors]="f.status.errors" [show]="showError('status')" />
           </div>
         </div>

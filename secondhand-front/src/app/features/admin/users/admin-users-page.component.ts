@@ -189,9 +189,20 @@ export class AdminUsersPageComponent implements OnChanges {
   }
 
   protected async toggle(user: User, isActive: boolean): Promise<void> {
+    // Desactivar le quita el acceso y cierra todas sus sesiones (la API revoca sus refresh): mejor confirmarlo.
+    // El interruptor lo controla `user.isActive`, así que si se cancela no se mueve.
+    if (!isActive) {
+      const confirmed = await this.alert.confirm({
+        title: `¿Desactivar a "${user.name}"?`,
+        text: 'No podrá iniciar sesión ni vender, y se cerrarán todas sus sesiones abiertas. Sus productos se quedan.',
+        confirmText: 'Desactivar',
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
     try {
       await this.store.setActive(user, isActive);
-      void this.alert.success(isActive ? `"${user.name}" vuelve a estar activo` : `"${user.name}" pasa a Inactivos`);
+      void this.alert.success(isActive ? `"${user.name}" vuelve a estar activo` : `"${user.name}" pasa a Inactivos y sus sesiones se han cerrado`);
     } catch (error) {
       // 409: el último admin, o un usuario que ya está en la papelera. El mensaje de la API dice cuál.
       if (error instanceof ApiError && error.isConflict) {

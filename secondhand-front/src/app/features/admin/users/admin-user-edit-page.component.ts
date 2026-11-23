@@ -100,9 +100,23 @@ export class AdminUserEditPageComponent implements OnChanges, OnDestroy {
       return;
     }
 
+    // Suspender le quita el acceso y cierra todas sus sesiones (la API revoca sus refresh): mejor confirmarlo.
+    const suspending = changes.status === 'suspended' && user.status !== 'suspended';
+    if (suspending) {
+      const confirmed = await this.alert.confirm({
+        title: `¿Suspender a "${user.name}"?`,
+        text: 'No podrá iniciar sesión ni vender, y se cerrarán todas sus sesiones abiertas.',
+        confirmText: 'Suspender',
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
+
     try {
       const updated = await this.store.update(user, changes);
-      void this.alert.success(changes.password ? 'Cambios guardados (contraseña incluida)' : 'Cambios guardados');
+      // Suspender o cambiar la contraseña cierra sus sesiones: se dice, para que no sorprenda que tenga que volver a entrar.
+      const closed = suspending || changes.password ? ' Sus sesiones abiertas se han cerrado.' : '';
+      void this.alert.success(`${changes.password ? 'Cambios guardados (contraseña incluida)' : 'Cambios guardados'}.${closed}`);
       void this.router.navigateByUrl(this.listLink(updated));
     } catch (error) {
       // 422 y 409 de campo (email) van junto al campo; el 409 del último admin, arriba del formulario.

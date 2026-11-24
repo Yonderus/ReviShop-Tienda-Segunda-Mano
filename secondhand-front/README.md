@@ -218,6 +218,7 @@ Base: `environment.apiUrl` · respuestas `{ success: true, data }` o `{ success:
 | Recurso | Endpoints | Uso |
 |---|---|---|
 | 🔐 **Auth** | `POST /auth/login` · `POST /auth/refresh` · `GET /auth/me` · `POST /auth/logout` · `POST /auth/logout-all` | Sesión y renovación |
+| 🤖 **IA** | `POST /ai/chat` · `POST /ai/listings/draft` | Asistente de compra y de anuncio (`AssistantService`); el gateway lo manda al servicio de IA |
 | 👤 **Perfil** | `GET` · `PATCH /profile/me` | Mi perfil |
 | 🛍️ **Tienda** | `GET /shop/categories` · `/shop/sellers` · `/shop/locations` · `/shop/products` · `/shop/products/:slug` · `/:slug/variants` | Home, shop y ficha (`ShopService`) |
 | 📦 **Productos** | `GET /products/slug/:slug` | Ficha de gestión |
@@ -253,6 +254,7 @@ src/app/
 │   ├── shop/                Home, shop y ficha: ShopService, ShopStore, shop-query (URL ⇄ filtros), cards
 │   ├── products/            modelo, servicios, ProductsStore, componentes y páginas
 │   ├── users/               modelo, servicios y UsersStore
+│   ├── assistant/           widget del chat, tarjeta de producto, AssistantService y AssistantStore
 │   └── admin/               panel: dashboard, products, categories, users
 ├── app.routes.ts            /admin (adminGuard) + tienda + 404
 └── app.config.ts            router, interceptores, APP_INITIALIZER (restaura la sesión), locale es-ES
@@ -354,6 +356,22 @@ Al cambiar de paleta, revisa también `primary-50/100/200/400/500` y el contrast
 </details>
 
 <details>
+<summary><b>🤖 Asistente IA</b></summary>
+
+<br/>
+
+Todo va a `environment.apiUrl` como el resto (`/ai/...`): el **gateway** decide que es para el servicio de IA. El front no conoce ningún puerto más ni ninguna key.
+
+- **Asistente de compra** (`features/assistant/`): botón flotante en la tienda (`main-layout`) que abre un panel (a pantalla completa en móvil). Sin sesión invita a iniciarla.
+  - El **historial vive en el `AssistantStore`** (no se guarda en el navegador); se mandan los **últimos 10 mensajes**, de 1000 caracteres como mucho. Se vacía al cerrar sesión (`onSessionEnd`).
+  - La respuesta del modelo se pinta como **texto** (interpolación, nunca `innerHTML`). Las **tarjetas** salen de `products`, que son datos de la API, y «Ver todos en la tienda» abre `/shop` con los filtros de `shopQuery`.
+  - Un mensaje nuevo, «Nueva conversación» o cerrar sesión **abortan** la petición en curso (`AbortController`).
+- **Asistente de anuncio** (formulario de publicar y editar): «Sugerir descripción» pide `/ai/listings/draft` con el título, la categoría y el estado. Rellena el textarea **sin guardar**; si ya había texto, no lo pisa: enseña la sugerencia y deja elegir entre sustituirlo o descartarla. También muestra «Productos parecidos se venden entre X € y Y €» si hay rango.
+- **Peticiones de IA:** timeout propio (`aiRequestTimeoutMs`, 35 s; el resto usa `requestTimeoutMs`, 10 s), sin loader global y sin modal: el error se pinta **junto a donde se pidió**.
+
+</details>
+
+<details>
 <summary><b>⚡ Rendimiento y UX</b></summary>
 
 <br/>
@@ -382,6 +400,6 @@ Ambos exponen `production` (logs técnicos solo en desarrollo), `apiUrl` (cámbi
 
 <div align="center">
 
-Hecho con ☕ y Angular para **2º DAW** · [README general](../README.md) · [API](../secondhand-api/README.md)
+Hecho con ☕ y Angular para **2º DAW** · [README general](../README.md) · [API](../secondhand-api/README.md) · [IA](../secondhand-ai/README.md) · [Gateway](../secondhand-gateway/README.md)
 
 </div>

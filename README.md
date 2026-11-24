@@ -22,8 +22,10 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 
 <table>
 <tr>
-<td align="center" width="50%"><a href="secondhand-api/README.md"><b>🔌 secondhand-api</b></a><br/><sub>Express · Mongoose · Zod · JWT · Swagger</sub></td>
-<td align="center" width="50%"><a href="secondhand-front/README.md"><b>🅰️ secondhand-front</b></a><br/><sub>Angular 18 · Signals · Tailwind</sub></td>
+<td align="center" width="25%"><a href="secondhand-front/README.md"><b>🅰️ secondhand-front</b></a><br/><sub>Angular 18 · Signals · Tailwind</sub><br/><sub>:4200</sub></td>
+<td align="center" width="25%"><a href="secondhand-gateway/README.md"><b>🚪 secondhand-gateway</b></a><br/><sub>Express · http-proxy-middleware</sub><br/><sub>:4000</sub></td>
+<td align="center" width="25%"><a href="secondhand-api/README.md"><b>🔌 secondhand-api</b></a><br/><sub>Express · Mongoose · Zod · JWT · Swagger</sub><br/><sub>:3000</sub></td>
+<td align="center" width="25%"><a href="secondhand-ai/README.md"><b>🤖 secondhand-ai</b></a><br/><sub>Express · OpenAI SDK · Groq · sin BD</sub><br/><sub>:3001</sub></td>
 </tr>
 </table>
 
@@ -41,6 +43,8 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 - **Home** con carruseles de categorías, vendedores y ubicaciones que llevan a la tienda ya filtrada.
 - **Shop** con búsqueda, varios filtros a la vez (y varios valores por filtro), orden y paginación **en el servidor**, todo guardado en la URL.
 - **Ficha** (`/shop/:slug`) con galería, nivel de conservación y **variantes** (talla, capacidad…) con su precio y estado.
+- **Asistente de compra con IA**: le cuentas qué buscas y busca en la tienda por ti, con tarjetas de productos reales.
+- **Asistente de anuncio**: sugiere la descripción y el rango de precio de productos parecidos.
 - Errores del servidor **junto al campo** que los provoca.
 
 </td>
@@ -77,6 +81,7 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 # 1 · Configuración (una sola vez)
 cp secondhand-api/.env.example secondhand-api/.env   # MONGODB_URI, JWT_SECRET y SEED_DEFAULT_PASSWORD
 cp secondhand-ai/.env.example secondhand-ai/.env     # AI_PROVIDER, la key y AI_MODEL (o AI_PROVIDER=fake)
+# el gateway funciona sin .env (sus valores por defecto ya son los de desarrollo)
 npm run seed            # ⚠️ pide confirmación: vacía la base y carga los datos de prueba
 
 # 2 · Todo a la vez, en una sola terminal (instala lo que falte la primera vez)
@@ -106,7 +111,7 @@ Los comandos de la raíz son scripts propios (`scripts/*.mjs`) que **solo usan N
 | 📖 | **Swagger** · http://localhost:4000/api/docs (por el gateway) o http://localhost:3000/api/docs |
 
 > [!TIP]
-> El entorno se valida con Zod al arrancar: si falta algo obligatorio, la API no arranca y dice qué falta. Todas las variables están explicadas en el [README de la API](secondhand-api/README.md#️-variables-de-entorno).
+> El entorno se valida con Zod al arrancar: si falta algo obligatorio, la API no arranca y dice qué falta. Las variables de cada servicio están en su README: [API](secondhand-api/README.md#️-variables-de-entorno) · [IA](secondhand-ai/README.md#️-variables-de-entorno) · [Gateway](secondhand-gateway/README.md#️-variables-de-entorno).
 
 ### 👥 Usuarios de prueba
 
@@ -129,13 +134,34 @@ El seed crea **3 roles, 6 usuarios** con sus perfiles, **13 categorías** (una e
 
 ## 🏗️ Arquitectura
 
+Cuatro procesos. El navegador **solo conoce el gateway**; detrás, la API de la tienda y el servicio de IA son microservicios independientes (si la IA se cae, la tienda sigue).
+
+```mermaid
+flowchart LR
+    B["🅰️ secondhand-front<br/>Angular · :4200"] -- "HTTP · JSON · cookies httpOnly" --> G["🚪 secondhand-gateway<br/>:4000 · CORS"]
+    G -- "/api/ai/**" --> AI["🤖 secondhand-ai<br/>:3001 · agente + tools"]
+    G -- "resto de /api/**" --> API["🔌 secondhand-api<br/>:3000"]
+    AI -- "GET /auth/me · /shop/* (HTTP directo)" --> API
+    AI -- "API de OpenAI" --> LLM["☁️ Groq · OpenRouter · xAI"]
+    API --> DB[("MongoDB")]
+```
+
+| Proceso | Puerto | Qué hace |
+|---|:-:|---|
+| 🅰️ **Front** | 4200 | La SPA. Todas sus peticiones van a `http://localhost:4000/api` |
+| 🚪 **Gateway** | 4000 | Reparte por ruta (`/api/ai` primero), pone **CORS** en un solo sitio, protege las cabeceras de IP y responde `502`/`504` si un servicio no está |
+| 🔌 **API** | 3000 | La tienda: auth, productos, categorías, usuarios y `/shop`. **La única con base de datos** |
+| 🤖 **IA** | 3001 | Asistente de compra (con herramientas de solo lectura) y de anuncio. **Sin base de datos**: comprueba la sesión con `/auth/me` y lee la tienda por `/shop/*` |
+
+Dentro de la API y del front:
+
 ```mermaid
 flowchart LR
     subgraph FRONT["🅰️ secondhand-front · Angular 18"]
         direction TB
         CMP[Componentes] --> ST["Stores (Signals)"]
         ST --> SV[Services]
-        SV --> API["ApiService + interceptores<br/>(withCredentials, errores, carga)"]
+        SV --> API["ApiService + interceptores<br/>(withCredentials, refresh, errores, carga)"]
     end
     subgraph BACK["🔌 secondhand-api · Express"]
         direction TB
@@ -143,7 +169,7 @@ flowchart LR
         CT --> SR["services<br/>(reglas, permisos, integridad)"]
         SR --> RP[repositories]
     end
-    API -- "HTTP · JSON · cookie httpOnly (JWT)" --> RT
+    API -- "por el gateway" --> RT
     RP --> DB[("MongoDB")]
 ```
 
@@ -151,6 +177,8 @@ flowchart LR
 |---|---|---|
 | **API** | `routes → validate → controllers → services → repositories → models` | Las reglas de negocio solo viven en los **services**; solo los **repositories** tocan Mongo |
 | **Front** | `componente → store → service → ApiService → interceptores` | Ningún componente usa `HttpClient`; RxJS solo en los interceptores, el resto con `async/await` |
+| **IA** | `routes → requireSession → límite → validate → services → llm / tools → coreApi` | Bucle del agente sin frameworks; las tarjetas salen de datos de la API, no del modelo · [README](secondhand-ai/README.md) |
+| **Gateway** | `helmet → cors → proxy IA → proxy API → 404` | Sin body parser ni lógica de negocio · [README](secondhand-gateway/README.md) |
 
 **Reglas que sigue el código:** `constants/` no importa nada del proyecto, `utils/` solo importa `constants/` y los archivos de dominio se llaman `<entidad>.<capa>`.
 
@@ -315,6 +343,9 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | **Blacklist** para el logout | Un JWT no se puede "borrar": así el logout invalida el token de verdad |
 | El token va en una **cookie `httpOnly`** (no en `localStorage`) | En `localStorage` cualquier script de la página podría copiarlo. Con `SameSite=Strict` y la comprobación de `Origin` se cubre el CSRF que traen las cookies |
 | **Access corto + refresh rotatorio** | Un access robado vale 15 min; un refresh robado se detecta en cuanto se usa dos veces. El refresh se guarda **hasheado** (un volcado de la base de datos no sirve para entrar) y su cookie solo viaja a `/api/auth` |
+| La **IA en un microservicio sin base de datos** | Un fallo o un engaño al modelo no puede tocar los datos: solo ve lo que da la API pública. Si el proveedor falla o se cae el servicio, la tienda sigue. Más en su [README](secondhand-ai/README.md) |
+| **API Gateway** delante de todo | El navegador conoce una sola dirección y CORS vive en un solo sitio. Se separa un servicio nuevo sin tocar el front. Más en su [README](secondhand-gateway/README.md) |
+| **Groq** como proveedor por defecto | Plan gratuito y API compatible con OpenAI: pasar a OpenRouter o xAI es cambiar el `.env` |
 | **Integridad en los services**, no en scripts | Cada service vigila su entidad, en cada petición y no solo al migrar |
 | **`isActive` y `deletedAt` independientes** | Ocultar un anuncio no es lo mismo que borrarlo |
 | El **estado del producto se calcula** a partir de sus variantes | Un solo origen de verdad: disponible, reservado o vendido |
@@ -353,6 +384,6 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 
 <div align="center">
 
-Hecho con ☕ para **2º DAW** · [API](secondhand-api/README.md) · [Frontend](secondhand-front/README.md)
+Hecho con ☕ para **2º DAW** · [API](secondhand-api/README.md) · [IA](secondhand-ai/README.md) · [Gateway](secondhand-gateway/README.md) · [Frontend](secondhand-front/README.md)
 
 </div>

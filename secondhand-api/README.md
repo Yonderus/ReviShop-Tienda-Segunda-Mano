@@ -3,13 +3,13 @@
 # 🔌 Revishop · API
 
 **API REST del marketplace de segunda mano Revishop.**
-Por capas, con validación Zod, soft delete en cascada, sesión con JWT en cookie `httpOnly` y documentación interactiva.
+Por capas, con validación Zod, soft delete en cascada, sesión con **access y refresh token** en cookies `httpOnly` y documentación interactiva.
 
-![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-22.15+-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-4-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_8-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Zod](https://img.shields.io/badge/Zod-4-3E67B1?style=for-the-badge&logo=zod&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-cookie_httpOnly-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-access_+_refresh-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 ![Argon2](https://img.shields.io/badge/Hash-Argon2id-6A1B9A?style=for-the-badge)
 ![Swagger](https://img.shields.io/badge/Docs-Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
 
@@ -21,7 +21,7 @@ Por capas, con validación Zod, soft delete en cascada, sesión con JWT en cooki
 
 ## 🚀 Puesta en marcha
 
-> **Requisitos:** Node.js 18 o superior y MongoDB en local (o una URI de Atlas).
+> **Requisitos:** Node.js 22.15 o superior y MongoDB en local (o una URI de Atlas). En el día a día se arranca todo junto con `npm run dev` desde la raíz del proyecto; el navegador habla con el **gateway** (`http://localhost:4000/api`), que reenvía aquí.
 
 ```bash
 npm install
@@ -43,11 +43,17 @@ Se validan con Zod en un único sitio (`src/config/env.js`): si falta una obliga
 | Variable | | Uso |
 |---|:-:|---|
 | `MONGODB_URI` | ✅ | Conexión, p. ej. `mongodb://localhost:27017/secondhand-db` |
-| `JWT_SECRET` | ✅ | Firma de los tokens: **mínimo 32 caracteres**, aleatoria y fuera del repositorio |
-| `JWT_EXPIRES_IN` | | Caducidad de los tokens: `15m`, `1h`, `7d`… (por defecto `1d`) |
+| `JWT_SECRET` | ✅ | Firma de los access tokens: **mínimo 32 caracteres**, aleatoria y fuera del repositorio |
+| `JWT_ACCESS_EXPIRES_IN` | | Duración del **access token**: `15m`, `1h`… (por defecto `15m`). Corto a propósito: el front lo renueva solo |
+| `REFRESH_TOKEN_TTL_DAYS` | | Días que vale cada **refresh token** (por defecto `7`) |
+| `REFRESH_SESSION_MAX_DAYS` | | Tope de una sesión desde el login, aunque se renueve a diario (por defecto `30`) |
+| `REFRESH_REUSE_GRACE_SECONDS` | | Margen para que dos pestañas renueven a la vez sin que cuente como robo (por defecto `30`) |
 | `PORT` | | Puerto HTTP (por defecto `3000`) |
-| `NODE_ENV` | | `development` · `production` (cookie `Secure` y sin logs de error) · `test` |
-| `CORS_ORIGIN` | 🏭 | Orígenes del front, separados por comas: CORS con cookies y comprobación de `Origin`. En desarrollo, si falta, `http://localhost:4200` |
+| `NODE_ENV` | | `development` · `production` (cookies `Secure` y sin logs de error) · `test` |
+| `CORS_ORIGIN` | 🏭 | Orígenes del front, separados por comas, para la comprobación de `Origin` (CSRF). **CORS lo pone el gateway**. En desarrollo, si falta, `http://localhost:4200` |
+
+> [!NOTE]
+> `JWT_EXPIRES_IN` (de cuando había un solo token de 1 día) **ya no se usa**: si sigue en tu `.env`, la API avisa al arrancar. Quítala o cámbiala por `JWT_ACCESS_EXPIRES_IN`.
 | `SEED_DEFAULT_PASSWORD` | 🌱 | Contraseña de todos los usuarios del seed (mínimo 8 caracteres) |
 
 ✅ obligatoria · 🏭 obligatoria en producción (en desarrollo tiene valor por defecto) · 🌱 solo para el seed
@@ -78,7 +84,8 @@ npm run seed
 | `products` | **20**: 14 activos, 3 inactivos y 3 en la papelera |
 | `productvariants` | 27: la de por defecto de cada producto y las de los 5 que tienen opciones (talla, color, capacidad, memoria) |
 | `images` | Portada y galería de los productos, y el avatar de cada perfil |
-| `revoked_tokens` | Vacía: la llena el logout |
+| `revoked_tokens` | Vacía: la llena el logout (access tokens revocados) |
+| `refresh_tokens` | Vacía: la llenan los logins (una sesión por login y navegador) |
 
 | | Email | Rol |
 |:-:|---|---|
@@ -95,8 +102,8 @@ flowchart LR
     R([Petición]) --> RT[routes]
     R --> OR["checkOrigin (escrituras)"]
     OR --> RT
-    RT --> RL["rateLimit (solo login)"]
-    RL --> AU["authenticate (cookie + JWT + blacklist)"]
+    RT --> RL["rateLimit (login y refresh)"]
+    RL --> AU["authenticate (cookie del access + JWT + blacklist)"]
     AU --> AD["requireAdmin (RBAC)"]
     AD --> V["validate (Zod)"]
     V --> C[controllers]
@@ -110,26 +117,26 @@ flowchart LR
 | Capa | Responsabilidad |
 |---|---|
 | `routes/` | URL, middlewares, validador y controlador, con su documentación Swagger al lado |
-| `middlewares/` | `checkOrigin` (CSRF) · `authenticate` · `optionalAuthenticate` (leen la cookie) · `requireAdmin` / `adminOnly` · `loginRateLimit` · `validate` (params, query y body) |
+| `middlewares/` | `checkOrigin` (CSRF) · `authenticate` · `optionalAuthenticate` (leen la cookie del access) · `requireAdmin` / `adminOnly` · `loginRateLimit` · `refreshRateLimit` · `validate` (params, query y body) |
 | `controllers/` | Funciones `const` con `try/catch` → `next(error)`; pasan el usuario de la sesión (`req.user`) al service |
 | `services/` | **Las reglas de negocio**, la propiedad (*¿es suyo?*) y la **integridad referencial** |
 | `repositories/` | Lo único que toca Mongo: consultas, `populate` y proyecciones |
 | `models/` | Esquemas, relaciones y los plugins `softDelete` y `slug` |
-| `constants/` · `utils/` | Valores fijos y funciones sin base de datos: `jwt`, `sessionCookie`, `password`, `access`, `slugify`, `url`… |
+| `constants/` · `utils/` | Valores fijos y funciones sin base de datos: `jwt`, `refreshToken`, `sessionCookie`, `password`, `access`, `slugify`, `url`… |
 
 ```
 src/
 ├── config/          env.js (entorno validado) · db.js · swagger.js
 ├── constants/       auth · category · image · product · role · user
 ├── middlewares/     auth · admin · origin · rateLimit · validate
-├── models/          role · user · profile · category · product · productVariant · image · revokedToken
+├── models/          role · user · profile · category · product · productVariant · image · revokedToken · refreshToken
 │   └── plugins/     softDelete.plugin.js · slug.plugin.js
 ├── repositories/    uno por modelo
-├── services/        auth · profile · user · role · category · product · productVariant
+├── services/        auth · refreshToken · profile · user · role · category · product · productVariant · shop
 ├── controllers/     auth · profile · user · role · category · product · productVariant
 ├── routes/          auth · profile · user (+ /sellers) · role · category · product · productVariant
 ├── validators/      schemas Zod de entrada (+ common.validator.js)
-├── utils/           AppError · errorHandler · response · jwt · sessionCookie · password · access · slugify · url…
+├── utils/           AppError · errorHandler · response · jwt · refreshToken · sessionCookie · password · access · slugify · url…
 ├── seed.js
 └── server.js
 ```
@@ -138,6 +145,16 @@ src/
 
 ## 🔐 Sesión y seguridad
 
+La sesión usa **dos tokens**, cada uno en su cookie `httpOnly`:
+
+| | Access token | Refresh token |
+|---|---|---|
+| Qué es | JWT HS256 (`sub`, `email`, `role`, `jti`, `issuedAtMs`) | 32 bytes aleatorios en base64url, **opaco** (no es un JWT) |
+| Dura | **15 min** (`JWT_ACCESS_EXPIRES_IN`) | **7 días** (`REFRESH_TOKEN_TTL_DAYS`), con tope de **30 días** por sesión |
+| Dónde se guarda en la API | En ningún sitio (solo su `jti` si se revoca) | En `refresh_tokens`, **solo su hash SHA-256** |
+| Para qué | Va en **cada** petición a `/api` | Solo sirve para pedir un access nuevo en `/api/auth/refresh` |
+| Si lo roban | Vale como mucho 15 min | Se detecta al reutilizarse y se cierra la sesión entera |
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -145,44 +162,70 @@ sequenceDiagram
     participant A as API
     participant DB as MongoDB
     C->>A: POST /auth/login { email, password }
-    A->>DB: usuario + hash
-    A->>A: Argon2id verify (bcrypt antiguo: rehash)
-    A-->>C: { user } + Set-Cookie revishop_session (HttpOnly, SameSite=Strict)
-    Note over C: JavaScript no puede leer la cookie
-    C->>A: GET /profile/me (el navegador añade la cookie)
+    A->>DB: usuario + hash (Argon2id)
+    A->>DB: refresh_tokens ← hash del refresh (familia nueva)
+    A-->>C: { user, accessExpiresAt } + revishop_session (access) + revishop_refresh
+    Note over C: JavaScript no puede leer ninguna de las dos
+    C->>A: GET /profile/me (lleva revishop_session)
     A->>A: firma HS256 y caducidad
-    A->>DB: ¿jti en revoked_tokens? ¿usuario activo? ¿rol vivo?
-    A-->>C: 200 · 401 (y borra la cookie) · 403
+    A->>DB: ¿jti revocado? ¿usuario activo? ¿rol vivo? ¿token anterior a tokensValidAfter?
+    A-->>C: 200
+    Note over C,A: …pasan 15 minutos: el access caduca…
+    C->>A: GET /profile/me
+    A-->>C: 401
+    C->>A: POST /auth/refresh (lleva revishop_refresh)
+    A->>DB: claim atómico: marca el refresh como usado
+    A->>DB: refresh nuevo en la misma familia (replacedBy)
+    A-->>C: { user, accessExpiresAt } + las dos cookies nuevas
+    C->>A: GET /profile/me (se repite, una sola vez)
+    A-->>C: 200
     C->>A: POST /auth/logout
-    A->>DB: jti → revoked_tokens (TTL hasta su exp)
-    A-->>C: 204 + Set-Cookie que la borra
+    A->>DB: jti → revoked_tokens · familia del refresh revocada
+    A-->>C: 204 + borra las dos cookies
 ```
 
-### 🍪 La cookie de sesión
+> El front no espera al 401 si puede evitarlo: con `accessExpiresAt` renueva **un poco antes** de que caduque. El 401 → refresh → reintento es la red de seguridad (pestaña dormida, reloj desfasado…).
 
-| Atributo | Valor | Para qué |
+### 🍪 Las cookies
+
+| Atributo | `revishop_session` (access) | `revishop_refresh` (refresh) |
 |---|---|---|
-| Nombre | `revishop_session` | Lleva el JWT |
-| `HttpOnly` | sí | JavaScript no puede leerla: un XSS no puede robar el token |
-| `SameSite` | `Strict` | No viaja en peticiones que vienen de otra web: **defensa principal contra CSRF** |
-| `Path` | `/api` | Solo va a la API, no con el HTML ni las imágenes |
-| `Max-Age` | Lo que le queda al token | Desaparece cuando el token caduca (`JWT_EXPIRES_IN`) |
-| `Secure` | Solo en producción | Solo por HTTPS (en desarrollo la API va por `http://localhost`) |
+| `HttpOnly` | sí | sí |
+| `SameSite` | `Strict` | `Strict` |
+| `Path` | `/api` (toda la API) | **`/api/auth`**: no viaja en las peticiones normales, solo en `refresh`, `logout` y `logout-all` |
+| `Max-Age` | Lo que le queda al access (15 min) | Lo que le queda al refresh (7 días o el tope de la sesión) |
+| `Secure` | Solo en producción | Solo en producción |
 
-**Solo cookie:** el login responde `{ user }` sin el token, y la API no acepta `Authorization: Bearer`. El logout es **idempotente**: revoca el token si es válido y siempre borra la cookie. Si llega una cookie con un token que ya no vale, la API la borra en el mismo 401.
+**Solo cookies:** los tokens nunca van en el cuerpo de una respuesta, y la API no acepta `Authorization: Bearer`. `HttpOnly` impide que un XSS los lea; `SameSite=Strict` es la **defensa principal contra CSRF**. Si llega un access que ya no vale, la API borra la cookie en el mismo 401.
+
+### 🔄 Rotación y detección de robo
+
+Cada refresh **sirve una sola vez**: al usarlo se marca como usado (de forma atómica) y se crea otro en la misma **familia** (una familia = un login en un navegador).
+
+| Qué llega a `/auth/refresh` | Respuesta |
+|---|---|
+| Un refresh válido sin usar | **200**: access y refresh nuevos, con el rol actual del usuario |
+| Uno que se acaba de usar hace menos de **30 s** (`REFRESH_REUSE_GRACE_SECONDS`) | **409**: dos pestañas renovando a la vez. No borra nada: el navegador ya tiene las cookies nuevas |
+| Uno **ya usado** fuera de ese margen | **401** y se **revoca toda la familia**: hay dos copias del token, así que una la tiene otra persona |
+| Caducado, revocado, inexistente, o de una cuenta que ya no puede entrar | **401** y borra las dos cookies |
+| Más de **300 renovaciones en 15 min** desde la misma IP | **429** con `Retry-After` |
+
+Así, si alguien roba un refresh, en cuanto él o el dueño lo use por segunda vez la sesión se cierra para los dos.
 
 | | Cómo |
 |---|---|
-| 🔑 **Token** | JWT HS256 con `sub`, `email`, `role` y `jti`. El **rol se lee de la base de datos** en cada petición: si se lo cambian, manda el nuevo |
-| 🚫 **Logout real** | El `jti` va a `revoked_tokens`; un índice **TTL** borra la fila cuando el token habría caducado |
+| 🔑 **Access** | JWT HS256. El **rol se lee de la base de datos** en cada petición: si se lo cambian, manda el nuevo |
+| 🚫 **Logout real** | El `jti` del access va a `revoked_tokens` (un índice **TTL** borra la fila cuando habría caducado) y se revoca la familia del refresh. Es **idempotente**: siempre borra las dos cookies |
+| 🌍 **Logout en todas partes** | `POST /auth/logout-all` revoca todos los refresh del usuario y sube `tokensValidAfter`: los access de sus otros navegadores dejan de valer **al momento** (se compara en milisegundos con `issuedAtMs`) |
+| 🧹 **Limpieza** | Un índice TTL borra los refresh caducados de `refresh_tokens` |
 | 🔒 **Contraseñas** | **Argon2id** (parámetros OWASP), entre 8 y 128 caracteres; las antiguas en bcrypt se pasan a Argon2 al iniciar sesión. Nunca salen en una respuesta |
 | 🧯 **Fuerza bruta** | **10 fallos cada 15 min por IP + email** y **50 por IP** → `429` con `Retry-After`. Los logins correctos no cuentan |
 | 🕵️ **Sin pistas** | Email inexistente o contraseña mala dan el **mismo** `401`; el login hace el mismo trabajo en los dos casos |
-| ⛔ **Cierre de sesiones** | Cambiar la contraseña, desactivar, suspender o borrar a un usuario invalida **todos** sus tokens (`tokensValidAfter`) |
+| ⛔ **Cierre de sesiones** | Cambiar la contraseña, desactivar, suspender o borrar a un usuario invalida **todos** sus access (`tokensValidAfter`) y revoca **todos** sus refresh |
 | 🛡️ **RBAC** | `requireAdmin` en las rutas de gestión (roles `admin` · `moderator` · `user`) |
 | 👤 **ABAC** | Los services comprueban la propiedad (`isOwnerOrAdmin`): un usuario solo toca lo suyo |
 | 🧱 **CSRF** | `SameSite=Strict` y, además, `checkOrigin`: un `POST`, `PUT`, `PATCH` o `DELETE` con un `Origin` que no sea el front ni la propia API → **403 "Origen no permitido"**. Sin `Origin` (curl, Postman) pasa: no es un navegador |
-| 🌍 **CORS** | Solo los orígenes de `CORS_ORIGIN` y con `credentials: true`, también en desarrollo (con un origen abierto el navegador no enviaría la cookie) |
+| 🌍 **CORS** | Lo pone el **gateway** (puerto 4000), que es al que habla el navegador: solo los orígenes de su `CORS_ORIGIN` y con `credentials: true`. La API confía en él (`trust proxy` en loopback) para la IP real del cliente |
 | 🪖 **Cabeceras** | Helmet y logs de acceso con Morgan |
 
 ---
@@ -198,9 +241,11 @@ sequenceDiagram
 
 | | Método | Ruta | Descripción |
 |:-:|---|---|---|
-| 🌐 | `POST` | `/api/auth/login` | `{ email, password }` → `{ user }` + cookie de sesión (401 · 403 · 429) |
+| 🌐 | `POST` | `/api/auth/login` | `{ email, password }` → `{ user, accessExpiresAt }` + las dos cookies (401 · 403 · 429) |
+| 🌐 | `POST` | `/api/auth/refresh` | Con la cookie del refresh: lo rota y pone un access nuevo → `{ user, accessExpiresAt }` (401 · 409 · 429) |
 | 🔑 | `GET` | `/api/auth/me` | El usuario de la sesión, con su rol y su perfil |
-| 🌐 | `POST` | `/api/auth/logout` | Revoca el token si es válido y **siempre** borra la cookie (204, idempotente) |
+| 🌐 | `POST` | `/api/auth/logout` | Revoca el access y la sesión del refresh si valen y **siempre** borra las dos cookies (204, idempotente) |
+| 🔑 | `POST` | `/api/auth/logout-all` | Cierra **todas** las sesiones del usuario, en todos sus dispositivos (204) |
 | 🔑 | `GET` | `/api/profile/me` | Mi perfil |
 | 🔑 | `PATCH` | `/api/profile/me` | Teléfono, ubicación, bio y `avatarUrl` (`null` la quita) |
 

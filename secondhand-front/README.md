@@ -102,25 +102,53 @@ sequenceDiagram
     participant A as API
     U->>F: email + contraseña
     F->>A: POST /auth/login
-    A-->>B: Set-Cookie revishop_session (HttpOnly)
-    A-->>F: { user } (el token nunca llega a JavaScript)
-    Note over F,A: Cada petición a la API sale con withCredentials<br/>y el navegador añade la cookie
+    A-->>B: Set-Cookie revishop_session (access, 15 min) y revishop_refresh (7 días)
+    A-->>F: { user, accessExpiresAt } (los tokens nunca llegan a JavaScript)
+    Note over F,A: Cada petición a la API sale con withCredentials<br/>y el navegador añade las cookies
+    F->>F: programa la renovación ~1 min antes de accessExpiresAt
+    F->>A: POST /auth/refresh (pestaña visible)
+    A-->>B: las dos cookies, nuevas
+    A-->>F: { user, accessExpiresAt } → reprograma y avisa a las otras pestañas
     U->>F: recarga la página
-    F->>A: GET /auth/me (APP_INITIALIZER, siempre)
+    F->>A: POST /auth/refresh (APP_INITIALIZER) · si no hay refresh, GET /auth/me
     A-->>F: usuario actual · o 401 = no hay sesión
     U->>F: Cerrar sesión
     F->>A: POST /auth/logout
-    A-->>B: token a la blacklist y cookie borrada
-    F->>F: borra la sesión local y vacía las colecciones del panel
+    A-->>B: access a la blacklist, sesión del refresh revocada y cookies borradas
+    F->>F: borra la sesión local, vacía las colecciones y avisa a las otras pestañas
 ```
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
-| **`AuthStore`** | `core/auth/auth.store.ts` | Signals `user`, `restoring`, `isAuthenticated`, `role`, `isAdmin`, `hasRole()` e `isOwnerOrAdmin()` (la misma regla que la API). `restore()`, `login()`, `logout()` y `onSessionEnd()`. **No guarda ningún token** |
-| **`AuthService`** | `core/auth/auth.service.ts` | Solo HTTP: `login`, `me` y `logout` |
-| **`authInterceptor`** | `core/auth/auth.interceptor.ts` | Pone `withCredentials` (para que viaje la cookie) **solo** en las peticiones a `environment.apiUrl`, y las marca con `SENT_WITH_SESSION` si salen con la sesión abierta |
-| **`errorInterceptor`** | `core/interceptors/` | `401` de una petición `SENT_WITH_SESSION` → cierra la sesión, avisa **una vez** y lleva a `/login?returnUrl=…`. `403` y `429` → mensaje de la API |
+| **`AuthStore`** | `core/auth/auth.store.ts` | Signals `user`, `restoring`, `isAuthenticated`, `role`, `isAdmin`, `hasRole()` e `isOwnerOrAdmin()` (la misma regla que la API). `restore()`, `login()`, `refresh()`, `logout()`, `logoutAll()` y `onSessionEnd()`. Programa la **renovación proactiva**. **No guarda ningún token** |
+| **`AuthService`** | `core/auth/auth.service.ts` | Solo HTTP: `login`, `refresh`, `me`, `logout` y `logoutAll` |
+| **`AuthChannel`** | `core/auth/auth-channel.ts` | `BroadcastChannel('revishop-auth')`: avisa a las otras pestañas de `login`, `logout` y `refreshed` |
+| **`authInterceptor`** | `core/auth/auth.interceptor.ts` | Pone `withCredentials` (para que viajen las cookies) **solo** en las peticiones a la API propia (`isOwnApiUrl`), y las marca con `SENT_WITH_SESSION` si salen con la sesión abierta |
+| **`refreshInterceptor`** | `core/auth/refresh.interceptor.ts` | `401` de una petición `SENT_WITH_SESSION` (que no sea de `/auth/`) → renueva la sesión y **reintenta una vez** (`REFRESH_RETRIED`). Si no se puede, deja pasar el 401 original |
+| **`errorInterceptor`** | `core/interceptors/` | El `401` que llega hasta él (no se pudo renovar) → cierra la sesión, avisa **una vez** («Tu sesión ha caducado») y lleva a `/login?returnUrl=…`. `403`, `429`, `502` y `504` → mensaje del servidor |
 | **Guards** (`canMatch`) | `core/auth/*.guard.ts` | Deciden qué rutas se pueden abrir (tabla de abajo) |
+
+### 🔄 Renovación automática del access
+
+El access dura **15 minutos**; el usuario no debe notarlo. Hay tres caminos, del más normal al de rescate:
+
+| Cuándo | Qué hace el front |
+|---|---|
+| ⏰ **Antes de que caduque** | Con el `accessExpiresAt` del login o del refresh, `AuthStore` programa un `setTimeout` para renovar **un minuto antes** (o a ¾ de su vida si dura menos de 4 min). Solo con la pestaña **visible**: si está oculta, renueva al volver (`visibilitychange`) |
+| 🧯 **Si aun así llega un 401** | El `refreshInterceptor` renueva y repite la petición. Si caen cinco 401 a la vez, se hace **una sola** renovación y las cinco esperan su resultado (**single-flight**) |
+| 🔁 **Al recargar la página** | `restore()` intenta primero `POST /auth/refresh` (así arranca con un access recién hecho) y, si no hay refresh, `GET /auth/me` |
+
+**Orden de los interceptores** (`app.config.ts`): `[authInterceptor, loadingInterceptor, errorInterceptor, refreshInterceptor]`. El de refresh va **el último**, el más cerca de la red: las respuestas recorren la lista al revés, así que ve el 401 antes que el `errorInterceptor` y lo arregla sin que salte el aviso. El timeout (`REQUEST_TIMEOUT_MS`) se aplica a cada intento por separado.
+
+**Varias pestañas:** las cookies son del navegador, así que todas las pestañas comparten sesión. Por `BroadcastChannel`:
+
+- **`refreshed`**: otra pestaña ha renovado → esta solo reprograma su temporizador (no renueva otra vez).
+- **`logout`**: otra pestaña ha cerrado sesión → esta la cierra también.
+- **`login`**: otra pestaña ha iniciado sesión → esta la recupera.
+
+Si dos pestañas renuevan a la vez, la segunda recibe un **409** de la API; el front lo trata como «ya está renovada» y repite la petición con las cookies nuevas.
+
+**Cerrar sesión en todos los dispositivos:** en **Mi perfil → Seguridad** (`POST /auth/logout-all`). Al **desactivar** o **suspender** a un usuario, el panel pide confirmación y avisa de que se cierran sus sesiones.
 
 | Guard | Rutas | Si no se cumple |
 |---|---|---|
@@ -131,19 +159,20 @@ sequenceDiagram
 > [!NOTE]
 > Los guards y los botones ocultos son **comodidad**, no seguridad: la API comprueba cada permiso otra vez.
 
-### 🍪 Por qué una cookie y no `localStorage`
+### 🍪 Por qué cookies y no `localStorage`
 
-El token vive en la cookie `revishop_session` que pone la API (`HttpOnly`, `SameSite=Strict`, `Path=/api`). El front **nunca lo ve**: `document.cookie` no la muestra y no hay nada en `localStorage` ni en `sessionStorage`. Así, un script malicioso en la página no puede copiar el token y usarlo desde otro sitio.
+Los dos tokens viven en cookies que pone la API (`HttpOnly`, `SameSite=Strict`): `revishop_session` (el access, `Path=/api`) y `revishop_refresh` (`Path=/api/auth`, así que solo viaja al renovar o cerrar sesión). El front **nunca los ve**: `document.cookie` no los muestra y no hay nada en `localStorage` ni en `sessionStorage`. Así, un script malicioso en la página no puede copiar un token y usarlo desde otro sitio.
 
 | | Consecuencia en el front |
 |---|---|
-| No se puede leer la cookie | `restore()` no sabe si hay sesión: **siempre** pregunta a `GET /auth/me`. Sin sesión, ese `401` es silencioso (el navegador lo anota en la consola, pero la app no avisa) |
-| Front y API en orígenes distintos en desarrollo (`:4200` → `:3000`) | Las peticiones necesitan `withCredentials`; la API solo acepta el origen de `CORS_ORIGIN` |
-| JavaScript no puede borrar la cookie | La borra la API: en el logout (siempre) y en cualquier `401` por un token que ya no vale |
+| No se pueden leer las cookies | `restore()` no sabe si hay sesión: **siempre** pregunta (refresh y, si no, `/auth/me`). Sin sesión, ese `401` es silencioso (el navegador lo anota en la consola, pero la app no avisa) |
+| No se sabe cuándo caduca el access | Por eso la API devuelve `accessExpiresAt` (no es secreto): el temporizador se programa con él |
+| Front y gateway en orígenes distintos en desarrollo (`:4200` → `:4000`) | Las peticiones necesitan `withCredentials`; el gateway solo acepta el origen de su `CORS_ORIGIN` |
+| JavaScript no puede borrar las cookies | Las borra la API: en el logout (siempre) y en cualquier `401` por un token que ya no vale |
 | Versión anterior | Al arrancar se borra el `revishop.token` que guardaba `localStorage` |
 
 > [!TIP]
-> Si sirves el front desde otro origen (p. ej. `ng serve --port 4300`), añádelo a `CORS_ORIGIN` en el `.env` de la API; si no, CORS y la comprobación de `Origin` bloquearán las peticiones.
+> Si sirves el front desde otro origen (p. ej. `ng serve --port 4300`), añádelo a `CORS_ORIGIN` en el `.env` del **gateway** (CORS) y en el de la **API** (comprobación de `Origin`); si no, se bloquearán las peticiones.
 
 **Lo tuyo y lo de los demás:** "Editar" y "Retirar" solo aparecen en tus anuncios (o en todos si eres admin), el select **Vendedor** solo lo ve el admin (el resto publica a su nombre) y un anuncio **inactivo** solo lo ven su vendedor y el admin.
 
@@ -188,7 +217,7 @@ Base: `environment.apiUrl` · respuestas `{ success: true, data }` o `{ success:
 
 | Recurso | Endpoints | Uso |
 |---|---|---|
-| 🔐 **Auth** | `POST /auth/login` · `GET /auth/me` · `POST /auth/logout` | Sesión |
+| 🔐 **Auth** | `POST /auth/login` · `POST /auth/refresh` · `GET /auth/me` · `POST /auth/logout` · `POST /auth/logout-all` | Sesión y renovación |
 | 👤 **Perfil** | `GET` · `PATCH /profile/me` | Mi perfil |
 | 🛍️ **Tienda** | `GET /shop/categories` · `/shop/sellers` · `/shop/locations` · `/shop/products` · `/shop/products/:slug` · `/:slug/variants` | Home, shop y ficha (`ShopService`) |
 | 📦 **Productos** | `GET /products/slug/:slug` | Ficha de gestión |
@@ -205,7 +234,7 @@ Base: `environment.apiUrl` · respuestas `{ success: true, data }` o `{ success:
 ```
 src/app/
 ├── core/                    Infraestructura transversal (no conoce productos)
-│   ├── auth/                AuthStore, AuthService, authInterceptor y guards
+│   ├── auth/                AuthStore, AuthService, AuthChannel, authInterceptor, refreshInterceptor y guards
 │   ├── config/              HttpContextTokens y constantes
 │   ├── interceptors/        errorInterceptor (401/403/429, timeout, alertas) y loadingInterceptor
 │   ├── models/              ApiResponse<T>, ApiError
@@ -300,7 +329,7 @@ Al cambiar de paleta, revisa también `primary-50/100/200/400/500` y el contrast
 - **`errorInterceptor`:** timeout (`requestTimeoutMs`), valida la forma `{ success, data }` y lo normaliza todo a `ApiError` con mensajes en español.
   - Las cargas (GET) muestran el error **en la pantalla** con *Reintentar*, nunca en un modal.
   - Las escrituras muestran un modal (SweetAlert2), salvo 400/409/422 al guardar, que el formulario pinta **junto a cada campo**.
-  - `401` con sesión → cierra la sesión y va al login; las peticiones de la propia sesión (`login`, `me`, `logout`) lo evitan con `SKIP_AUTH_REDIRECT`.
+  - `401` con sesión → primero el `refreshInterceptor` intenta renovar y repetir; si no puede, cierra la sesión y va al login. Las peticiones de la propia sesión (`login`, `refresh`, `me`, `logout`) lo evitan con `SKIP_AUTH_REDIRECT`.
   - `413`, `415` y `503` tienen su propio mensaje (cuerpo demasiado grande, formato no soportado, base de datos caída).
 - **Errores fuera de la API** (`core/errors/`):
   - `GlobalErrorHandler`: un error de JavaScript sin capturar se registra y se avisa con la opción de recargar (como mucho un aviso cada 10 s). Los `ApiError` no se repiten: ya los mostró el interceptor.
@@ -345,9 +374,9 @@ Angular no lee `.env`: la configuración vive en `src/environments/`.
 | Fichero | Cuándo se usa | `apiUrl` |
 | --- | --- | --- |
 | `environment.ts` | `npm run build` (producción) | `/api` (mismo dominio, detrás de un proxy) |
-| `environment.development.ts` | `npm start` y `ng build --configuration development` | `http://localhost:3000/api` |
+| `environment.development.ts` | `npm start` y `ng build --configuration development` | `http://localhost:4000/api` (el gateway) |
 
-Ambos exponen `production` (logs técnicos solo en desarrollo), `apiUrl` (cámbialo si la API va en otro host o puerto) y `requestTimeoutMs` (10 000 ms; pasado ese tiempo se muestra "El servidor está tardando demasiado…").
+Ambos exponen `production` (logs técnicos solo en desarrollo), `apiUrl` (cámbialo si el gateway va en otro host o puerto), `requestTimeoutMs` (10 000 ms; pasado ese tiempo se muestra "El servidor está tardando demasiado…") y `aiRequestTimeoutMs` (35 000 ms, para el asistente).
 
 ---
 

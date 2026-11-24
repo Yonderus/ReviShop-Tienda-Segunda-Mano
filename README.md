@@ -6,7 +6,7 @@
 
 ### Marketplace de segunda mano: cualquier usuario compra y vende, y cada objeto encuentra una segunda vida.
 
-Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una **SPA** (Angular 18) con tienda pública, sesión con JWT en cookie `httpOnly` y panel de administración.
+Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una **SPA** (Angular 18) con tienda pública, sesión con **access y refresh token** en cookies `httpOnly` y panel de administración.
 
 ![Node](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-4-000000?style=for-the-badge&logo=express&logoColor=white)
@@ -47,7 +47,9 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 <td width="33%" valign="top">
 
 ### 🔐 Tu cuenta
-- **Iniciar y cerrar sesión** (el token queda revocado).
+- **Iniciar y cerrar sesión** (los tokens quedan revocados).
+- La sesión **se renueva sola** mientras la usas, sin volver a pedir la contraseña.
+- **Cerrar sesión en todos tus dispositivos** desde Mi perfil.
 - **Publicar, editar y retirar** tus anuncios, con hasta 5 fotos.
 - **Mi perfil**: foto, teléfono, ubicación y bio.
 - Tus anuncios ocultos solo los ves tú.
@@ -121,7 +123,7 @@ El seed crea **3 roles, 6 usuarios** con sus perfiles, **13 categorías** (una e
 
 **Cómo entrar:**
 - 🌐 **En la web:** botón **Iniciar sesión** (`/login`). El admin llega al panel; el resto, a la tienda. **Cerrar sesión** está en el menú de tu foto.
-- 📖 **En Swagger:** *Try it out* en `POST /auth/login` con el email y la contraseña. La cookie de sesión se guarda y el resto de pruebas ya van con sesión (no hace falta **Authorize**).
+- 📖 **En Swagger:** *Try it out* en `POST /auth/login` con el email y la contraseña. Las dos cookies se guardan y el resto de pruebas ya van con sesión (no hace falta **Authorize**); a los 15 min, `POST /auth/refresh` la renueva.
 
 ---
 
@@ -202,26 +204,44 @@ Base: `http://localhost:3000/api` · Documentación interactiva en **`/api/docs`
 
 <br/>
 
-1. `POST /api/auth/login` con `{ email, password }` guarda el JWT en la cookie **`revishop_session`** y devuelve solo `{ user }`.
-2. El navegador envía la cookie solo en cada petición a `/api`. JavaScript **no puede leerla**.
-3. `POST /api/auth/logout` apunta el token en la blacklist y borra la cookie: desde ese momento ese token da `401`, aunque no haya caducado.
+Dos tokens, cada uno en su cookie `httpOnly` (JavaScript **no puede leerlas**):
 
-| Atributo de la cookie | Para qué |
-|---|---|
-| `HttpOnly` | Un script en la página (XSS) no puede robar el token |
-| `SameSite=Strict` | No viaja en peticiones que vienen de otra web: defensa principal contra **CSRF** |
-| `Path=/api` | Solo va a la API |
-| `Max-Age` | Dura lo que le queda al token (`JWT_EXPIRES_IN`) |
-| `Secure` (en producción) | Solo por HTTPS |
+| | 🎫 Access | 🔄 Refresh |
+|---|---|---|
+| Cookie | `revishop_session` · `Path=/api` | `revishop_refresh` · `Path=/api/auth` |
+| Qué es | JWT HS256 | Valor aleatorio opaco; la API guarda **solo su hash** |
+| Dura | **15 min** | **7 días** (máximo 30 por sesión) |
+| Viaja | En cada petición a la API | Solo al renovar o cerrar sesión |
 
-Además, la API solo acepta escrituras (`POST`, `PATCH`, `DELETE`) cuyo `Origin` sea el front o la propia API (**403 "Origen no permitido"** si no), y CORS solo admite los orígenes de `CORS_ORIGIN`, con `credentials`.
+1. `POST /api/auth/login` pone las dos cookies y devuelve `{ user, accessExpiresAt }`.
+2. Un minuto antes de que caduque el access, el front llama a `POST /api/auth/refresh`: el refresh se **rota** (sirve una sola vez) y llegan las dos cookies nuevas. Si aun así una petición da `401`, el front renueva y la repite **una vez**.
+3. Si llega un refresh **ya usado**, alguien tiene una copia: la API **revoca toda la sesión** (detección de robo). Dos pestañas renovando a la vez no cuentan: hay un margen de 30 s que responde `409`.
+4. `POST /api/auth/logout` revoca el access (blacklist) y la sesión del refresh y borra las dos cookies. `POST /api/auth/logout-all` cierra **todas** las sesiones del usuario.
+
+```mermaid
+sequenceDiagram
+    participant F as Front
+    participant G as Gateway :4000
+    participant A as API :3000
+    F->>G: GET /api/profile/me (access caducado)
+    G->>A: reenvía
+    A-->>F: 401
+    F->>G: POST /api/auth/refresh (cookie del refresh)
+    G->>A: reenvía
+    A-->>F: 200 + las dos cookies nuevas
+    F->>G: GET /api/profile/me (se repite una vez)
+    A-->>F: 200
+```
+
+Las dos cookies son `SameSite=Strict` (defensa principal contra **CSRF**) y `Secure` en producción. Además, la API solo acepta escrituras (`POST`, `PATCH`, `DELETE`) cuyo `Origin` sea el front o la propia API (**403 "Origen no permitido"** si no), y el **gateway** solo admite por CORS los orígenes de `CORS_ORIGIN`, con `credentials`.
 
 En cada petición se comprueban la firma, la caducidad, la blacklist, que el usuario siga activo y no suspendido, y que no se haya cambiado su contraseña después. **El rol se lee de la base de datos**, no del token.
 
 - Email inexistente o contraseña mala → el **mismo** `401`, para no revelar qué emails existen.
 - Cuenta inactiva, suspendida o eliminada → `403`.
 - **10 fallos cada 15 min por IP y email, y 50 por IP** → `429` con `Retry-After`.
-- Cambiar la contraseña, desactivar, suspender o borrar a un usuario **cierra todas sus sesiones**.
+- Cambiar la contraseña, desactivar, suspender o borrar a un usuario **cierra todas sus sesiones** (access y refresh).
+- **300 renovaciones cada 15 min por IP** como máximo → `429`.
 
 </details>
 
@@ -255,12 +275,12 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | Código | Cuándo |
 |:-:|---|
 | `200` · `201` · `204` | Lectura o edición · creación · borrado |
-| `401` | Sin cookie de sesión, o con un token caducado, revocado o no válido · credenciales incorrectas |
+| `401` | Sin cookie de sesión, o con un token caducado, revocado o no válido (el front renueva y repite) · refresh no válido o reutilizado · credenciales incorrectas |
 | `403` | Sin permiso: no es admin o no es suyo · cuenta que no puede entrar · escritura desde un origen no permitido |
 | `404` | No existe o está en la papelera |
-| `409` | Choca con otro registro o con su estado |
+| `409` | Choca con otro registro o con su estado · refresh renovado hace un instante por otra pestaña |
 | `422` | Datos no válidos (Zod, reglas del service o Mongoose) |
-| `429` | Demasiados intentos de login |
+| `429` | Demasiados intentos de login o de renovaciones |
 | `413` · `415` | Cuerpo de más de 100 KB · formato no soportado (charset o compresión) |
 | `503` | MongoDB no responde (en vez de dejar la petición colgada) |
 
@@ -274,10 +294,11 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 |---|---|
 | ⚡ **Angular 18** | Standalone, **Signals**, `OnPush` en todo, Reactive Forms y lazy loading con code splitting |
 | 🗄️ **Store genérico** | `EntityStore`: colecciones, detalle, escrituras y visibilidad optimista. Cada entidad hereda y solo añade lo suyo |
-| 🔐 **Sesión** | El token va en una cookie `httpOnly` que el front **no ve ni guarda**; el usuario sale siempre de `GET /auth/me`. El interceptor pone `withCredentials` solo en las peticiones a la API |
+| 🔐 **Sesión** | Los tokens van en cookies `httpOnly` que el front **no ve ni guarda**. El `authInterceptor` pone `withCredentials` solo en las peticiones a la API |
+| 🔄 **Renovación** | Temporizador que renueva un minuto antes de que caduque el access (solo con la pestaña visible) · `refreshInterceptor`: un `401` → **una** renovación compartida (*single-flight*) y un reintento · las pestañas se avisan por `BroadcastChannel` |
 | 🚧 **Rutas protegidas** | `guestGuard` (`/login`), `authGuard` (`/profile`, publicar y editar) y `adminGuard` (`/admin/**` → `/forbidden` si no eres admin) |
 | 👤 **Lo tuyo** | "Editar" y "Retirar" solo en tus anuncios (o en todos si eres admin); el select **Vendedor** solo lo ve el admin |
-| 🚨 **Errores** | En español, junto al campo o en la pantalla con *Reintentar*. Un `401` con sesión la cierra y te devuelve después a donde estabas |
+| 🚨 **Errores** | En español, junto al campo o en la pantalla con *Reintentar*. Un `401` que no se puede arreglar renovando cierra la sesión y te devuelve después a donde estabas |
 | 🎨 **UX** | Skeletons, estados vacíos y de error, View Transitions, sin scroll horizontal desde 375 px y accesibilidad (labels, `aria-*`, foco al primer error) |
 
 ---
@@ -292,7 +313,8 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | **Perfil separado** de la cuenta, pero sin CRUD propio | Lo personal (avatar, bio…) aparte del login, siempre con el mismo ciclo de vida que su usuario |
 | **Argon2id** en lugar de bcrypt | Es la recomendación actual de OWASP; las contraseñas antiguas se migran al iniciar sesión |
 | **Blacklist** para el logout | Un JWT no se puede "borrar": así el logout invalida el token de verdad |
-| El token va en una **cookie `httpOnly`** (no en `localStorage`) | En `localStorage` cualquier script de la página podría copiarlo. Con `SameSite=Strict` y la comprobación de `Origin` se cubre el CSRF que traen las cookies. Los *refresh tokens* quedan para más adelante |
+| El token va en una **cookie `httpOnly`** (no en `localStorage`) | En `localStorage` cualquier script de la página podría copiarlo. Con `SameSite=Strict` y la comprobación de `Origin` se cubre el CSRF que traen las cookies |
+| **Access corto + refresh rotatorio** | Un access robado vale 15 min; un refresh robado se detecta en cuanto se usa dos veces. El refresh se guarda **hasheado** (un volcado de la base de datos no sirve para entrar) y su cookie solo viaja a `/api/auth` |
 | **Integridad en los services**, no en scripts | Cada service vigila su entidad, en cada petición y no solo al migrar |
 | **`isActive` y `deletedAt` independientes** | Ocultar un anuncio no es lo mismo que borrarlo |
 | El **estado del producto se calcula** a partir de sus variantes | Un solo origen de verdad: disponible, reservado o vendido |
@@ -321,6 +343,9 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | ✅ | JWT en el front: login, sesión, guards, interceptor, menú de usuario y Mi perfil |
 | ✅ | Sesión en cookie `httpOnly` (`SameSite=Strict`, comprobación de `Origin` y CORS con `credentials`) |
 | ✅ | Home y Shop: módulo `/api/shop`, query dinámica, búsqueda en dos pasos, índices ESR, carruseles, filtros en la URL y peticiones cancelables |
+| ✅ | Asistente IA (`secondhand-ai`): asistente de compra con herramientas y asistente de anuncios, sin acceso a la base de datos |
+| ✅ | API Gateway en el puerto 4000 (CORS centralizado) y `npm run dev` para arrancarlo todo |
+| ✅ | Access (15 min) + refresh token rotatorio con detección de reutilización, renovación automática en el front, sincronización entre pestañas y cierre en todos los dispositivos |
 | 🔜 | Mis anuncios, cambio de contraseña y registro |
 | 🔜 | Carrito, reservas y pagos |
 

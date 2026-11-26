@@ -41,3 +41,30 @@ export const getPublicReviews = async (req, res, next) => {
     next(error);
   }
 };
+
+// ── Moderación (solo admin) ──
+
+export const getReports = async (req, res, next) => {
+  try {
+    const { status, page, limit } = req.query;
+    sendSuccess(res, await reportService.list({ view: status, page, limit }));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resolveReport = async (req, res, next) => {
+  try {
+    sendSuccess(res, await reportService.resolve(req.params.id, req.body.action, req.user));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const setReviewHidden = async (req, res, next) => {
+  try {
+    sendSuccess(res, await reviewService.setHidden(req.params.id, req.body));
+  } catch (error) {
+    next(error);
+  }
+};

@@ -640,6 +640,33 @@ export const swaggerSpec = swaggerJSDoc({
             note: { type: "string", maxLength: 300 },
           },
         },
+        ReportPageResponse: success({
+          type: "object",
+          properties: {
+            items: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  _id: objectId,
+                  targetType: { type: "string", enum: ["review", "question"] },
+                  reason: { type: "string" },
+                  reasonLabel: { type: "string", example: "No tiene que ver con la venta" },
+                  note: { type: "string", nullable: true },
+                  status: { type: "string", enum: ["open", "dismissed", "actioned"] },
+                  reporter: { type: "object", properties: { name: { type: "string" }, slug: { type: "string" } } },
+                  createdAt: { type: "string", format: "date-time" },
+                  resolvedBy: { type: "object", nullable: true },
+                  resolvedAt: nullableDate,
+                  reportsOnTarget: { type: "integer", example: 2 },
+                  target: { type: "object", nullable: true, description: "La valoración completa, con author, reviewee y hiddenAt" },
+                },
+              },
+            },
+            pagination: { $ref: "#/components/schemas/Pagination" },
+            counts: { type: "object", properties: { open: { type: "integer" }, resolved: { type: "integer" } } },
+          },
+        }),
         PendingResponse: success({
           type: "object",
           properties: {
@@ -654,6 +681,7 @@ export const swaggerSpec = swaggerJSDoc({
         VariantId: { name: "id", in: "path", required: true, schema: objectId },
         SaleId: { name: "id", in: "path", required: true, schema: objectId },
         ReviewId: { name: "id", in: "path", required: true, schema: objectId },
+        ReportId: { name: "id", in: "path", required: true, schema: objectId },
         UserSlug: { name: "slug", in: "path", required: true, schema: { type: "string", example: "lucia-martin" } },
         CategoryId: { name: "id", in: "path", required: true, schema: objectId },
         CategoryStatus: { name: "status", in: "query", schema: { type: "string", enum: CATEGORY_STATUSES } },

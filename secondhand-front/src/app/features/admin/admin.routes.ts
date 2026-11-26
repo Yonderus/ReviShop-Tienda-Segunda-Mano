@@ -8,6 +8,7 @@ const meta = (data: AdminRouteMeta) => data;
 const PRODUCTS_CRUMB = { label: 'Productos', link: '/admin/products' };
 const CATEGORIES_CRUMB = { label: 'Categorías', link: '/admin/categories' };
 const USERS_CRUMB = { label: 'Usuarios', link: '/admin/users' };
+const REPORTS_CRUMB = { label: 'Denuncias', link: '/admin/reports' };
 
 /**
  * En cada sección, `<x>/new` va antes que `<x>/:slug/edit`, y `<x>/inactive` y `<x>/trash` no chocan con él
@@ -113,6 +114,18 @@ const ADMIN_ROUTES: Routes = [
         title: title('Papelera de usuarios'),
         data: meta({ crumbs: [{ label: 'Admin', link: '/admin' }, USERS_CRUMB, { label: 'Papelera' }] }),
         loadComponent: () => import('./users/admin-users-trash-page.component').then((m) => m.AdminUsersTrashPageComponent),
+      },
+      {
+        path: 'reports',
+        title: title('Denuncias abiertas'),
+        data: { ...meta({ crumbs: [{ label: 'Admin', link: '/admin' }, { label: 'Denuncias' }] }), view: 'open' },
+        loadComponent: () => import('./reports/admin-reports-page.component').then((m) => m.AdminReportsPageComponent),
+      },
+      {
+        path: 'reports/resolved',
+        title: title('Denuncias resueltas'),
+        data: { ...meta({ crumbs: [{ label: 'Admin', link: '/admin' }, REPORTS_CRUMB, { label: 'Resueltas' }] }), view: 'resolved' },
+        loadComponent: () => import('./reports/admin-reports-page.component').then((m) => m.AdminReportsPageComponent),
       },
       // La papelera era una sección suelta; ahora es una pestaña de Productos.
       { path: 'trash', redirectTo: 'products/trash', pathMatch: 'full' },

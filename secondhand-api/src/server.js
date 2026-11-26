@@ -17,6 +17,7 @@ import profileRoutes from "./routes/profile.routes.js";
 import { productVariantRoutes, productVariantsOfProductRoutes } from "./routes/productVariant.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import roleRoutes from "./routes/role.routes.js";
+import reportRoutes from "./routes/report.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
 import saleRoutes, { meRoutes } from "./routes/sale.routes.js";
 import shopRoutes from "./routes/shop.routes.js";
@@ -66,6 +67,8 @@ app.use("/api/sales", saleRoutes);
 app.use("/api/me", meRoutes);
 // Valoraciones ya escritas (responder, denunciar). Valorar va en /api/sales/:id/review y lo público en /api/shop.
 app.use("/api/reviews", reviewRoutes);
+// Moderación de denuncias (panel de admin).
+app.use("/api/reports", reportRoutes);
 // Tienda pública (Home y Shop), separada del CRUD de productos.
 app.use("/api/shop", shopRoutes);
 

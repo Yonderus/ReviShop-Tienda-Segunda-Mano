@@ -36,6 +36,22 @@ export const reviewRepository = {
     return Review.updateMany({ saleId, visibleAt: { $gt: now } }, { visibleAt: now });
   },
 
+  /** Moderación: ocultar (con su motivo) o volver a mostrar. Devuelve la valoración actualizada o null. */
+  setHidden(id, hidden, reason, now) {
+    const changes = hidden ? { hiddenAt: now, hiddenReason: reason ?? null } : { hiddenAt: null, hiddenReason: null };
+    return Review.findByIdAndUpdate(id, changes, { new: true }).lean();
+  },
+
+  /** Para el panel: varias valoraciones con quien la escribió y el valorado (nombre y slug). */
+  findForModeration(ids) {
+    return Review.find({ _id: { $in: ids } })
+      .populate([
+        { path: "reviewerId", select: "name slug", options: WITH_DELETED },
+        { path: "revieweeId", select: "name slug", options: WITH_DELETED },
+      ])
+      .lean();
+  },
+
   /** La respuesta, una sola vez: solo se guarda si aún no había (aunque lleguen dos a la vez). Devuelve la valoración o null. */
   setReplyIfNone(id, reply) {
     return Review.findOneAndUpdate({ _id: id, reply: null }, { reply }, { new: true }).lean();

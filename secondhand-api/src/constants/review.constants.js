@@ -34,6 +34,21 @@ export const REPORT_REASONS = Object.freeze(["insultos", "datos_personales", "no
 export const REPORT_STATUS = Object.freeze({ OPEN: "open", DISMISSED: "dismissed", ACTIONED: "actioned" });
 export const REPORT_STATUSES = Object.freeze(Object.values(REPORT_STATUS));
 export const REPORT_NOTE_MAX = 300;
+/** Lo que decide el admin con una denuncia: descartarla (la valoración se queda) u ocultar lo denunciado. */
+export const REPORT_ACTION = Object.freeze({ DISMISS: "dismiss", HIDE: "hide" });
+export const REPORT_ACTIONS = Object.freeze(Object.values(REPORT_ACTION));
+/** Las pestañas del panel: abiertas (por revisar) y resueltas (descartadas o con acción). */
+export const REPORT_VIEW = Object.freeze({ OPEN: "open", RESOLVED: "resolved" });
+export const REPORT_VIEWS = Object.freeze(Object.values(REPORT_VIEW));
+export const REPORT_PAGE = Object.freeze({ DEFAULT_LIMIT: 20, MAX_LIMIT: 50 });
+/** El motivo de la denuncia, en palabras: es el motivo que queda guardado al ocultar la valoración. */
+export const REPORT_REASON_LABELS = Object.freeze({
+  insultos: "Insultos o faltas de respeto",
+  datos_personales: "Datos personales",
+  no_tiene_que_ver: "No tiene que ver con la venta",
+  spam: "Spam o publicidad",
+  otro: "Otro motivo",
+});
 /** Denunciar cuesta poco y obliga a alguien a revisarlo: con límite por usuario. */
 export const REPORT_RATE_LIMIT = Object.freeze({ WINDOW_MS: 60 * 60 * 1000, PER_USER: 20 });
 
@@ -53,4 +68,7 @@ export const REVIEW_MESSAGES = Object.freeze({
   ALREADY_REPORTED: "Ya has denunciado esto. Lo revisará un administrador",
   CANNOT_REPORT_OWN: "No puedes denunciar algo que has escrito tú",
   TOO_MANY_REPORTS: "Has enviado muchas denuncias seguidas. Prueba de nuevo dentro de un rato",
+  REPORT_NOT_FOUND: "Denuncia no encontrada",
+  REPORT_ALREADY_RESOLVED: "Esta denuncia ya está resuelta",
+  TARGET_GONE: "Lo denunciado ya no existe: solo se puede descartar",
 });

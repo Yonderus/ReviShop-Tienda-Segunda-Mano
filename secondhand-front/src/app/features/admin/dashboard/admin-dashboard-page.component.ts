@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
@@ -11,6 +11,7 @@ import { primaryImage } from '../../products/models/product.utils';
 import { ProductsStore } from '../../products/store/products.store';
 import { PLATFORM_MODULES } from '../admin-nav.config';
 import { AdminThumbComponent } from '../components/admin-thumb/admin-thumb.component';
+import { ModerationService } from '../reports/moderation.service';
 
 const STATUS_BAR: Record<ProductStatus, string> = {
   disponible: 'bg-emerald-600',
@@ -38,6 +39,7 @@ const pct = (part: number, total: number) => (total ? Math.round((part / total) 
 })
 export class AdminDashboardPageComponent implements OnInit {
   protected readonly store = inject(ProductsStore);
+  private readonly moderation = inject(ModerationService);
 
   protected readonly modules = PLATFORM_MODULES;
   protected readonly primaryImage = primaryImage;
@@ -75,11 +77,24 @@ export class AdminDashboardPageComponent implements OnInit {
     return rows.map((r) => ({ ...r, width: pct(r.count, max) }));
   });
 
+  /** Denuncias abiertas (0 si no se pudieron pedir: es un aviso, no algo que tenga que fallar delante del admin). */
+  protected readonly openReports = signal(0);
+
   ngOnInit(): void {
     void this.store.loadCollections();
+    void this.loadReports();
   }
 
   protected retry(): void {
     void this.store.loadCollections({ force: true });
+    void this.loadReports();
+  }
+
+  private async loadReports(): Promise<void> {
+    try {
+      this.openReports.set((await this.moderation.counts()).open);
+    } catch {
+      this.openReports.set(0);
+    }
   }
 }

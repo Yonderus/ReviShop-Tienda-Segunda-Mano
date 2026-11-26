@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
+  REPORT_ACTIONS,
   REPORT_NOTE_MAX,
+  REPORT_PAGE,
   REPORT_REASONS,
   REVIEW_COMMENT,
   REVIEW_LOW_RATING,
@@ -9,6 +11,7 @@ import {
   REVIEW_RATING,
   REVIEW_REPLY_MAX,
   REVIEWEE_ROLES,
+  REPORT_VIEWS,
 } from "../constants/review.constants.js";
 
 const stars = (label) =>
@@ -79,4 +82,25 @@ export const publicReviewsQuerySchema = z.object({
     .min(1, "limit debe ser al menos 1")
     .max(REVIEW_PAGE.MAX_LIMIT, `limit no puede superar ${REVIEW_PAGE.MAX_LIMIT}`)
     .default(REVIEW_PAGE.DEFAULT_LIMIT),
+});
+
+/** Panel: abiertas o resueltas, paginadas. */
+export const reportListQuerySchema = z.object({
+  status: z.enum(REPORT_VIEWS, { error: `status debe ser: ${REPORT_VIEWS.join(", ")}` }).default("open"),
+  page: z.coerce.number({ error: "page debe ser un número" }).int().min(1, "page empieza en 1").default(1),
+  limit: z.coerce
+    .number({ error: "limit debe ser un número" })
+    .int()
+    .min(1, "limit debe ser al menos 1")
+    .max(REPORT_PAGE.MAX_LIMIT, `limit no puede superar ${REPORT_PAGE.MAX_LIMIT}`)
+    .default(REPORT_PAGE.DEFAULT_LIMIT),
+});
+
+export const resolveReportSchema = z.object({
+  action: z.enum(REPORT_ACTIONS, { error: `action debe ser: ${REPORT_ACTIONS.join(", ")}` }),
+});
+
+export const setReviewHiddenSchema = z.object({
+  hidden: z.boolean({ error: "hidden es obligatorio y debe ser true o false" }),
+  reason: optionalText(300, "El motivo"),
 });

@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { replyToReview, reportReview } from "../controllers/review.controller.js";
+import { replyToReview, reportReview, setReviewHidden } from "../controllers/review.controller.js";
+import { adminOnly } from "../middlewares/admin.middleware.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { reportRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.js";
 import { idParamsSchema } from "../validators/common.validator.js";
-import { replySchema, reportSchema } from "../validators/review.validator.js";
+import { replySchema, reportSchema, setReviewHiddenSchema } from "../validators/review.validator.js";
 
 /**
  * Una valoración ya escrita: responder y denunciar. Se monta en /api/reviews. Valorar se hace sobre la venta
@@ -61,5 +62,27 @@ router.post("/:id/reply", authenticate, validate({ params: idParamsSchema, body:
  *       429: { $ref: '#/components/responses/TooManyRequests' }
  */
 router.post("/:id/report", authenticate, reportRateLimit, validate({ params: idParamsSchema, body: reportSchema }), reportReview);
+
+/**
+ * @openapi
+ * /reviews/{id}/hidden:
+ *   patch:
+ *     tags: [Valoraciones]
+ *     summary: Panel — ocultar o volver a mostrar una valoración
+ *     security: [{ cookieAuth: [] }]
+ *     description: Oculta sale de lo público y de las medias; se puede deshacer. `reason` queda guardado al ocultar.
+ *     parameters: [{ $ref: '#/components/parameters/ReviewId' }]
+ *     requestBody:
+ *       required: true
+ *       content: { application/json: { schema: { type: object, required: [hidden], properties: { hidden: { type: boolean }, reason: { type: string, maxLength: 300 } } } } }
+ *     responses:
+ *       200:
+ *         description: Hecho
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.patch("/:id/hidden", adminOnly, validate({ params: idParamsSchema, body: setReviewHiddenSchema }), setReviewHidden);
 
 export default router;

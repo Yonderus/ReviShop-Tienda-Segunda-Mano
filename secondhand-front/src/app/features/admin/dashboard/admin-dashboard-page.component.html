@@ -10,6 +10,21 @@
     </button>
   </header>
 
+  <!-- Denuncias por revisar: lo único del resumen que espera una acción del admin -->
+  @if (openReports(); as count) {
+    <a
+      routerLink="/admin/reports"
+      class="mb-6 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 transition-colors hover:border-amber-300 hover:bg-amber-100/70"
+    >
+      <app-icon name="star" [size]="20" class="shrink-0" />
+      <span class="flex-1">
+        <strong>{{ count === 1 ? '1 denuncia' : count + ' denuncias' }}</strong> de valoraciones por revisar.
+      </span>
+      <span class="font-semibold">Revisar</span>
+      <app-icon name="chevronRight" [size]="18" />
+    </a>
+  }
+
   @if (error(); as err) {
     <app-error-state title="No hemos podido cargar el resumen" [error]="err" (retry)="retry()" />
   } @else if (!store.statsReady()) {

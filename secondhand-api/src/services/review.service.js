@@ -141,6 +141,17 @@ export const reviewService = {
     return toPublicReview({ ...updated, reviewerId: (await userRepository.findRawById(updated.reviewerId)) ?? null });
   },
 
+  /**
+   * Moderación a mano (admin): ocultar una valoración (sale de lo público y de las medias) o volver a mostrarla.
+   * Ocultar no la borra: se puede deshacer. Quien la escribió la sigue viendo en Mi actividad (es suya); el valorado,
+   * no (como el resto de la gente).
+   */
+  async setHidden(reviewId, { hidden, reason }) {
+    const review = await reviewRepository.setHidden(reviewId, hidden, reason, new Date());
+    if (!review) throw new NotFoundError(REVIEW_MESSAGES.NOT_FOUND);
+    return { _id: review._id, hiddenAt: review.hiddenAt, hiddenReason: review.hiddenReason };
+  },
+
   // ── Público: perfil y valoraciones de un usuario ──
 
   /** El perfil público: quién es, desde cuándo, cuántas ventas ha cerrado y sus medias como vendedor y comprador. */

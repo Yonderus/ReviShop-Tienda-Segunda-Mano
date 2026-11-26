@@ -37,13 +37,17 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     title: 'Personas',
     links: [{ label: 'Usuarios', icon: 'users', path: '/admin/users' }],
   },
+  {
+    title: 'Comunidad',
+    // Las valoraciones se moderan desde sus denuncias (abiertas y resueltas son pestañas).
+    links: [{ label: 'Denuncias', icon: 'star', path: '/admin/reports' }],
+  },
 ];
 
 /** Para activar un módulo: crear features/<entidad>/, añadir su ruta y moverlo a ADMIN_NAV. */
 export const PLATFORM_MODULES: PlatformModule[] = [
   { label: 'Mensajes', icon: 'message', description: 'Conversaciones entre usuarios', enabled: false },
   { label: 'Reservas', icon: 'calendarCheck', description: 'Productos apartados para un comprador', enabled: false },
-  { label: 'Valoraciones', icon: 'star', description: 'Opiniones tras cada venta', enabled: false },
   { label: 'Pagos', icon: 'card', description: 'Cobros y reembolsos', enabled: false },
   { label: 'Envíos', icon: 'truck', description: 'Seguimiento de paquetes', enabled: false },
 ];

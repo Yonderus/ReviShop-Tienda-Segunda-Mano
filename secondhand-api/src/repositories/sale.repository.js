@@ -49,6 +49,11 @@ export const saleRepository = {
     return Sale.countDocuments({ buyerId, status: SALE_STATE.PENDING, expiresAt: { $gt: now } });
   },
 
+  /** Ventas cerradas de verdad (confirmadas) como vendedor: el "ha vendido N cosas" del perfil público. */
+  countConfirmedAsSeller(sellerId) {
+    return Sale.countDocuments({ sellerId, status: SALE_STATE.CONFIRMED });
+  },
+
   /** Confirmadas en las que participa `userId` y que aún se pueden valorar. */
   findReviewable(userId, now) {
     return Sale.find({

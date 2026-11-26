@@ -65,6 +65,21 @@ export const userRepository = {
       .lean();
   },
 
+  /**
+   * Perfil público (`/shop/sellers/:slug`): solo si puede vender (activo y no suspendido), con lo público de su
+   * perfil (ubicación y avatar) y desde cuándo está.
+   */
+  findPublicBySlug(slug) {
+    return User.findOne({ slug, ...CAN_SELL })
+      .select(`${PUBLIC_FIELDS} createdAt`)
+      .populate({
+        path: "profile",
+        select: "userId location bio",
+        populate: { path: "avatar", select: "url", match: AVATAR_MATCH },
+      })
+      .lean();
+  },
+
   /** Panel: con su rol y su perfil (y el avatar del perfil). */
   findAll(filter = {}) {
     return User.find(filter).sort({ name: 1 }).select(ADMIN_FIELDS).populate(ADMIN_POPULATE).lean();

@@ -1,9 +1,11 @@
 import { Router } from "express";
+import { createReview } from "../controllers/review.controller.js";
 import { cancelSale, confirmSale, getMyPending, getMySales, registerSale, rejectSale } from "../controllers/sale.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { saleRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.js";
 import { idParamsSchema } from "../validators/common.validator.js";
+import { createReviewSchema } from "../validators/review.validator.js";
 import { mySalesQuerySchema, registerSaleSchema } from "../validators/sale.validator.js";
 
 /** Las ventas: se monta en /api/sales. Todo con sesión; cada venta solo la ven sus dos partes (y un admin). */
@@ -122,6 +124,38 @@ router.post("/:id/reject", authenticate, validate({ params: idParamsSchema }), r
  *       409: { $ref: '#/components/responses/Conflict' }
  */
 router.post("/:id/cancel", authenticate, validate({ params: idParamsSchema }), cancelSale);
+
+/**
+ * @openapi
+ * /sales/{id}/review:
+ *   post:
+ *     tags: [Valoraciones]
+ *     summary: Valorar a la otra parte de la venta (ciega, sin edición)
+ *     security: [{ cookieAuth: [] }]
+ *     description: |
+ *       El comprador valora al vendedor (criterios `asDescribed`, `communication`, `punctuality`) y el vendedor al
+ *       comprador (`communication`, `punctuality`). Con nota 1 o 2 el comentario es obligatorio (mín. 20 caracteres).
+ *
+ *       **Ciega:** no se publica hasta que valora el otro o termina la ventana de 72 h; entonces salen las dos a la vez.
+ *       No se puede editar.
+ *
+ *       - **404**: la venta no existe o no eres una de sus partes.
+ *       - **409**: la venta no está confirmada, la ventana ya terminó o ya la habías valorado.
+ *       - **422**: nota, criterios o comentario no válidos.
+ *     parameters: [{ $ref: '#/components/parameters/SaleId' }]
+ *     requestBody:
+ *       required: true
+ *       content: { application/json: { schema: { $ref: '#/components/schemas/ReviewInput' } } }
+ *     responses:
+ *       201:
+ *         description: Guardada (pública ya, o cuando toque)
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/OwnReviewResponse' } } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409: { $ref: '#/components/responses/Conflict' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.post("/:id/review", authenticate, validate({ params: idParamsSchema, body: createReviewSchema }), createReview);
 
 export default router;
 

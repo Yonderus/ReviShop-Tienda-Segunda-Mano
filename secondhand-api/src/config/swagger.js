@@ -61,6 +61,7 @@ export const swaggerSpec = swaggerJSDoc({
       { name: "Usuarios", description: "Cuentas (cualquiera compra y vende), roles, visibilidad y papelera" },
       { name: "Tienda", description: "Home y Shop públicos: catálogo paginado, ficha, categorías, vendedores y ubicaciones (solo lo que está a la venta)" },
       { name: "Ventas", description: "Registro de ventas entre usuarios: el vendedor la registra y el comprador la confirma (la prueba que exigen las valoraciones)" },
+      { name: "Valoraciones", description: "Valoraciones ciegas entre comprador y vendedor (72 h, sin edición), respuesta, denuncias y perfil público" },
     ],
     components: {
       securitySchemes: {
@@ -510,6 +511,15 @@ export const swaggerSpec = swaggerJSDoc({
             reviewWindowEndsAt: { ...nullableDate, description: "Hasta cuándo se pueden valorar (confirmación + 72 h)" },
             closedAt: nullableDate,
             closeReason: { type: "string", enum: SALE_CLOSE_REASONS, nullable: true },
+            reviews: {
+              type: "object",
+              description: "Sistema ciego: la del otro solo aparece cuando ya es pública",
+              properties: {
+                mine: { allOf: [{ $ref: "#/components/schemas/OwnReview" }], nullable: true },
+                theirs: { allOf: [{ $ref: "#/components/schemas/PublicReview" }], nullable: true },
+                theirsSubmitted: { type: "boolean", description: "El otro ya ha valorado (sin decir la nota)" },
+              },
+            },
             can: {
               type: "object",
               description: "Lo que puede hacer ahora quien la mira",
@@ -530,6 +540,106 @@ export const swaggerSpec = swaggerJSDoc({
             pagination: { $ref: "#/components/schemas/Pagination" },
           },
         }),
+        ReviewInput: {
+          type: "object",
+          required: ["rating", "criteria"],
+          description: "Al vendedor: asDescribed, communication y punctuality. Al comprador: communication y punctuality. Con rating ≤ 2, comment obligatorio (≥ 20).",
+          properties: {
+            rating: { type: "integer", minimum: 1, maximum: 5, example: 5 },
+            criteria: {
+              type: "object",
+              properties: {
+                asDescribed: { type: "integer", minimum: 1, maximum: 5, description: "Estado tal como se anunciaba (solo al vendedor)" },
+                communication: { type: "integer", minimum: 1, maximum: 5, description: "Trato y comunicación" },
+                punctuality: { type: "integer", minimum: 1, maximum: 5, description: "Puntualidad" },
+              },
+              example: { asDescribed: 5, communication: 5, punctuality: 4 },
+            },
+            comment: { type: "string", maxLength: 1000, example: "Todo perfecto, tal como se anunciaba." },
+          },
+        },
+        OwnReview: {
+          type: "object",
+          description: "La valoración vista por quien la escribió (también antes de publicarse)",
+          properties: {
+            _id: objectId,
+            rating: { type: "integer" },
+            criteria: { type: "object" },
+            comment: { type: "string", nullable: true },
+            reply: { type: "object", nullable: true },
+            visibleAt: { type: "string", format: "date-time", description: "Cuándo es (o será) pública" },
+            isPublished: { type: "boolean" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        OwnReviewResponse: success({ $ref: "#/components/schemas/OwnReview" }),
+        PublicReview: {
+          type: "object",
+          properties: {
+            _id: objectId,
+            revieweeRole: { type: "string", enum: ["seller", "buyer"] },
+            rating: { type: "integer", example: 4 },
+            criteria: { type: "object", example: { asDescribed: 5, communication: 4, punctuality: 4 } },
+            comment: { type: "string", nullable: true },
+            reply: {
+              type: "object",
+              nullable: true,
+              properties: { text: { type: "string" }, createdAt: { type: "string", format: "date-time" } },
+            },
+            product: { type: "object", properties: { title: { type: "string" }, slug: { type: "string" } } },
+            reviewer: {
+              type: "object",
+              description: "«Usuario de Revishop» y slug null si su cuenta ya no está activa",
+              properties: { name: { type: "string" }, slug: { type: "string", nullable: true } },
+            },
+            publishedAt: { type: "string", format: "date-time" },
+          },
+        },
+        PublicReviewResponse: success({ $ref: "#/components/schemas/PublicReview" }),
+        PublicReviewPageResponse: success({
+          type: "object",
+          properties: {
+            items: { type: "array", items: { $ref: "#/components/schemas/PublicReview" } },
+            pagination: { $ref: "#/components/schemas/Pagination" },
+          },
+        }),
+        RatingSummary: {
+          type: "object",
+          properties: {
+            average: { type: "number", nullable: true, example: 4.6 },
+            count: { type: "integer", example: 12 },
+            distribution: { type: "object", example: { 5: 8, 4: 3, 3: 1, 2: 0, 1: 0 } },
+            criteria: { type: "object", example: { asDescribed: 4.8, communication: 4.5, punctuality: 4.4 } },
+          },
+        },
+        PublicProfileResponse: success({
+          type: "object",
+          properties: {
+            _id: objectId,
+            name: { type: "string", example: "Lucía Martín" },
+            slug: { type: "string", example: "lucia-martin" },
+            avatarUrl: { type: "string", format: "uri" },
+            location: { type: "string" },
+            bio: { type: "string" },
+            memberSince: { type: "string", format: "date-time" },
+            salesCount: { type: "integer", description: "Ventas confirmadas como vendedor", example: 7 },
+            ratings: {
+              type: "object",
+              properties: {
+                asSeller: { $ref: "#/components/schemas/RatingSummary" },
+                asBuyer: { $ref: "#/components/schemas/RatingSummary" },
+              },
+            },
+          },
+        }),
+        ReportInput: {
+          type: "object",
+          required: ["reason"],
+          properties: {
+            reason: { type: "string", enum: ["insultos", "datos_personales", "no_tiene_que_ver", "spam", "otro"] },
+            note: { type: "string", maxLength: 300 },
+          },
+        },
         PendingResponse: success({
           type: "object",
           properties: {
@@ -543,6 +653,8 @@ export const swaggerSpec = swaggerJSDoc({
         ProductId: { name: "id", in: "path", required: true, schema: objectId },
         VariantId: { name: "id", in: "path", required: true, schema: objectId },
         SaleId: { name: "id", in: "path", required: true, schema: objectId },
+        ReviewId: { name: "id", in: "path", required: true, schema: objectId },
+        UserSlug: { name: "slug", in: "path", required: true, schema: { type: "string", example: "lucia-martin" } },
         CategoryId: { name: "id", in: "path", required: true, schema: objectId },
         CategoryStatus: { name: "status", in: "query", schema: { type: "string", enum: CATEGORY_STATUSES } },
         UserId: { name: "id", in: "path", required: true, schema: objectId },

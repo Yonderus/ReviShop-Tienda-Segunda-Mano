@@ -12,6 +12,8 @@ import { Profile } from "./models/profile.model.js";
 import { RefreshToken } from "./models/refreshToken.model.js";
 import { RevokedToken } from "./models/revokedToken.model.js";
 import { Role } from "./models/role.model.js";
+import { Report } from "./models/report.model.js";
+import { Review } from "./models/review.model.js";
 import { Sale } from "./models/sale.model.js";
 import { User } from "./models/user.model.js";
 import { cascadeSoftDelete, productService } from "./services/product.service.js";
@@ -333,9 +335,9 @@ const PRODUCTS = [
 ];
 
 // Las sesiones (refresh_tokens) y la blacklist (revoked_tokens) también se vacían: los usuarios se crean de nuevo.
-// Las ventas, igual: apuntan a usuarios y variantes que el seed vuelve a crear con otros ids (sus datos de
+// Las ventas, valoraciones y denuncias, igual: apuntan a usuarios y variantes que el seed vuelve a crear con otros ids (sus datos de
 // ejemplo llegan en V9).
-const MODELS = [Role, User, Profile, Category, Product, ProductVariant, Image, RevokedToken, RefreshToken, Sale];
+const MODELS = [Role, User, Profile, Category, Product, ProductVariant, Image, RevokedToken, RefreshToken, Sale, Review, Report];
 
 /* ---------- Pasos (en orden de dependencias) ---------- */
 

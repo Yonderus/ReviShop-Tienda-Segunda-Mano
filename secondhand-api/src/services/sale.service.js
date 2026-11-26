@@ -10,12 +10,14 @@ import {
 import { imageRepository } from "../repositories/image.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
+import { reviewRepository } from "../repositories/review.repository.js";
 import { saleRepository } from "../repositories/sale.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { isAdmin } from "../utils/access.js";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/AppError.js";
 import { paginationOf, skipFor } from "../utils/pagination.js";
 import { productService } from "./product.service.js";
+import { toOwnReview, toPublicReview } from "./review.service.js";
 import { userService } from "./user.service.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -69,13 +71,31 @@ async function changePending(sale, now, changes) {
 }
 
 /**
- * Lo que ve cada parte de una venta: su papel, la otra parte (nombre y slug, nunca el email) y qué puede hacer
- * con ella ahora. Así el front no repite las reglas.
+ * Las valoraciones de una venta, vistas por una de sus partes (sistema ciego):
+ * - `mine`: la mía, siempre (aunque aún no sea pública);
+ * - `theirs`: la del otro, SOLO si ya es pública y no está oculta;
+ * - `theirsSubmitted`: si el otro ya ha valorado, sin decir la nota («X ya te ha valorado: valora tú para verla»).
  */
-function toView(sale, actor, now) {
+function reviewsView(reviews, actor, now) {
+  const mine = reviews.find((review) => sameId(review.reviewerId, actor.id));
+  const theirs = reviews.find((review) => !sameId(review.reviewerId, actor.id));
+  const theirsVisible = theirs && theirs.visibleAt <= now && !theirs.hiddenAt;
+  return {
+    mine: mine ? toOwnReview(mine, now) : null,
+    theirs: theirsVisible ? toPublicReview({ ...theirs, reviewerId: null }) : null,
+    theirsSubmitted: Boolean(theirs),
+  };
+}
+
+/**
+ * Lo que ve cada parte de una venta: su papel, la otra parte (nombre y slug, nunca el email), sus valoraciones y
+ * qué puede hacer con ella ahora. Así el front no repite las reglas. `reviews`: las de esta venta.
+ */
+function toView(sale, actor, now, reviews = []) {
   const role = sameId(sale.sellerId?._id ?? sale.sellerId, actor.id) ? SALE_ROLE.SELLER : SALE_ROLE.BUYER;
   const pending = sale.status === SALE_STATE.PENDING;
   const party = (user) => (user && user.name ? { _id: user._id, name: user.name, slug: user.slug } : null);
+  const reviewView = reviewsView(reviews, actor, now);
   return {
     _id: sale._id,
     status: sale.status,
@@ -91,11 +111,13 @@ function toView(sale, actor, now) {
     reviewWindowEndsAt: sale.reviewWindowEndsAt,
     closedAt: sale.closedAt,
     closeReason: sale.closeReason,
+    reviews: reviewView,
     can: {
       confirm: pending && role === SALE_ROLE.BUYER,
       reject: pending && role === SALE_ROLE.BUYER,
       cancel: pending && role === SALE_ROLE.SELLER,
-      review: sale.status === SALE_STATE.CONFIRMED && sale.reviewWindowEndsAt > now,
+      // Confirmada, dentro de la ventana y sin haber valorado ya (no se edita).
+      review: sale.status === SALE_STATE.CONFIRMED && sale.reviewWindowEndsAt > now && !reviewView.mine,
     },
   };
 }
@@ -205,14 +227,17 @@ export const saleService = {
     const field = as === SALE_ROLE.SELLER ? "sellerId" : "buyerId";
     await saleRepository.expireOverdue({ [field]: actor.id }, now);
     const { items, total } = await saleRepository.findPageFor(field, actor.id, { status, productId, skip: skipFor(page, limit), limit });
-    return { items: items.map((sale) => toView(sale, actor, now)), pagination: paginationOf(total, page, limit) };
+    // Las valoraciones de las ventas de la página, en una sola consulta.
+    const reviews = await reviewRepository.findBySales(items.map((sale) => sale._id));
+    const reviewsOf = (sale) => reviews.filter((review) => sameId(review.saleId, sale._id));
+    return { items: items.map((sale) => toView(sale, actor, now, reviewsOf(sale))), pagination: paginationOf(total, page, limit) };
   },
 
   /**
    * Lo pendiente para el aviso del menú:
    * - `salesToConfirm`: compras que el vendedor ha registrado y espero confirmar;
-   * - `reviewsToWrite`: ventas confirmadas que aún puedo valorar (desde V3, sin contar las que ya he valorado);
-   * - `othersReviewedMe`: llega con las valoraciones (V3).
+   * - `reviewsToWrite`: ventas confirmadas, aún en su ventana, que no he valorado;
+   * - `othersReviewedMe`: de esas, en las que el otro ya me ha valorado (sin decir la nota: el sistema es ciego).
    */
   async pendingFor(actor) {
     const now = new Date();
@@ -221,6 +246,14 @@ export const saleService = {
       saleRepository.countPendingToConfirm(actor.id, now),
       saleRepository.findReviewable(actor.id, now),
     ]);
-    return { salesToConfirm, reviewsToWrite: reviewable.length, othersReviewedMe: 0 };
+    const reviews = await reviewRepository.findBySales(reviewable.map((sale) => sale._id));
+    const reviewed = (sale, byMe) =>
+      reviews.some((review) => sameId(review.saleId, sale._id) && sameId(review.reviewerId, actor.id) === byMe);
+    const toWrite = reviewable.filter((sale) => !reviewed(sale, true));
+    return {
+      salesToConfirm,
+      reviewsToWrite: toWrite.length,
+      othersReviewedMe: toWrite.filter((sale) => reviewed(sale, false)).length,
+    };
   },
 };

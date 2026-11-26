@@ -5,6 +5,7 @@ import { userRepository } from "../repositories/user.repository.js";
 import { NotFoundError } from "../utils/AppError.js";
 import { paginationOf, skipFor } from "../utils/pagination.js";
 import { accentInsensitivePattern } from "../utils/search.js";
+import { reviewService } from "./review.service.js";
 
 /*
  * Tienda pública (Home y Shop). Solo lectura y solo lo que está a la venta: nada inactivo ni eliminado, y
@@ -111,12 +112,17 @@ export const shopService = {
     return { items: result.items, pagination: paginationOf(result.total, page, limit), ...searchInfo(mode) };
   },
 
-  /** La ficha, con todas sus fotos y solo las variantes que se pueden elegir (las activas). */
+  /**
+   * La ficha, con todas sus fotos y solo las variantes que se pueden elegir (las activas). El vendedor lleva su
+   * nota como vendedor (`seller.rating: { average, count }`) para la tarjeta de la ficha.
+   */
   async getProduct(slug) {
     const product = await shopRepository.findProductBySlug(slug);
     if (!product) throw new NotFoundError("Producto no encontrado");
-    product.variants = product.variants.filter((variant) => variant.isActive);
-    return product;
+    const data = product.toJSON();
+    data.variants = data.variants.filter((variant) => variant.isActive);
+    data.seller = { ...data.seller, rating: await reviewService.sellerRating(data.sellerId) };
+    return data;
   },
 
   /**

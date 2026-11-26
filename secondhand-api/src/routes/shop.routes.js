@@ -7,8 +7,10 @@ import {
   getShopProducts,
   getShopSellers,
 } from "../controllers/shop.controller.js";
+import { getPublicProfile, getPublicReviews } from "../controllers/review.controller.js";
 import { validate } from "../middlewares/validate.js";
 import { slugParamsSchema } from "../validators/common.validator.js";
+import { publicReviewsQuerySchema } from "../validators/review.validator.js";
 import { shopListQuerySchema } from "../validators/shop.validator.js";
 
 // Tienda pública (Home y Shop): todo es público y de solo lectura, y nunca devuelve nada inactivo ni
@@ -114,6 +116,50 @@ router.get("/categories", getShopCategories);
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ShopSellerListResponse' } } }
  */
 router.get("/sellers", getShopSellers);
+
+/**
+ * @openapi
+ * /shop/sellers/{slug}:
+ *   get:
+ *     tags: [Valoraciones]
+ *     summary: Perfil público de un usuario
+ *     description: |
+ *       Nombre, avatar, ubicación, desde cuándo está, cuántas ventas ha cerrado (confirmadas) y sus medias como
+ *       vendedor y como comprador: nota media, número, distribución de 5 a 1 estrellas y media de cada criterio.
+ *       Solo cuentan las valoraciones públicas (fin del sistema ciego) y no ocultas. 404 si no existe, está
+ *       desactivado o suspendido.
+ *     security: []
+ *     parameters: [{ $ref: '#/components/parameters/UserSlug' }]
+ *     responses:
+ *       200:
+ *         description: Perfil
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/PublicProfileResponse' } } }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.get("/sellers/:slug", validate({ params: slugParamsSchema }), getPublicProfile);
+
+/**
+ * @openapi
+ * /shop/sellers/{slug}/reviews:
+ *   get:
+ *     tags: [Valoraciones]
+ *     summary: Valoraciones públicas de un usuario
+ *     description: Como vendedor (`role=seller`, por defecto) o como comprador. Las más recientes primero; `rating` filtra por estrellas.
+ *     security: []
+ *     parameters:
+ *       - { $ref: '#/components/parameters/UserSlug' }
+ *       - { name: role, in: query, schema: { type: string, enum: [seller, buyer], default: seller } }
+ *       - { name: rating, in: query, schema: { type: integer, minimum: 1, maximum: 5 } }
+ *       - { $ref: '#/components/parameters/Page' }
+ *       - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+ *     responses:
+ *       200:
+ *         description: Una página de valoraciones
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/PublicReviewPageResponse' } } }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get("/sellers/:slug/reviews", validate({ params: slugParamsSchema, query: publicReviewsQuerySchema }), getPublicReviews);
 
 /**
  * @openapi

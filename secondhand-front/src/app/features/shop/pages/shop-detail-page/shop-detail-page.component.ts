@@ -19,6 +19,8 @@ import { ProductVariant } from '../../../products/models/product-variant.model';
 import { CONDITION_LABELS, CONDITION_LEVEL, Product, STATUS_LABELS, STATUS_TONES } from '../../../products/models/product.model';
 import { sellerIdOf, variantPrice } from '../../../products/models/product.utils';
 import { ShopService } from '../../services/shop.service';
+import { StarRatingComponent } from '../../../reviews/components/star-rating/star-rating.component';
+import { formatRating } from '../../../reviews/models/review.model';
 
 type Status = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -35,6 +37,7 @@ type Status = 'loading' | 'ready' | 'not-found' | 'error';
     RouterLink,
     DatePipe,
     PricePipe,
+    StarRatingComponent,
     BadgeComponent,
     IconComponent,
     LevelMeterComponent,
@@ -121,7 +124,18 @@ type Status = 'loading' | 'ready' | 'not-found' | 'error';
                     <app-icon name="user" [size]="18" class="mt-0.5 text-primary-600" />
                     <div>
                       <dt class="text-ink-muted">Vendedor</dt>
-                      <dd><a routerLink="/shop" [queryParams]="{ seller: p.seller.slug }" class="font-medium text-primary-700 hover:underline">{{ p.seller.name }}</a></dd>
+                      <dd>
+                        <a [routerLink]="['/sellers', p.seller.slug]" class="font-medium text-primary-700 hover:underline">{{ p.seller.name }}</a>
+                        <!-- Su nota como vendedor: lo que más pesa al decidir si fiarse -->
+                        <a [routerLink]="['/sellers', p.seller.slug]" class="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink">
+                          @if (p.seller.rating?.count) {
+                            <app-star-rating [value]="p.seller.rating!.average" size="sm" />
+                            <span class="tabular-nums"><strong class="text-ink">{{ ratingText(p.seller.rating!.average) }}</strong> · {{ p.seller.rating!.count === 1 ? '1 valoración' : p.seller.rating!.count + ' valoraciones' }}</span>
+                          } @else {
+                            <span>Aún sin valoraciones</span>
+                          }
+                        </a>
+                      </dd>
                     </div>
                   </div>
                   @if (p.location) {
@@ -225,6 +239,7 @@ export class ShopDetailPageComponent implements OnChanges {
     return !!product && this.auth.isOwnerOrAdmin(sellerIdOf(product));
   });
   /** Registrar una venta: solo el vendedor (se hace en la ficha de gestión, sección Ventas). */
+  protected readonly ratingText = formatRating;
   protected readonly isOwner = computed(() => {
     const product = this.product();
     return !!product && this.auth.user()?._id === sellerIdOf(product);

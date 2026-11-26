@@ -26,11 +26,11 @@ export class PendingStore {
 
   private readonly _counts = signal<PendingCounts | null>(null);
   readonly counts = this._counts.asReadonly();
-  /**
-   * Lo que se cuenta en el aviso: lo que el usuario puede hacer ya. Las valoraciones pendientes (`reviewsToWrite`) se
-   * sumarán cuando exista la pantalla para valorar (V4): un aviso que no lleva a ninguna acción solo confunde.
-   */
-  readonly total = computed(() => this._counts()?.salesToConfirm ?? 0);
+  /** Lo que se cuenta en el aviso: lo que el usuario tiene que hacer él (confirmar compras y valorar ventas). */
+  readonly total = computed(() => {
+    const counts = this._counts();
+    return counts ? counts.salesToConfirm + counts.reviewsToWrite : 0;
+  });
 
   private inFlight: Promise<void> | null = null;
 

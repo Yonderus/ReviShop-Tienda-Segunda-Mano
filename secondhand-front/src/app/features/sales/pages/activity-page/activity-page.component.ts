@@ -14,6 +14,10 @@ import { PricePipe } from '../../../../shared/utils/price.pipe';
 import { RelativeTimePipe } from '../../../../shared/utils/relative-time.pipe';
 import { CLOSE_REASON_TEXT, SALE_STATE_LABELS, SALE_STATE_TONES, Sale, SalePage, SaleRole } from '../../models/sale.model';
 import { SalesService } from '../../services/sales.service';
+import { ReviewCardComponent } from '../../../reviews/components/review-card/review-card.component';
+import { ReviewDialogComponent } from '../../../reviews/components/review-dialog/review-dialog.component';
+import { StarRatingComponent } from '../../../reviews/components/star-rating/star-rating.component';
+import { OwnReview, PublicReview } from '../../../reviews/models/review.model';
 
 /** Las pestañas van en la URL (`?tab=ventas`): recargar o compartir el enlace deja la misma. */
 type Tab = 'compras' | 'ventas';
@@ -44,6 +48,9 @@ const PAGE_SIZE = 20;
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
+    ReviewDialogComponent,
+    ReviewCardComponent,
+    StarRatingComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -94,7 +101,7 @@ const PAGE_SIZE = 20;
             @for (sale of data()!.items; track sale._id) {
               <li
                 class="rounded-2xl border bg-surface p-4 shadow-card sm:p-5"
-                [class]="sale.can.confirm ? 'border-amber-300 ring-1 ring-amber-200' : 'border-line'"
+                [class]="sale.can.confirm || sale.can.review ? 'border-amber-300 ring-1 ring-amber-200' : 'border-line'"
               >
                 <div class="flex gap-4">
                   <div class="size-16 shrink-0 overflow-hidden rounded-xl bg-canvas sm:size-20">
@@ -160,11 +167,49 @@ const PAGE_SIZE = 20;
                       @case ('confirmed') {
                         <p class="mt-3 text-sm text-ink-muted">
                           Confirmada el <time [attr.datetime]="sale.confirmedAt">{{ sale.confirmedAt | date: "d 'de' MMMM" : undefined : 'es-ES' }}</time>.
-                          @if (sale.can.review) {
-                            Podéis valoraros hasta el
-                            <time [attr.datetime]="sale.reviewWindowEndsAt">{{ sale.reviewWindowEndsAt | date: "d 'de' MMMM, HH:mm" : undefined : 'es-ES' }}</time>.
-                          }
                         </p>
+
+                        <!-- Valorar (sistema ciego: la del otro no se ve hasta que valores tú o pasen las 72 h) -->
+                        @if (sale.can.review) {
+                          <div class="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">
+                            <p>
+                              @if (sale.reviews.theirsSubmitted) {
+                                <strong>{{ otherName(sale) }} ya te ha valorado.</strong> Valora tú para ver las dos.
+                              } @else {
+                                ¿Qué tal con {{ otherName(sale) }}? Valórale.
+                              }
+                              <span class="font-semibold tabular-nums">{{ timeLeft(sale.reviewWindowEndsAt) }}</span>
+                            </p>
+                            <button type="button" class="btn btn-primary mt-2 min-h-10" (click)="reviewing.set(sale)">
+                              <app-icon name="star" [size]="18" />
+                              Valorar a {{ otherName(sale) }}
+                            </button>
+                          </div>
+                        } @else if (sale.reviews.mine && !sale.reviews.mine.isPublished) {
+                          <p class="mt-3 text-sm text-ink">
+                            Ya has valorado a {{ otherName(sale) }} ({{ sale.reviews.mine.rating }} ★). Se publicará cuando te valore o el
+                            <time [attr.datetime]="sale.reviews.mine.visibleAt">{{ sale.reviews.mine.visibleAt | date: "d 'de' MMMM, HH:mm" : undefined : 'es-ES' }}</time>.
+                          </p>
+                        } @else if (!sale.reviews.mine) {
+                          <p class="mt-3 text-sm text-ink-muted">El plazo para valorar esta venta ya terminó.</p>
+                        }
+
+                        @if (sale.reviews.theirs; as theirs) {
+                          <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-ink-muted">{{ otherName(sale) }} te valoró</p>
+                          <app-review-card class="mt-1 block" [review]="theirs" [canReply]="true" [showProduct]="false" (replied)="replaceTheirs(sale, $event)" />
+                        }
+                        @if (sale.reviews.mine?.isPublished) {
+                          <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-ink-muted">Tu valoración</p>
+                          <div class="mt-1 rounded-2xl border border-line p-3 text-sm">
+                            <app-star-rating [value]="sale.reviews.mine!.rating" size="sm" />
+                            @if (sale.reviews.mine!.comment) {
+                              <p class="mt-1 whitespace-pre-line break-words text-ink">{{ sale.reviews.mine!.comment }}</p>
+                            }
+                            @if (sale.reviews.mine!.reply; as reply) {
+                              <p class="mt-2 border-l-4 border-primary-200 pl-2 text-ink-muted">Respuesta: {{ reply.text }}</p>
+                            }
+                          </div>
+                        }
                       }
                       @default {
                         @if (sale.closeReason) {
@@ -186,6 +231,10 @@ const PAGE_SIZE = 20;
         }
       </div>
     </div>
+
+    @if (reviewing(); as sale) {
+      <app-review-dialog [sale]="sale" (reviewed)="onReviewed(sale, $event)" (closed)="reviewing.set(null)" />
+    }
   `,
 })
 export class ActivityPageComponent implements OnChanges, OnDestroy {
@@ -212,6 +261,11 @@ export class ActivityPageComponent implements OnChanges, OnDestroy {
   protected readonly data = signal<SalePage | null>(null);
   protected readonly error = signal<ApiError | null>(null);
   protected readonly busyId = signal<string | null>(null);
+  /** La venta que se está valorando (abre el diálogo). */
+  protected readonly reviewing = signal<Sale | null>(null);
+  /** La hora, refrescada cada minuto: las cuentas atrás («Quedan 41 h») se mantienen al día solas. */
+  private readonly now = signal(Date.now());
+  private readonly clock = setInterval(() => this.now.set(Date.now()), 60_000);
   private controller: AbortController | null = null;
 
   ngOnChanges(): void {
@@ -220,6 +274,37 @@ export class ActivityPageComponent implements OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.controller?.abort();
+    clearInterval(this.clock);
+  }
+
+  /** El nombre de la otra parte de la venta. */
+  protected otherName(sale: Sale): string {
+    return (sale.role === 'buyer' ? sale.seller?.name : sale.buyer?.name) ?? 'la otra persona';
+  }
+
+  /** «Quedan 41 h» / «Quedan 25 min» hasta que se cierre la ventana para valorar. */
+  protected timeLeft(until: string | null): string {
+    if (!until) return '';
+    const minutes = Math.max(0, Math.round((new Date(until).getTime() - this.now()) / 60_000));
+    return minutes >= 60 ? `Quedan ${Math.floor(minutes / 60)} h.` : `Quedan ${minutes} min.`;
+  }
+
+  /**
+   * Valoración enviada: se recarga la lista, porque si el otro ya había valorado ahora se ven las dos (lo decide
+   * la API), y se refresca el aviso del menú.
+   */
+  protected onReviewed(sale: Sale, review: OwnReview): void {
+    void this.alert.success(
+      review.isPublished ? 'Valoración publicada. Ya podéis ver las dos.' : `Valoración guardada. Se publicará cuando ${this.otherName(sale)} te valore.`,
+    );
+    void this.load();
+  }
+
+  /** Has respondido a la valoración que te dejaron: se sustituye en la venta. */
+  protected replaceTheirs(sale: Sale, updated: PublicReview): void {
+    this.data.update((page) =>
+      page && { ...page, items: page.items.map((item) => (item._id === sale._id ? { ...item, reviews: { ...item.reviews, theirs: updated } } : item)) },
+    );
   }
 
   /** Al cambiar de pestaña o de página se cancela la petición anterior: no puede llegar tarde y pisar la nueva. */
@@ -287,4 +372,4 @@ export class ActivityPageComponent implements OnChanges, OnDestroy {
 }
 
 /** Espera algo del usuario: confirmarla, rechazarla o cancelarla. */
-const needsMe = (sale: Sale): boolean => sale.can.confirm || sale.can.cancel;
+const needsMe = (sale: Sale): boolean => sale.can.confirm || sale.can.cancel || sale.can.review;

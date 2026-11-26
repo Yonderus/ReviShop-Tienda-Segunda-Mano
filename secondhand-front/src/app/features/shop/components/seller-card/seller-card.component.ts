@@ -5,7 +5,7 @@ import { IconComponent } from '../../../../shared/ui/icon.component';
 import { ShopSeller } from '../../models/shop.model';
 import { anuncios } from '../category-card/category-card.component';
 
-/** Card de vendedor del Home: su foto (o iniciales), dónde está y cuánto vende; lleva al shop con sus anuncios. */
+/** Card de vendedor del Home: su foto (o iniciales), dónde está y cuánto vende; lleva a su perfil (valoraciones y anuncios). */
 @Component({
   selector: 'app-seller-card',
   standalone: true,
@@ -14,8 +14,7 @@ import { anuncios } from '../category-card/category-card.component';
   host: { class: 'block h-full' },
   template: `
     <a
-      routerLink="/shop"
-      [queryParams]="{ seller: seller().slug }"
+      [routerLink]="['/sellers', seller().slug]"
       class="group flex h-full flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-5 text-center shadow-card transition-[box-shadow,transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
     >
       <app-avatar size="lg" [name]="seller().name" [src]="seller().avatarUrl" />

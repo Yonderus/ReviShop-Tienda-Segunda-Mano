@@ -1,4 +1,5 @@
 import type { BadgeTone } from '../../../shared/ui/badge.component';
+import type { OwnReview, PublicReview } from '../../reviews/models/review.model';
 
 /** El estado del REGISTRO de la venta (no confundir con el estado de venta del producto: disponible, reservado…). */
 export const SALE_STATES = ['pending', 'confirmed', 'rejected', 'cancelled', 'expired'] as const;
@@ -57,6 +58,11 @@ export interface Sale {
   reviewWindowEndsAt: string | null;
   closedAt: string | null;
   closeReason: SaleCloseReason | null;
+  /**
+   * Las valoraciones de la venta (sistema ciego): `mine` siempre; `theirs` solo cuando ya es pública;
+   * `theirsSubmitted` dice que el otro ya ha valorado, sin la nota.
+   */
+  reviews: { mine: OwnReview | null; theirs: PublicReview | null; theirsSubmitted: boolean };
   /** Lo que puede hacer ahora quien la mira: lo decide la API, el front no repite las reglas. */
   can: { confirm: boolean; reject: boolean; cancel: boolean; review: boolean };
 }

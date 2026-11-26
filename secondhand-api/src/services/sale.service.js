@@ -76,13 +76,14 @@ async function changePending(sale, now, changes) {
  * - `theirs`: la del otro, SOLO si ya es pública y no está oculta;
  * - `theirsSubmitted`: si el otro ya ha valorado, sin decir la nota («X ya te ha valorado: valora tú para verla»).
  */
-function reviewsView(reviews, actor, now) {
+function reviewsView(reviews, actor, now, otherParty) {
   const mine = reviews.find((review) => sameId(review.reviewerId, actor.id));
   const theirs = reviews.find((review) => !sameId(review.reviewerId, actor.id));
-  const theirsVisible = theirs && theirs.visibleAt <= now && !theirs.hiddenAt;
+  const theirsView = theirs && theirs.visibleAt <= now && !theirs.hiddenAt ? toPublicReview({ ...theirs, reviewerId: null }) : null;
   return {
     mine: mine ? toOwnReview(mine, now) : null,
-    theirs: theirsVisible ? toPublicReview({ ...theirs, reviewerId: null }) : null,
+    // Quien la escribió es la otra parte de la venta, que ya sale con su nombre en la propia venta.
+    theirs: theirsView && otherParty ? { ...theirsView, reviewer: otherParty } : theirsView,
     theirsSubmitted: Boolean(theirs),
   };
 }
@@ -95,7 +96,8 @@ function toView(sale, actor, now, reviews = []) {
   const role = sameId(sale.sellerId?._id ?? sale.sellerId, actor.id) ? SALE_ROLE.SELLER : SALE_ROLE.BUYER;
   const pending = sale.status === SALE_STATE.PENDING;
   const party = (user) => (user && user.name ? { _id: user._id, name: user.name, slug: user.slug } : null);
-  const reviewView = reviewsView(reviews, actor, now);
+  const other = party(role === SALE_ROLE.SELLER ? sale.buyerId : sale.sellerId);
+  const reviewView = reviewsView(reviews, actor, now, other && { name: other.name, slug: other.slug });
   return {
     _id: sale._id,
     status: sale.status,

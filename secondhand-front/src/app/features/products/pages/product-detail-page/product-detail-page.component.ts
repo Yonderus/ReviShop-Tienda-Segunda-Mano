@@ -24,6 +24,7 @@ import { LevelMeterComponent } from '../../../../shared/ui/level-meter.component
 import { ProductGalleryComponent } from '../../components/product-gallery/product-gallery.component';
 import { ProductImageComponent } from '../../components/product-image/product-image.component';
 import { ProductVariantPickerComponent } from '../../components/product-variant-picker/product-variant-picker.component';
+import { ProductSalesPanelComponent } from '../../../sales/components/product-sales-panel/product-sales-panel.component';
 import { ProductVariant } from '../../models/product-variant.model';
 import { sellerIdOf, variantPrice } from '../../models/product.utils';
 import {
@@ -48,6 +49,7 @@ import { ProductsStore } from '../../store/products.store';
     ProductImageComponent,
     ProductGalleryComponent,
     ProductVariantPickerComponent,
+    ProductSalesPanelComponent,
     SkeletonComponent,
     ErrorStateComponent,
     PageNotFoundComponent,
@@ -75,6 +77,15 @@ export class ProductDetailPageComponent implements OnChanges, OnDestroy {
   protected readonly canManage = computed(() => {
     const product = this.product();
     return !!product && this.auth.isOwnerOrAdmin(sellerIdOf(product));
+  });
+
+  /**
+   * Las ventas solo las registra el vendedor: la lista sale de SUS ventas (`/sales/mine`), así que a un admin que
+   * mire el anuncio de otro no le diría nada.
+   */
+  protected readonly isOwner = computed(() => {
+    const product = this.product();
+    return !!product && this.auth.user()?._id === sellerIdOf(product);
   });
 
   /** La foto visible; el índice puede quedar fuera de rango al cambiar de producto. */
@@ -118,6 +129,13 @@ export class ProductDetailPageComponent implements OnChanges, OnDestroy {
     this.selectedVariantId.set(null);
     const product = await this.store.loadBySlug(this.slug());
     if (product) this.title.setTitle(`${product.title} · ${APP_NAME}`);
+  }
+
+  /** Una venta ha cambiado el estado de una variante (lo hace la API): se vuelve a pedir el producto. */
+  protected reloadProduct(product: Product): void {
+    void this.store.reload(product.slug).catch(() => {
+      // Si falla, se queda lo que había; el errorInterceptor ya ha avisado.
+    });
   }
 
   protected selectVariant(variant: ProductVariant): void {

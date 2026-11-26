@@ -17,6 +17,8 @@ export const registerSaleSchema = z.object({
 export const mySalesQuerySchema = z.object({
   as: z.enum(SALE_ROLES, { error: `as debe ser: ${SALE_ROLES.join(", ")}` }),
   status: z.enum(SALE_STATES, { error: `status debe ser: ${SALE_STATES.join(", ")}` }).optional(),
+  // Las de un producto (la ficha de gestión enseña las ventas de cada variante).
+  productId: objectId("productId").optional(),
   page: z.coerce.number({ error: "page debe ser un número" }).int().min(1, "page empieza en 1").default(1),
   limit: z.coerce
     .number({ error: "limit debe ser un número" })

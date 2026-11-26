@@ -199,12 +199,12 @@ export const saleService = {
     return detailView(id, actor, now);
   },
 
-  /** Mi actividad: mis ventas (`as=seller`) o mis compras (`as=buyer`), paginadas. */
-  async listMine(actor, { as, status, page, limit }) {
+  /** Mi actividad: mis ventas (`as=seller`) o mis compras (`as=buyer`), paginadas. `productId`: las de un producto. */
+  async listMine(actor, { as, status, productId, page, limit }) {
     const now = new Date();
     const field = as === SALE_ROLE.SELLER ? "sellerId" : "buyerId";
     await saleRepository.expireOverdue({ [field]: actor.id }, now);
-    const { items, total } = await saleRepository.findPageFor(field, actor.id, { status, skip: skipFor(page, limit), limit });
+    const { items, total } = await saleRepository.findPageFor(field, actor.id, { status, productId, skip: skipFor(page, limit), limit });
     return { items: items.map((sale) => toView(sale, actor, now)), pagination: paginationOf(total, page, limit) };
   },
 

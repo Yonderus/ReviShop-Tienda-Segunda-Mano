@@ -165,6 +165,12 @@ type Status = 'loading' | 'ready' | 'not-found' | 'error';
                       Editar anuncio
                     </a>
                   }
+                  @if (isOwner()) {
+                    <a [routerLink]="['/products', p.slug]" fragment="ventas" class="btn btn-secondary">
+                      <app-icon name="checkCircle" [size]="18" />
+                      Registrar venta
+                    </a>
+                  }
                 </div>
                 <p id="reserve-soon" class="mt-2 text-xs text-ink-muted">Las reservas estarán disponibles próximamente.</p>
               </div>
@@ -217,6 +223,11 @@ export class ShopDetailPageComponent implements OnChanges {
   protected readonly canManage = computed(() => {
     const product = this.product();
     return !!product && this.auth.isOwnerOrAdmin(sellerIdOf(product));
+  });
+  /** Registrar una venta: solo el vendedor (se hace en la ficha de gestión, sección Ventas). */
+  protected readonly isOwner = computed(() => {
+    const product = this.product();
+    return !!product && this.auth.user()?._id === sellerIdOf(product);
   });
 
   ngOnChanges(): void {

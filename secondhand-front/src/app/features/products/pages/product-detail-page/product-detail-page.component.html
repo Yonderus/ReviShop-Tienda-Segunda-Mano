@@ -127,6 +127,10 @@
                 </button>
               </div>
             }
+
+            @if (isOwner()) {
+              <app-product-sales-panel [product]="p" (changed)="reloadProduct(p)" />
+            }
           </div>
         </article>
       } @else {

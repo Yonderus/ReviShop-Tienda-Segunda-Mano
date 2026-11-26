@@ -3,6 +3,7 @@ import { adminGuard } from './core/auth/admin.guard';
 import { APP_NAME } from './core/config/app.constants';
 import AUTH_ROUTES from './features/auth/auth.routes';
 import PROFILE_ROUTES from './features/profile/profile.routes';
+import SALES_ROUTES from './features/sales/sales.routes';
 import SHOP_ROUTES from './features/shop/shop.routes';
 import { MainLayoutComponent } from './layouts/main-layout/main-layout.component';
 
@@ -24,6 +25,7 @@ export const routes: Routes = [
       ...SHOP_ROUTES,
       ...AUTH_ROUTES,
       ...PROFILE_ROUTES,
+      ...SALES_ROUTES,
       { path: '', loadChildren: () => import('./features/products/products.routes') },
       {
         path: '**',

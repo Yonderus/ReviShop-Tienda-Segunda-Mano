@@ -51,6 +51,7 @@ router.post("/", authenticate, saleRateLimit, validate({ body: registerSaleSchem
  *     parameters:
  *       - { name: as, in: query, required: true, schema: { type: string, enum: [seller, buyer] } }
  *       - { name: status, in: query, schema: { type: string, enum: [pending, confirmed, rejected, cancelled, expired] } }
+ *       - { name: productId, in: query, description: "Solo las de ese producto", schema: { type: string, pattern: "^[0-9a-fA-F]{24}$" } }
  *       - { $ref: '#/components/parameters/Page' }
  *       - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
  *     responses:

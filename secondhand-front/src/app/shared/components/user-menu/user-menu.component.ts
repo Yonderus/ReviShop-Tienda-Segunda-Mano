@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { PendingStore } from '../../../core/activity/pending.store';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { AlertService } from '../../../core/services/alert.service';
 import { AvatarComponent } from '../../ui/avatar.component';
@@ -29,10 +30,16 @@ import { IconComponent } from '../../ui/icon.component';
         aria-haspopup="menu"
         [attr.aria-expanded]="open()"
         aria-controls="user-menu"
-        [attr.aria-label]="'Menú de ' + user.name"
+        [attr.aria-label]="'Menú de ' + user.name + (pending.total() ? ' (' + pendingText() + ')' : '')"
         (click)="open.set(!open())"
       >
-        <app-avatar size="sm" [name]="user.name" [src]="user.avatarUrl" />
+        <span class="relative">
+          <app-avatar size="sm" [name]="user.name" [src]="user.avatarUrl" />
+          @if (pending.total()) {
+            <!-- El número va en el menú; aquí solo un punto (el aria-label del botón lo dice). -->
+            <span class="absolute -right-0.5 -top-0.5 size-3 rounded-full bg-accent ring-2" [class]="tone() === 'dark' ? 'ring-primary-900' : 'ring-surface'" aria-hidden="true"></span>
+          }
+        </span>
         <span class="hidden max-w-[10rem] truncate text-sm font-medium sm:inline">{{ firstName() }}</span>
       </button>
 
@@ -56,6 +63,15 @@ import { IconComponent } from '../../ui/icon.component';
             <a routerLink="/profile" role="menuitem" [class]="item" (click)="close()">
               <app-icon name="user" [size]="18" />
               Mi perfil
+            </a>
+            <a routerLink="/activity" role="menuitem" [class]="item" (click)="close()">
+              <app-icon name="package" [size]="18" />
+              <span class="flex-1">Mi actividad</span>
+              @if (pending.total()) {
+                <span class="min-w-5 rounded-full bg-accent px-1.5 text-center text-xs font-bold tabular-nums text-ink" [attr.aria-label]="pendingText()">
+                  {{ pending.total() }}
+                </span>
+              }
             </a>
             @if (context() === 'admin') {
               <a routerLink="/" role="menuitem" [class]="item" (click)="close()">
@@ -92,6 +108,7 @@ import { IconComponent } from '../../ui/icon.component';
 })
 export class UserMenuComponent {
   protected readonly auth = inject(AuthStore);
+  protected readonly pending = inject(PendingStore);
   private readonly alert = inject(AlertService);
   private readonly router = inject(Router);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -107,6 +124,10 @@ export class UserMenuComponent {
   protected readonly open = signal(false);
   protected readonly leaving = signal(false);
   protected readonly firstName = computed(() => this.auth.user()?.name.split(' ')[0] ?? '');
+  protected readonly pendingText = computed(() => {
+    const total = this.pending.total();
+    return total === 1 ? '1 cosa pendiente' : `${total} cosas pendientes`;
+  });
 
   protected close(): void {
     this.open.set(false);

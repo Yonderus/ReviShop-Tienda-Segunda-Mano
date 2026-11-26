@@ -36,8 +36,8 @@ export const saleRepository = {
   },
 
   /** Las de un usuario desde un lado (`field` = "sellerId" o "buyerId"), paginadas. */
-  async findPageFor(field, userId, { status, skip, limit }) {
-    const filter = { [field]: userId, ...(status && { status }) };
+  async findPageFor(field, userId, { status, productId, skip, limit }) {
+    const filter = { [field]: userId, ...(status && { status }), ...(productId && { productId }) };
     const [items, total] = await Promise.all([
       Sale.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate(PARTIES_POPULATE).lean(),
       Sale.countDocuments(filter),

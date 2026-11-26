@@ -1,5 +1,6 @@
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import { AUTH_MESSAGES, LOGIN_RATE_LIMIT, REFRESH_RATE_LIMIT } from "../constants/auth.constants.js";
+import { SALE_MESSAGES, SALE_RATE_LIMIT } from "../constants/sale.constants.js";
 import { TooManyRequestsError } from "../utils/AppError.js";
 
 /*
@@ -47,4 +48,17 @@ export const refreshRateLimit = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   handler: (_req, _res, next) => next(new TooManyRequestsError(AUTH_MESSAGES.TOO_MANY_REFRESHES)),
+});
+
+/**
+ * Registrar ventas, por usuario (va después de `authenticate`): busca al comprador por su email, así que sin límite
+ * serviría para probar emails. Cuentan todos los intentos, también los que fallan (ver SALE_RATE_LIMIT).
+ */
+export const saleRateLimit = rateLimit({
+  windowMs: SALE_RATE_LIMIT.WINDOW_MS,
+  limit: SALE_RATE_LIMIT.PER_USER,
+  keyGenerator: (req) => `user:${req.user.id}`,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: (_req, _res, next) => next(new TooManyRequestsError(SALE_MESSAGES.TOO_MANY)),
 });

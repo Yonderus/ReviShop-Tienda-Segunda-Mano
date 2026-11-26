@@ -3,8 +3,10 @@ import { categoryRepository } from "../repositories/category.repository.js";
 import { imageRepository } from "../repositories/image.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
+import { saleRepository } from "../repositories/sale.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { AUTH_MESSAGES } from "../constants/auth.constants.js";
+import { SALE_CLOSE_REASON, SALE_MESSAGES } from "../constants/sale.constants.js";
 import { isAdmin, isOwnerOrAdmin } from "../utils/access.js";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/AppError.js";
 import { imagePosition } from "../utils/image.utils.js";
@@ -23,6 +25,16 @@ const pick = (data, fields) => Object.fromEntries(Object.entries(data).filter(([
  */
 function assertCanModify(actor, product) {
   if (!isOwnerOrAdmin(actor, product.sellerId)) throw new ForbiddenError(AUTH_MESSAGES.FORBIDDEN);
+}
+
+/**
+ * Una variante con una venta viva (pendiente o confirmada) no cambia de estado a mano: lo decide la venta
+ * (cancelarla, que el comprador la rechace…). Con el repository y no con saleService: ese service ya importa
+ * este y se cerraría un círculo.
+ */
+export async function assertNoLiveSale(variantId) {
+  await saleRepository.expireOverdue({ variantId }, new Date());
+  if (await saleRepository.findLiveByVariant(variantId)) throw new ConflictError(SALE_MESSAGES.HAS_LIVE_SALE);
 }
 
 /** ¿Puede verlo? Activo: cualquiera. Inactivo: solo su vendedor o un admin. */
@@ -211,7 +223,10 @@ export const productService = {
     if (variants.length > 1) {
       throw new ValidationError("El producto tiene varias variantes: cambia el estado de cada una con PATCH /api/variants/:id/status");
     }
-    if (variants.length === 1) await productVariantRepository.updateById(variants[0]._id, { status });
+    if (variants.length === 1) {
+      await assertNoLiveSale(variants[0]._id);
+      await productVariantRepository.updateById(variants[0]._id, { status });
+    }
     else await productRepository.updateById(id, { status });
     await this.recalculateStatus(id);
     return productRepository.findDetailById(id);
@@ -235,6 +250,8 @@ export const productService = {
     const date = new Date();
     await productRepository.softDeleteById(id, date, actor.id);
     await cascadeSoftDelete(product._id, date, actor.id);
+    // Sus ventas pendientes ya no se pueden confirmar; las confirmadas se quedan (el historial no se borra).
+    await saleRepository.cancelPending({ productId: product._id }, SALE_CLOSE_REASON.PRODUCT_DELETED, date);
   },
 
   /** Restaura el producto y solo los hijos que se borraron con él (misma fecha). */

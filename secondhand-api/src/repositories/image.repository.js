@@ -18,6 +18,12 @@ export const imageRepository = {
     return created;
   },
 
+  /** La URL de la portada de un dueño, o null (para la foto de una venta). */
+  async findPrimaryUrl(ownerType, ownerId) {
+    const image = await Image.findOne({ ownerType, ownerId, isPrimary: true }).select("url").lean();
+    return image?.url ?? null;
+  },
+
   /** Ids de las imágenes no eliminadas de un dueño (para sustituirlas después). */
   findIdsByOwner(ownerType, ownerId) {
     return Image.find({ ownerType, ownerId }).distinct("_id");

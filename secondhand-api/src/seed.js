@@ -12,6 +12,7 @@ import { Profile } from "./models/profile.model.js";
 import { RefreshToken } from "./models/refreshToken.model.js";
 import { RevokedToken } from "./models/revokedToken.model.js";
 import { Role } from "./models/role.model.js";
+import { Sale } from "./models/sale.model.js";
 import { User } from "./models/user.model.js";
 import { cascadeSoftDelete, productService } from "./services/product.service.js";
 import { imagePosition } from "./utils/image.utils.js";
@@ -332,7 +333,9 @@ const PRODUCTS = [
 ];
 
 // Las sesiones (refresh_tokens) y la blacklist (revoked_tokens) también se vacían: los usuarios se crean de nuevo.
-const MODELS = [Role, User, Profile, Category, Product, ProductVariant, Image, RevokedToken, RefreshToken];
+// Las ventas, igual: apuntan a usuarios y variantes que el seed vuelve a crear con otros ids (sus datos de
+// ejemplo llegan en V9).
+const MODELS = [Role, User, Profile, Category, Product, ProductVariant, Image, RevokedToken, RefreshToken, Sale];
 
 /* ---------- Pasos (en orden de dependencias) ---------- */
 
@@ -490,6 +493,7 @@ async function seedDatabase() {
     );
     console.log(`  productvariants  ${await total(ProductVariant)}`);
     console.log(`  images           ${await total(Image)}`);
+    console.log(`  sales            ${await total(Sale)}`);
 
     await disconnectDB();
     process.exit(0);

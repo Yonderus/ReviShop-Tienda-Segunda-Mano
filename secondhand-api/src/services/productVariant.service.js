@@ -2,11 +2,13 @@ import { IMAGE_OWNER } from "../constants/image.constants.js";
 import { imageRepository } from "../repositories/image.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
+import { saleRepository } from "../repositories/sale.repository.js";
+import { SALE_CLOSE_REASON } from "../constants/sale.constants.js";
 import { ConflictError, NotFoundError, ValidationError } from "../utils/AppError.js";
 import { DEFAULT_OPTIONS_KEY, buildOptionsKey, buildSku, variantSlugBase } from "../utils/productVariant.utils.js";
 import { withNumericSuffix } from "../utils/slugify.js";
 import { categoryService } from "./category.service.js";
-import { productService } from "./product.service.js";
+import { assertNoLiveSale, productService } from "./product.service.js";
 
 async function findLiveProduct(productId) {
   const product = await productRepository.findRawById(productId);
@@ -121,6 +123,7 @@ export const productVariantService = {
 
   async changeStatus(id, status, actor) {
     const variant = await findVariantToModify(id, actor);
+    await assertNoLiveSale(id);
     await productVariantRepository.updateById(id, { status });
     await productService.recalculateStatus(variant.productId);
     return productVariantRepository.findById(id);
@@ -142,6 +145,8 @@ export const productVariantService = {
     const date = new Date();
     await productVariantRepository.softDeleteByIds([variant._id], date, actor.id);
     await imageRepository.softDeleteByOwners(IMAGE_OWNER.PRODUCT_VARIANT, [variant._id], date, actor.id);
+    // Su venta pendiente ya no se puede confirmar; una confirmada se queda (el historial no se borra).
+    await saleRepository.cancelPending({ variantId: variant._id }, SALE_CLOSE_REASON.VARIANT_DELETED, date);
     await productService.recalculateStatus(variant.productId);
   },
 };

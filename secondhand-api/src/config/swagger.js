@@ -4,6 +4,7 @@ import swaggerJSDoc from "swagger-jsdoc";
 import { CATEGORY_STATUSES } from "../constants/category.constants.js";
 import { IMAGE_KINDS } from "../constants/image.constants.js";
 import { PRODUCT_CONDITIONS, SALE_STATUSES } from "../constants/product.constants.js";
+import { SALE_CLOSE_REASONS, SALE_ROLES, SALE_STATES } from "../constants/sale.constants.js";
 import { SHOP_PAGE } from "../constants/shop.constants.js";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, USER_STATUSES } from "../constants/user.constants.js";
 
@@ -59,6 +60,7 @@ export const swaggerSpec = swaggerJSDoc({
       { name: "Categorías", description: "Árbol de dos niveles, atributos de variante, visibilidad y papelera" },
       { name: "Usuarios", description: "Cuentas (cualquiera compra y vende), roles, visibilidad y papelera" },
       { name: "Tienda", description: "Home y Shop públicos: catálogo paginado, ficha, categorías, vendedores y ubicaciones (solo lo que está a la venta)" },
+      { name: "Ventas", description: "Registro de ventas entre usuarios: el vendedor la registra y el comprador la confirma (la prueba que exigen las valoraciones)" },
     ],
     components: {
       securitySchemes: {
@@ -472,10 +474,75 @@ export const swaggerSpec = swaggerJSDoc({
         ShopSellerListResponse: success({ type: "array", items: { $ref: "#/components/schemas/ShopSeller" } }),
         ShopLocationListResponse: success({ type: "array", items: { $ref: "#/components/schemas/ShopLocation" } }),
         ProfileResponse: success({ $ref: "#/components/schemas/Profile" }),
+        SaleInput: {
+          type: "object",
+          required: ["variantId", "buyerEmail"],
+          properties: {
+            variantId: objectId,
+            buyerEmail: { type: "string", format: "email", example: "lucia@revishop.test", description: "El de la cuenta del comprador" },
+          },
+        },
+        Sale: {
+          type: "object",
+          description: "Una venta vista por una de sus partes. Nunca lleva emails.",
+          properties: {
+            _id: objectId,
+            status: { type: "string", enum: SALE_STATES },
+            role: { type: "string", enum: SALE_ROLES, description: "El papel de quien la mira" },
+            productId: objectId,
+            variantId: objectId,
+            product: {
+              type: "object",
+              description: "Copia de lo vendido al registrar la venta (se mantiene aunque el anuncio cambie o se borre)",
+              properties: {
+                title: { type: "string", example: "Bicicleta de montaña 29\"" },
+                slug: { type: "string", example: "bicicleta-de-montana-29" },
+                variantLabel: { type: "string", nullable: true, example: "Talla M" },
+                price: { type: "number", example: 250 },
+                imageUrl: { type: "string", format: "uri", nullable: true },
+              },
+            },
+            seller: { type: "object", properties: { _id: objectId, name: { type: "string" }, slug: { type: "string" } } },
+            buyer: { type: "object", properties: { _id: objectId, name: { type: "string" }, slug: { type: "string" } } },
+            createdAt: { type: "string", format: "date-time" },
+            expiresAt: { type: "string", format: "date-time", description: "Hasta cuándo puede confirmarla el comprador" },
+            confirmedAt: nullableDate,
+            reviewWindowEndsAt: { ...nullableDate, description: "Hasta cuándo se pueden valorar (confirmación + 72 h)" },
+            closedAt: nullableDate,
+            closeReason: { type: "string", enum: SALE_CLOSE_REASONS, nullable: true },
+            can: {
+              type: "object",
+              description: "Lo que puede hacer ahora quien la mira",
+              properties: {
+                confirm: { type: "boolean" },
+                reject: { type: "boolean" },
+                cancel: { type: "boolean" },
+                review: { type: "boolean" },
+              },
+            },
+          },
+        },
+        SaleResponse: success({ $ref: "#/components/schemas/Sale" }),
+        SalePageResponse: success({
+          type: "object",
+          properties: {
+            items: { type: "array", items: { $ref: "#/components/schemas/Sale" } },
+            pagination: { $ref: "#/components/schemas/Pagination" },
+          },
+        }),
+        PendingResponse: success({
+          type: "object",
+          properties: {
+            salesToConfirm: { type: "integer", description: "Compras que el vendedor ha registrado y faltan por confirmar", example: 1 },
+            reviewsToWrite: { type: "integer", description: "Ventas confirmadas que aún puedo valorar", example: 0 },
+            othersReviewedMe: { type: "integer", description: "Ventas en las que la otra parte ya me ha valorado y yo no", example: 0 },
+          },
+        }),
       },
       parameters: {
         ProductId: { name: "id", in: "path", required: true, schema: objectId },
         VariantId: { name: "id", in: "path", required: true, schema: objectId },
+        SaleId: { name: "id", in: "path", required: true, schema: objectId },
         CategoryId: { name: "id", in: "path", required: true, schema: objectId },
         CategoryStatus: { name: "status", in: "query", schema: { type: "string", enum: CATEGORY_STATUSES } },
         UserId: { name: "id", in: "path", required: true, schema: objectId },

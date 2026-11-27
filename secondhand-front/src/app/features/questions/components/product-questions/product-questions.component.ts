@@ -3,9 +3,10 @@ import { ChangeDetectionStrategy, Component, OnChanges, computed, inject, input,
 import { Router, RouterLink } from '@angular/router';
 import { PendingStore } from '../../../../core/activity/pending.store';
 import { AuthStore } from '../../../../core/auth/auth.store';
-import { ApiError, toApiError } from '../../../../core/models/api-error.model';
+import { ApiError, isAbortError, toApiError } from '../../../../core/models/api-error.model';
 import { AlertService } from '../../../../core/services/alert.service';
 import { BadgeComponent } from '../../../../shared/ui/badge.component';
+import { IconComponent } from '../../../../shared/ui/icon.component';
 import { RelativeTimePipe } from '../../../../shared/utils/relative-time.pipe';
 import { REPORT_REASONS, REPORT_REASON_LABELS, ReportReason } from '../../../reviews/models/review.model';
 import { ANSWER_MAX, QUESTION_MAX, QUESTION_MIN, Question } from '../../models/question.model';
@@ -17,14 +18,14 @@ type OpenForm = { id: string; kind: 'answer' | 'report' } | null;
 /**
  * Preguntas y respuestas de un anuncio, en su ficha (`#preguntas`).
  * - Cualquiera las lee. Con sesión se pregunta (el vendedor no puede en lo suyo); sin sesión, enlace al login.
- * - El vendedor responde (una vez), oculta y vuelve a mostrar; quien preguntó borra la suya si sigue sin respuesta;
+ * - El vendedor responde (una vez, con «Sugerir respuesta» de la IA si quiere), oculta y vuelve a mostrar; quien preguntó borra la suya si sigue sin respuesta;
  *   los demás denuncian. Qué botones salen lo decide la API (`question.can`).
  * - El texto de los usuarios va con interpolación, nunca como HTML.
  */
 @Component({
   selector: 'app-product-questions',
   standalone: true,
-  imports: [DatePipe, RouterLink, RelativeTimePipe, BadgeComponent],
+  imports: [DatePipe, RouterLink, RelativeTimePipe, BadgeComponent, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section id="preguntas" class="mt-8 scroll-mt-24 border-t border-line pt-6" aria-labelledby="questions-title">
@@ -108,9 +109,32 @@ type OpenForm = { id: string; kind: 'answer' | 'report' } | null;
               <!-- Responder (el vendedor) -->
               @if (isOpen(q, 'answer')) {
                 <form class="mt-3" (submit)="$event.preventDefault(); answerQuestion(q)" novalidate>
-                  <label [for]="'answer-' + q._id" class="field-label">Tu respuesta (pública, una sola vez)</label>
-                  <textarea [id]="'answer-' + q._id" rows="2" class="field-control" [attr.maxlength]="answerMax" [value]="formText()" (input)="formText.set($any($event.target).value)"></textarea>
-                  <p class="mt-1 text-right text-xs tabular-nums text-ink-muted">{{ formText().length }}/{{ answerMax }}</p>
+                  <div class="flex flex-wrap items-end justify-between gap-2">
+                    <label [for]="'answer-' + q._id" class="field-label">Tu respuesta (pública, una sola vez)</label>
+                    <!-- La IA propone una respuesta con lo que dice el anuncio; el vendedor la revisa y la publica él -->
+                    <button type="button" class="mb-1 inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline disabled:opacity-60" [disabled]="suggesting()" (click)="suggest(q)">
+                      <app-icon name="sparkles" [size]="16" />
+                      {{ suggesting() ? 'Pensando…' : 'Sugerir respuesta' }}
+                    </button>
+                  </div>
+                  <textarea [id]="'answer-' + q._id" rows="3" class="field-control" [attr.maxlength]="answerMax" [value]="formText()" (input)="formText.set($any($event.target).value)"></textarea>
+                  <p class="mt-1 flex justify-between gap-2 text-xs text-ink-muted" aria-live="polite">
+                    <span>{{ suggestStatus() }}</span>
+                    <span class="tabular-nums">{{ formText().length }}/{{ answerMax }}</span>
+                  </p>
+                  @if (suggestError(); as message) {
+                    <p class="text-sm font-medium text-red-700" role="alert">{{ message }}</p>
+                  }
+                  @if (suggestion(); as text) {
+                    <div class="mt-2 rounded-xl border border-primary-100 bg-primary-50/60 p-3 text-sm">
+                      <p class="text-xs font-semibold text-primary-800">Sugerencia de la IA</p>
+                      <p class="mt-1 whitespace-pre-line text-ink">{{ text }}</p>
+                      <div class="mt-2 flex gap-3">
+                        <button type="button" class="font-semibold text-primary-700 hover:underline" (click)="useSuggestion()">Usar esta respuesta</button>
+                        <button type="button" class="text-ink-muted hover:text-ink hover:underline" (click)="suggestion.set(null)">Descartar</button>
+                      </div>
+                    </div>
+                  }
                   @if (formError(); as message) {
                     <p class="text-sm font-medium text-red-700" role="alert">{{ message }}</p>
                   }
@@ -194,6 +218,12 @@ export class ProductQuestionsComponent implements OnChanges {
   protected readonly formError = signal<string | null>(null);
   protected readonly reason = signal<ReportReason | ''>('');
   protected readonly reported = signal(new Set<string>());
+  // Respuesta sugerida por la IA (V8)
+  protected readonly suggesting = signal(false);
+  protected readonly suggestion = signal<string | null>(null);
+  protected readonly suggestError = signal<string | null>(null);
+  protected readonly suggestStatus = signal('');
+  private suggestController: AbortController | null = null;
 
   protected readonly isSeller = computed(() => this.auth.user()?._id === this.sellerId());
   protected readonly visibleCount = computed(() => this.questions().filter((q) => !q.hidden).length);
@@ -222,6 +252,10 @@ export class ProductQuestionsComponent implements OnChanges {
   }
 
   protected openForm(q: Question, kind: 'answer' | 'report'): void {
+    this.suggestController?.abort();
+    this.suggestion.set(null);
+    this.suggestError.set(null);
+    this.suggestStatus.set('');
     this.formText.set('');
     this.formError.set(null);
     this.reason.set('');
@@ -254,6 +288,45 @@ export class ProductQuestionsComponent implements OnChanges {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  /**
+   * Pide a la IA una respuesta con lo que dice el anuncio. Si el campo está vacío, la pone directamente; si ya habías
+   * escrito algo, no lo pisa: la enseña aparte y eliges si la usas. Nunca se publica sola.
+   */
+  protected async suggest(q: Question): Promise<void> {
+    this.suggestController?.abort();
+    const controller = (this.suggestController = new AbortController());
+    this.suggesting.set(true);
+    this.suggestError.set(null);
+    this.suggestion.set(null);
+    this.suggestStatus.set('');
+    try {
+      const { suggestion } = await this.api.suggestAnswer(q._id, this.slug(), controller.signal);
+      if (this.formText().trim()) {
+        this.suggestion.set(suggestion);
+        this.suggestStatus.set('Sugerencia lista: elige si sustituye a lo que has escrito.');
+      } else {
+        this.formText.set(suggestion);
+        this.suggestStatus.set('Respuesta sugerida por la IA: revísala antes de publicarla.');
+      }
+    } catch (error) {
+      if (isAbortError(error)) return;
+      const apiError = toApiError(error);
+      // Sin conexión con la IA: se puede responder a mano igualmente.
+      this.suggestError.set(
+        apiError.kind === 'network' ? 'El asistente no está disponible ahora mismo. Puedes escribir la respuesta tú.' : apiError.message,
+      );
+    } finally {
+      if (this.suggestController === controller) this.suggesting.set(false);
+    }
+  }
+
+  protected useSuggestion(): void {
+    const text = this.suggestion();
+    if (text) this.formText.set(text);
+    this.suggestion.set(null);
+    this.suggestStatus.set('Respuesta sugerida por la IA: revísala antes de publicarla.');
   }
 
   protected async answerQuestion(q: Question): Promise<void> {

@@ -42,3 +42,12 @@ export const AGENT_SHOP = Object.freeze({
   /** Llamadas a herramientas que se atienden en una misma vuelta del modelo. */
   MAX_CALLS_PER_STEP: 4,
 });
+
+/** Respuesta sugerida a una pregunta de un anuncio (V8). */
+export const ANSWER_SUGGESTION = Object.freeze({
+  /** La descripción del anuncio se recorta: la escribe el vendedor (menos tokens y menos superficie para inyecciones). */
+  DESCRIPTION_MAX_LENGTH: 1000,
+  /** Como mucho lo que admite una respuesta en la API. */
+  ANSWER_MAX_LENGTH: 500,
+  ANSWER_MIN_LENGTH: 2,
+});

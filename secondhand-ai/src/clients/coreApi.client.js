@@ -86,6 +86,14 @@ export const coreApi = {
   },
 
   /**
+   * Las preguntas públicas de un anuncio (sin la cookie del usuario: las ocultas no salen). 404 si el anuncio no está a
+   * la venta.
+   */
+  productQuestions(slug) {
+    return get(`/shop/products/${encodeURIComponent(slug)}/questions`);
+  },
+
+  /**
    * Las valoraciones públicas de un usuario como vendedor, las más recientes primero (`{ items, pagination }`). Solo
    * lo público: la API ya quita las que aún no se ven (sistema ciego) y las ocultas por moderación. 404 si no existe.
    */

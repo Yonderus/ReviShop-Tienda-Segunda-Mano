@@ -1,4 +1,5 @@
 import { providerInfo } from "../llm/index.js";
+import { answerSuggestionService } from "../services/answerSuggestion.service.js";
 import { chatService } from "../services/chat.service.js";
 import { listingService } from "../services/listing.service.js";
 import { reviewSummaryService } from "../services/reviewSummary.service.js";
@@ -41,6 +42,15 @@ export const postListingDraft = async (req, res, next) => {
 export const getSellerSummary = async (req, res, next) => {
   try {
     sendSuccess(res, await reviewSummaryService.forSeller(req.params.slug));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Respuesta sugerida a una pregunta de un anuncio (solo su vendedor). No publica nada. */
+export const postSuggestAnswer = async (req, res, next) => {
+  try {
+    sendSuccess(res, await answerSuggestionService.suggest(req.params.id, req.body, req.user, abortOnDisconnect(res)));
   } catch (error) {
     next(error);
   }

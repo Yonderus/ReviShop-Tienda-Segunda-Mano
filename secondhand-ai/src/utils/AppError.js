@@ -76,3 +76,9 @@ export class GatewayTimeoutError extends AppError {
     super(504, message, errors);
   }
 }
+
+export class ConflictError extends AppError {
+  constructor(message = "Conflicto con el estado actual", errors) {
+    super(409, message, errors);
+  }
+}

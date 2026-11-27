@@ -1,9 +1,15 @@
 import { Router } from "express";
-import { getHealth, getSellerSummary, postChat, postListingDraft } from "../controllers/ai.controller.js";
+import { getHealth, getSellerSummary, postChat, postListingDraft, postSuggestAnswer } from "../controllers/ai.controller.js";
 import { aiRateLimit, summaryRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { requireSession } from "../middlewares/session.middleware.js";
 import { validate } from "../middlewares/validate.js";
-import { chatSchema, listingDraftSchema, sellerSlugParamsSchema } from "../validators/ai.validator.js";
+import {
+  chatSchema,
+  listingDraftSchema,
+  sellerSlugParamsSchema,
+  suggestAnswerParamsSchema,
+  suggestAnswerSchema,
+} from "../validators/ai.validator.js";
 
 const router = Router();
 
@@ -26,6 +32,18 @@ router.post("/listings/draft", requireSession, aiRateLimit, validate({ body: lis
  * Resumen de las valoraciones de un vendedor («Lo que dicen de…»). Público, como su perfil: sin sesión, con límite
  * por IP y caché (solo se paga una llamada al modelo por cada valoración nueva).
  */
+/**
+ * Respuesta sugerida a una pregunta de un anuncio: solo su vendedor. Comparte el límite por usuario con el chat y el
+ * asistente de anuncio (cada una es una llamada de pago al modelo). No publica nada.
+ */
+router.post(
+  "/questions/:id/suggest-answer",
+  requireSession,
+  aiRateLimit,
+  validate({ params: suggestAnswerParamsSchema, body: suggestAnswerSchema }),
+  postSuggestAnswer,
+);
+
 router.get("/sellers/:slug/summary", summaryRateLimit, validate({ params: sellerSlugParamsSchema }), getSellerSummary);
 
 export default router;

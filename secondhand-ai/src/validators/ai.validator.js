@@ -45,3 +45,11 @@ export const listingDraftSchema = z.object({
 export const sellerSlugParamsSchema = z.object({
   slug: z.string().max(120, "slug no válido").regex(SLUG_PATTERN, "slug no válido"),
 });
+
+/** Respuesta sugerida: la pregunta (por id) y el anuncio donde está (por slug, que es lo que tiene la ficha). */
+export const suggestAnswerParamsSchema = z.object({
+  id: z.string().regex(/^[a-f\d]{24}$/i, "id no es un ID válido"),
+});
+export const suggestAnswerSchema = z.object({
+  productSlug: z.string({ error: "productSlug es obligatorio" }).max(120, "productSlug no es válido").regex(SLUG_PATTERN, "productSlug no es válido"),
+});

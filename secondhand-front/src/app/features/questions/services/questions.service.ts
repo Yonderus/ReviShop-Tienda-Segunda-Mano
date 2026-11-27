@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { environment } from '../../../../environments/environment';
 import { ApiService } from '../../../core/services/api.service';
 import { READ_OPTIONS } from '../../../core/services/entity-api.service';
 import { ReportReason } from '../../reviews/models/review.model';
@@ -33,6 +34,18 @@ export class QuestionsService {
 
   report(id: string, reason: ReportReason): Promise<unknown> {
     return this.api.post(`/questions/${id}/report`, { reason }, { inlineErrorStatuses: [409, 422], blocking: true });
+  }
+
+  /**
+   * Respuesta sugerida por la IA (solo el vendedor). No publica nada: rellena el formulario. Va al servicio de IA por
+   * el gateway, con su timeout y sin modal ni loader: el error se pinta junto al botón.
+   */
+  suggestAnswer(questionId: string, productSlug: string, signal?: AbortSignal): Promise<{ suggestion: string }> {
+    return this.api.post<{ suggestion: string }>(
+      `/ai/questions/${questionId}/suggest-answer`,
+      { productSlug },
+      { timeoutMs: environment.aiRequestTimeoutMs, skipErrorAlert: true, skipGlobalLoader: true, signal },
+    );
   }
 
   mineUnanswered(): Promise<UnansweredQuestion[]> {

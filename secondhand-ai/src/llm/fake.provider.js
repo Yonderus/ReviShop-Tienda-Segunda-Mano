@@ -10,8 +10,10 @@
  * - cualquier otra cosa                  → "Eco: …".
  * Con las instrucciones del asistente de anuncio, redacta una descripción con los datos (ver listingDraft).
  * Con las del resumen de valoraciones, devuelve un JSON con los comentarios (ver reviewSummary).
+ * Con las de la respuesta sugerida, contesta con los datos del anuncio (ver suggestedAnswer).
  */
 import { LISTING_ASSISTANT_PROMPT } from "../prompts/listing.prompt.js";
+import { ANSWER_ASSISTANT_PROMPT } from "../prompts/answer.prompt.js";
 import { REVIEW_SUMMARY_PROMPT } from "../prompts/reviews.prompt.js";
 
 let counter = 0;
@@ -76,11 +78,25 @@ function reviewSummary(userMessage) {
   return json;
 }
 
+/**
+ * Respuesta sugerida: con los datos del anuncio. Para probar: si la pregunta lleva "#nosabe" dice que no lo pone en el
+ * anuncio; "#sucio", una respuesta con formato, enlace, correo y teléfono (para la limpieza); "#vacio", nada.
+ */
+function suggestedAnswer(userMessage) {
+  const field = (name) => new RegExp(`^${name}: "?(.*?)"?$`, "m").exec(userMessage)?.[1] ?? "";
+  const question = field("Pregunta del comprador");
+  if (question.includes("#vacio")) return " ";
+  if (question.includes("#nosabe")) return "Eso no lo indico en el anuncio, pero te lo miro y te digo.";
+  if (question.includes("#sucio")) return "**Sí**, escríbeme a vendedor@correo.es o al 612 345 678. Fotos en https://ejemplo.com";
+  return `Hola, gracias por preguntar. Sobre "${field("Título")}": ${field("Descripción").split(".")[0]}.`;
+}
+
 /** @param {{ messages: { role: string, content: string }[] }} input */
 export async function complete({ messages }) {
   const lastUser = messages.findLast((message) => message.role === "user")?.content ?? "";
   if (messages[0]?.content === LISTING_ASSISTANT_PROMPT) return reply(listingDraft(lastUser));
   if (messages[0]?.content === REVIEW_SUMMARY_PROMPT) return reply(reviewSummary(lastUser));
+  if (messages[0]?.content === ANSWER_ASSISTANT_PROMPT) return reply(suggestedAnswer(lastUser));
   const last = messages.at(-1);
 
   if (lastUser.startsWith("#loop")) return reply("", [toolCall("list_categories", {})]);

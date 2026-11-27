@@ -61,3 +61,9 @@ export const REVIEW_SUMMARY = Object.freeze({
   /** Peticiones por IP y hora: es público, pero cada fallo de caché cuesta una llamada. */
   RATE_LIMIT_PER_HOUR: 60,
 });
+
+export const ANSWER_MESSAGES = Object.freeze({
+  ONLY_SELLER: "Solo el vendedor del anuncio puede pedir una respuesta sugerida",
+  QUESTION_NOT_FOUND: "Pregunta no encontrada",
+  ALREADY_ANSWERED: "Esta pregunta ya tiene respuesta",
+});

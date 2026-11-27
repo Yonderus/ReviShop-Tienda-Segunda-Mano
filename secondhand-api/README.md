@@ -81,9 +81,13 @@ npm run seed
 | `users` | 1 admin y 5 usuarios (uno **suspendido**), emails `@revishop.test`, contraseña `SEED_DEFAULT_PASSWORD` con hash Argon2id |
 | `profiles` | Uno por usuario: ubicación, bio y avatar |
 | `categories` | 9 principales (una en **borrador**) y 4 subcategorías (Móviles, Ordenadores, Chaquetas, Pádel) con atributos de variante |
-| `products` | **20**: 14 activos, 3 inactivos y 3 en la papelera |
-| `productvariants` | 27: la de por defecto de cada producto y las de los 5 que tienen opciones (talla, color, capacidad, memoria) |
+| `products` | **20** del catálogo (14 activos, 3 inactivos y 3 en la papelera) y **12 ya vendidos y retirados** (en la papelera), que dan historial a las ventas sin marcar como vendido medio catálogo |
+| `productvariants` | 39: la de por defecto de cada producto y las de los 5 que tienen opciones (talla, color, capacidad, memoria) |
 | `images` | Portada y galería de los productos, y el avatar de cada perfil |
+| `sales` | **16**: 15 confirmadas (con fechas del pasado) y 1 **pendiente**: Juan le ha registrado a Lucía el LEGO y ella aún no lo ha confirmado |
+| `reviews` | **29**, ya públicas: Lucía tiene 7 como vendedora (6 con comentario, una de 2★ con su respuesta) y Juan 5, así que los dos tienen **resumen de la IA**. Una de Carlos a Lucía aún **no se ve** (sistema ciego: ella no ha valorado) |
+| `questions` | **6** en la raqueta, el iPhone y la mesa: 4 respondidas (de ahí el «suele responder en…») y 2 sin responder |
+| `reports` | **1** abierta (la valoración de 2★), para probar el panel de moderación |
 | `revoked_tokens` | Vacía: la llena el logout (access tokens revocados) |
 | `refresh_tokens` | Vacía: la llenan los logins (una sesión por login y navegador) |
 
@@ -91,7 +95,10 @@ npm run seed
 |:-:|---|---|
 | 🛡️ | `admin@revishop.test` | admin |
 | 🙋 | `lucia@` · `juan@` · `marta@` · `carlos@revishop.test` | user |
-| ⛔ | `pablo@revishop.test` | user, **suspendido** (no puede iniciar sesión ni vender) |
+| ⛔ | `pablo@revishop.test` | user, **suspendido** (no puede iniciar sesión ni vender; su valoración sale como «Usuario de Revishop») |
+
+> [!TIP]
+> Para enseñarlo en vivo, entra como **Lucía**: el menú dice «3 cosas pendientes» (confirmar el LEGO, valorar a Carlos, que ya la valoró, y responder la pregunta de la raqueta). Su perfil público (`/sellers/lucia-martin`) tiene medias, barras y el resumen de la IA. Como **admin**, el Resumen avisa de la denuncia abierta.
 
 ---
 
@@ -117,26 +124,29 @@ flowchart LR
 | Capa | Responsabilidad |
 |---|---|
 | `routes/` | URL, middlewares, validador y controlador, con su documentación Swagger al lado |
-| `middlewares/` | `checkOrigin` (CSRF) · `authenticate` · `optionalAuthenticate` (leen la cookie del access) · `requireAdmin` / `adminOnly` · `loginRateLimit` · `refreshRateLimit` · `validate` (params, query y body) |
+| `middlewares/` | `checkOrigin` (CSRF) · `authenticate` · `optionalAuthenticate` (leen la cookie del access) · `requireAdmin` / `adminOnly` · límites (`login`, `refresh`, `sale`, `report`, `question`) · `validate` (params, query y body) |
 | `controllers/` | Funciones `const` con `try/catch` → `next(error)`; pasan el usuario de la sesión (`req.user`) al service |
 | `services/` | **Las reglas de negocio**, la propiedad (*¿es suyo?*) y la **integridad referencial** |
 | `repositories/` | Lo único que toca Mongo: consultas, `populate` y proyecciones |
 | `models/` | Esquemas, relaciones y los plugins `softDelete` y `slug` |
-| `constants/` · `utils/` | Valores fijos y funciones sin base de datos: `jwt`, `refreshToken`, `sessionCookie`, `password`, `access`, `slugify`, `url`… |
+| `constants/` · `utils/` | Valores fijos y funciones sin base de datos: `jwt`, `refreshToken`, `sessionCookie`, `password`, `access`, `publicAuthor`, `slugify`, `url`… |
 
 ```
 src/
 ├── config/          env.js (entorno validado) · db.js · swagger.js
-├── constants/       auth · category · image · product · role · user
+├── constants/       auth · category · image · product · role · user · sale · review · question
 ├── middlewares/     auth · admin · origin · rateLimit · validate
 ├── models/          role · user · profile · category · product · productVariant · image · revokedToken · refreshToken
+│                    · sale · review · report · question
 │   └── plugins/     softDelete.plugin.js · slug.plugin.js
 ├── repositories/    uno por modelo
 ├── services/        auth · refreshToken · profile · user · role · category · product · productVariant · shop
-├── controllers/     auth · profile · user · role · category · product · productVariant
-├── routes/          auth · profile · user (+ /sellers) · role · category · product · productVariant
+│                    · sale · review · report · question
+├── controllers/     auth · profile · user · role · category · product · productVariant · shop · sale · review · question
+├── routes/          auth · profile · user (+ /sellers) · role · category · product · productVariant · shop
+│                    · sale (+ /me) · review · report · question
 ├── validators/      schemas Zod de entrada (+ common.validator.js)
-├── utils/           AppError · errorHandler · response · jwt · refreshToken · sessionCookie · password · access · slugify · url…
+├── utils/           AppError · errorHandler · response · jwt · refreshToken · sessionCookie · password · access · publicAuthor · slugify · url…
 ├── seed.js
 └── server.js
 ```
@@ -305,6 +315,68 @@ Así, si alguien roba un refresh, en cuanto él o el dueño lo use por segunda v
 
 </details>
 
+<details>
+<summary><b>🧾 Ventas</b></summary>
+
+<br/>
+
+| | Método | Ruta | Descripción |
+|:-:|---|---|---|
+| 👤 | `POST` | `/api/sales` | `{ variantId, buyerEmail }`: el vendedor registra a quién le vendió. La variante pasa a vendido y la venta queda `pending` (7 días para confirmar). 20/h |
+| 🔑 | `GET` | `/api/sales/mine?as=seller\|buyer&status=&productId=` | Mi actividad, con las valoraciones de cada venta y `can` (qué puedes hacer) |
+| 🔑 | `POST` | `/api/sales/:id/confirm` · `/reject` | El comprador: «sí, la he comprado» o «no he sido yo» (la variante vuelve a su estado) |
+| 👤 | `POST` | `/api/sales/:id/cancel` | El vendedor, mientras está pendiente |
+| 🔑 | `GET` | `/api/me/pending` | Contadores del aviso: compras por confirmar, valoraciones por hacer y preguntas sin responder |
+
+**Reglas:** una venta solo la ven sus dos partes (al resto, 404) · una variante no tiene dos ventas vivas (índice único parcial) · el email del comprador da **el mismo 422** exista o no · una variante con venta viva no cambia de estado a mano (409) · caduca sin tareas programadas (se marca `expired` al leerla).
+
+</details>
+
+<details>
+<summary><b>⭐ Valoraciones y perfil público</b></summary>
+
+<br/>
+
+| | Método | Ruta | Descripción |
+|:-:|---|---|---|
+| 🔑 | `POST` | `/api/sales/:id/review` | Valorar a la otra parte de una venta confirmada, en sus 72 h. Ciega y sin edición |
+| 🔑 | `POST` | `/api/reviews/:id/reply` | El valorado responde, una vez, cuando ya es pública |
+| 🔑 | `POST` | `/api/reviews/:id/report` | Denunciar (no la tuya; una vez; 20/h) |
+| 🌐 | `GET` | `/api/shop/sellers/:slug` | Perfil: avatar, ubicación, desde cuándo, ventas cerradas, tiempo de respuesta y medias como vendedor y comprador |
+| 🌐 | `GET` | `/api/shop/sellers/:slug/reviews?role=&rating=` | Valoraciones públicas, paginadas |
+
+</details>
+
+<details>
+<summary><b>💬 Preguntas en el anuncio</b></summary>
+
+<br/>
+
+| | Método | Ruta | Descripción |
+|:-:|---|---|---|
+| 🌐 | `GET` | `/api/shop/products/:slug/questions` | Las respondidas primero. Con sesión, cada una trae `can`; el vendedor ve también las ocultas |
+| 🔑 | `POST` | `/api/products/:id/questions` | Preguntar (no en lo tuyo; 10/h) |
+| 👤 | `POST` | `/api/questions/:id/answer` | El vendedor responde, una vez |
+| 👤 | `PATCH` | `/api/questions/:id/hidden` | Ocultar o volver a mostrar |
+| 🔑 | `DELETE` | `/api/questions/:id` | Quien preguntó, si aún no tiene respuesta |
+| 🔑 | `POST` | `/api/questions/:id/report` | Denunciar |
+| 🔑 | `GET` | `/api/questions/mine/unanswered` | Las de mis anuncios sin responder |
+
+</details>
+
+<details>
+<summary><b>🛡️ Moderación</b></summary>
+
+<br/>
+
+| | Método | Ruta | Descripción |
+|:-:|---|---|---|
+| 🛡️ | `GET` | `/api/reports?status=open\|resolved` | Denuncias con lo denunciado completo, cuántas tiene cada cosa y los contadores |
+| 🛡️ | `PATCH` | `/api/reports/:id` | `dismiss` (se queda) u `hide` (se oculta y se resuelven todas sus denuncias) |
+| 🛡️ | `PATCH` | `/api/reviews/:id/hidden` | Ocultar o restaurar una valoración a mano (las preguntas, con `/api/questions/:id/hidden`) |
+
+</details>
+
 ---
 
 ## 🛍️ Tienda (Home y Shop)
@@ -319,6 +391,10 @@ Módulo propio (`shop.routes` → `shop.controller` → `shop.service` → `shop
 | 🌐 | `GET` | `/api/shop/products` | El shop: filtros, búsqueda, orden y paginación → `{ items, pagination, search? }` |
 | 🌐 | `GET` | `/api/shop/products/:slug` | Details: el producto con sus fotos |
 | 🌐 | `GET` | `/api/shop/products/:slug/variants` | Details: las variantes que se pueden elegir (activas, en orden, con precio, stock y estado) |
+| 🌐 | `GET` | `/api/shop/products/:slug/questions` | Details: las preguntas y respuestas |
+| 🌐 | `GET` | `/api/shop/sellers/:slug` · `/:slug/reviews` | El perfil público del vendedor y sus valoraciones |
+
+La ficha (`/shop/products/:slug`) trae además, en `seller`, su nota como vendedor (`rating: { average, count }`) y lo que suele tardar en responder (`responseMinutes`).
 
 ### 🔎 Query params de `/api/shop/products`
 
@@ -366,6 +442,37 @@ Comprobado con `explain("executionStats")`: cada forma de consulta usa su índic
 
 ---
 
+## ⭐ Ventas, valoraciones y preguntas
+
+Revishop no valora productos (cada anuncio es un objeto único que se vende una vez): valora **personas**, como
+vendedor y como comprador. Y en el anuncio no se opina: **se pregunta**.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant V as Vendedor
+    participant API
+    participant C as Comprador
+    V->>API: POST /sales { variantId, buyerEmail }
+    API-->>C: «¿Has comprado X?» (Mi actividad)
+    C->>API: POST /sales/:id/confirm → se abren 72 h para valorarse
+    C->>API: POST /sales/:id/review → guardada con visibleAt = fin de las 72 h (oculta)
+    V->>API: POST /sales/:id/review → las dos pasan a visibleAt = ahora
+    Note over V,C: se publican a la vez · si el otro no valora, a las 72 h sale sola
+```
+
+| | Cómo |
+|---|---|
+| 🧾 **Sin venta no hay valoración** | La registra el vendedor y la **confirma el comprador**: nadie se inventa compradores |
+| 🙈 **Ciega, sin tareas programadas** | `visibleAt` = fin de la ventana; al valorar el segundo, las dos a «ahora». Lo público filtra `visibleAt <= ahora`. Se cuenta **después** de guardar, así que dos valoraciones a la vez no se quedan ocultas |
+| ✍️ **Sin edición** | Una por venta y lado (índice único). Comentario obligatorio con 1–2 ★. El valorado responde una vez |
+| 📊 **Medias** | Una agregación: media, número, barras de 5 a 1 y media por criterio (estado como se anunciaba, trato, puntualidad). Solo cuenta lo público y no oculto |
+| 💬 **Preguntas** | Públicas; responde solo el vendedor, una vez. «Suele responder en…» es la **mediana** de sus últimas 20 respuestas |
+| 🛡️ **Denuncias** | De valoraciones y de preguntas. El admin descarta u oculta (se puede deshacer) |
+| 🤖 **IA** | El servicio de IA resume las valoraciones y sugiere respuestas leyendo estas rutas públicas: no tiene acceso a la base de datos |
+
+---
+
 ## 🗃️ Modelo de datos
 
 ```mermaid
@@ -381,6 +488,14 @@ erDiagram
     CATEGORY ||--o| IMAGE : "icono"
     PRODUCT ||--o{ IMAGE : "portada + galería"
     PRODUCT_VARIANT ||--o{ IMAGE : "fotos"
+    PRODUCT_VARIANT ||--o{ SALE : "variantId"
+    USER ||--o{ SALE : "sellerId · buyerId"
+    SALE ||--o{ REVIEW : "saleId (una por lado)"
+    USER ||--o{ REVIEW : "reviewerId · revieweeId"
+    PRODUCT ||--o{ QUESTION : "productId"
+    USER ||--o{ QUESTION : "askerId"
+    REVIEW ||--o{ REPORT : "targetId"
+    QUESTION ||--o{ REPORT : "targetId"
 ```
 
 | Colección | Claves |
@@ -393,8 +508,13 @@ erDiagram
 | `productvariants` | Opciones, SKU único, precio propio (o el base) y stock |
 | `images` | **Polimórfica**: `ownerType` + `ownerId` (`refPath`); al sustituirlas, las anteriores van a la papelera |
 | `revoked_tokens` | Blacklist del logout: `jti` único, `userId`, motivo y `expiresAt` con índice **TTL** |
+| `refresh_tokens` | Las sesiones largas: solo el **hash** del token, `familyId`, `usedAt` y TTL |
+| `sales` | `sellerId`, `buyerId`, `variantId`, `status` (`pending · confirmed · rejected · cancelled · expired`), `snapshot` de lo vendido y la ventana para valorarse. Índice **único parcial**: una venta viva por variante |
+| `reviews` | `saleId`, quien valora y el valorado, `rating`, `criteria`, `comment`, `reply`, **`visibleAt`** (sistema ciego) y `hiddenAt` (moderación). Único `{ saleId, reviewerId }` |
+| `questions` | `productId`, `sellerId` (copiado), `askerId`, `text`, `answer`, `hiddenAt` y `deletedAt` |
+| `reports` | **Polimórfica** (`targetType`: `review` o `question`), motivo, nota y `status` (`open · dismissed · actioned`). Única por usuario y objetivo |
 
-**En todas** (salvo `revoked_tokens`): `isActive`, `deletedAt`, `deletedBy`, `createdAt`, `updatedAt` y `slug` (menos `profiles`).
+**En las de catálogo y cuentas** (roles, users, profiles, categories, products, productvariants e images): `isActive`, `deletedAt`, `deletedBy`, `createdAt`, `updatedAt` y `slug` (menos `profiles`). Las de **registro** (tokens, ventas, valoraciones, preguntas y denuncias) no se borran ni tienen papelera: cambia su estado.
 
 | Regla | Detalle |
 |---|---|

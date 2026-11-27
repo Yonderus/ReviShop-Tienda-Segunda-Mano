@@ -45,6 +45,8 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 - **Ficha** (`/shop/:slug`) con galería, nivel de conservación y **variantes** (talla, capacidad…) con su precio y estado.
 - **Asistente de compra con IA**: le cuentas qué buscas y busca en la tienda por ti, con tarjetas de productos reales.
 - **Asistente de anuncio**: sugiere la descripción y el rango de precio de productos parecidos.
+- **Preguntas públicas** en cada anuncio, con respuesta sugerida por la IA para el vendedor.
+- **Perfil público** del vendedor: nota, barras de 5 a 1 ★, criterios y «Lo que dicen de…» (resumen de la IA).
 - Errores del servidor **junto al campo** que los provoca.
 
 </td>
@@ -56,6 +58,9 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 - **Cerrar sesión en todos tus dispositivos** desde Mi perfil.
 - **Publicar, editar y retirar** tus anuncios, con hasta 5 fotos.
 - **Mi perfil**: foto, teléfono, ubicación y bio.
+- **Ventas**: registras a quién vendiste y el comprador lo confirma.
+- **Valoraciones ciegas** en las dos direcciones (72 h): ninguna se ve hasta que valoráis los dos o se acaba el plazo.
+- **Mi actividad** con lo pendiente (y un aviso en el menú).
 - Tus anuncios ocultos solo los ves tú.
 
 </td>
@@ -66,6 +71,7 @@ Proyecto de **2º DAW** formado por una **API REST** (Express + MongoDB) y una *
 - **Productos**, **categorías** (en árbol) y **usuarios** en pestañas Activos · Inactivos · Papelera.
 - Cambios **optimistas** que vuelven atrás si la API falla.
 - **Editor de variantes** con los atributos de la categoría.
+- **Denuncias** de valoraciones y preguntas: ocultar o descartar.
 
 </td>
 </tr>
@@ -115,7 +121,7 @@ Los comandos de la raíz son scripts propios (`scripts/*.mjs`) que **solo usan N
 
 ### 👥 Usuarios de prueba
 
-El seed crea **3 roles, 6 usuarios** con sus perfiles, **13 categorías** (una en borrador), **20 productos** (14 activos, 3 inactivos y 3 en la papelera), **27 variantes** y sus fotos. Todos los usuarios usan la contraseña de **`SEED_DEFAULT_PASSWORD`** (guardada con Argon2id).
+El seed crea **3 roles, 6 usuarios** con sus perfiles, **13 categorías** (una en borrador), **20 productos** (14 activos, 3 inactivos y 3 en la papelera) más **12 ya vendidos** (retirados), **39 variantes** y sus fotos. Para probar las valoraciones trae también **16 ventas** (una pendiente), **29 valoraciones**, **6 preguntas** y **1 denuncia** abierta ([detalle](secondhand-api/README.md#-seed)). Todos los usuarios usan la contraseña de **`SEED_DEFAULT_PASSWORD`** (guardada con Argon2id).
 
 | | Usuario | Email | Rol |
 |:-:|---|---|---|
@@ -128,6 +134,7 @@ El seed crea **3 roles, 6 usuarios** con sus perfiles, **13 categorías** (una e
 
 **Cómo entrar:**
 - 🌐 **En la web:** botón **Iniciar sesión** (`/login`). El admin llega al panel; el resto, a la tienda. **Cerrar sesión** está en el menú de tu foto.
+- ⭐ **Para la demo:** entra como **Lucía**: tiene una compra por confirmar, una valoración por hacer (Carlos ya la valoró: sistema ciego) y una pregunta sin responder. Su perfil público es `/sellers/lucia-martin`.
 - 📖 **En Swagger:** *Try it out* en `POST /auth/login` con el email y la contraseña. Las dos cookies se guardan y el resto de pruebas ya van con sesión (no hace falta **Authorize**); a los 15 min, `POST /auth/refresh` la renueva.
 
 ---
@@ -150,8 +157,8 @@ flowchart LR
 |---|:-:|---|
 | 🅰️ **Front** | 4200 | La SPA. Todas sus peticiones van a `http://localhost:4000/api` |
 | 🚪 **Gateway** | 4000 | Reparte por ruta (`/api/ai` primero), pone **CORS** en un solo sitio, protege las cabeceras de IP y responde `502`/`504` si un servicio no está |
-| 🔌 **API** | 3000 | La tienda: auth, productos, categorías, usuarios y `/shop`. **La única con base de datos** |
-| 🤖 **IA** | 3001 | Asistente de compra (con herramientas de solo lectura) y de anuncio. **Sin base de datos**: comprueba la sesión con `/auth/me` y lee la tienda por `/shop/*` |
+| 🔌 **API** | 3000 | La tienda: auth, productos, categorías, usuarios, `/shop`, ventas, valoraciones, preguntas y denuncias. **La única con base de datos** |
+| 🤖 **IA** | 3001 | Asistente de compra (con herramientas de solo lectura) y de anuncio, resumen de valoraciones y respuesta sugerida a preguntas. **Sin base de datos**: comprueba la sesión con `/auth/me` y lee la tienda por `/shop/*` |
 
 Dentro de la API y del front:
 
@@ -197,6 +204,12 @@ erDiagram
     PRODUCT ||--|{ PRODUCT_VARIANT : variantes
     PRODUCT ||--o{ IMAGE : fotos
     PROFILE ||--o| IMAGE : avatar
+    USER ||--o{ SALE : "vende / compra"
+    PRODUCT_VARIANT ||--o{ SALE : "se vende en"
+    SALE ||--o{ REVIEW : "hasta 2 (una por parte)"
+    PRODUCT ||--o{ QUESTION : preguntas
+    USER ||--o{ REPORT : denuncia
+    REPORT }o--|| REVIEW : "o una pregunta"
 ```
 
 | | |
@@ -205,6 +218,10 @@ erDiagram
 | 🏷️ **Categorías** | Árbol de dos niveles, con **borrador** y **atributos de variante** que heredan las subcategorías |
 | 📦 **Productos** | Su `status` (disponible · reservado · vendido) se **calcula** a partir de sus variantes |
 | 🖼️ **Imágenes** | **Polimórficas** (`ownerType` + `ownerId`): avatar, icono de categoría o fotos de producto y variante |
+| 🧾 **`sales`** | Quién vendió qué variante a quién. La registra el vendedor y la **confirma el comprador** (7 días; si no, caduca). Guarda una **foto** del anuncio (título, precio, imagen) para que la valoración siga teniendo sentido aunque se borre |
+| ⭐ **`reviews`** | Una por parte y venta (vendedor ↔ comprador), con nota, criterios y comentario. **Ciegas**: `visibleAt` dice desde cuándo se ve; no se editan; el valorado puede responder una vez |
+| 💬 **`questions`** | Preguntas públicas en un anuncio, con una sola respuesta del vendedor (`sellerId` copiado para buscar rápido las pendientes) |
+| 🛡️ **`reports`** | Denuncias **polimórficas** (`targetType`: valoración o pregunta); el admin las descarta u oculta lo denunciado |
 | 🚫 **`revoked_tokens`** | La blacklist del logout, con índice **TTL** que borra cada fila cuando el token habría caducado |
 | 🗑️ **Soft delete** | Plugin de Mongoose en todas las colecciones: borrado **en cascada**, restauración **exacta** y `deletedBy` con quién lo borró |
 | 🔗 **Integridad** | MongoDB no tiene claves foráneas, así que la garantizan **los services** (rol asignable, categoría que acepta productos, no borrar lo que tiene dependientes…) |
@@ -226,6 +243,11 @@ Base: `http://localhost:3000/api` · Documentación interactiva en **`/api/docs`
 | 🎨 **Variantes** | 🌐 `GET /products/:id/variants` · 👤 `POST /products/:id/variants` · `PATCH` · `DELETE /variants/:id` |
 | 🏷️ **Categorías** | 🌐 `GET /categories` · 🛡️ el resto del CRUD |
 | 🙋 **Usuarios** | 🛡️ CRUD completo · 🛡️ `GET /roles` · 🌐 `GET /sellers` |
+| 🧾 **Ventas** | 🔑 `POST /sales` · `GET /sales/mine` · `POST /sales/:id/confirm` · `/reject` · `/cancel` · `GET /me/pending` |
+| ⭐ **Valoraciones** | 🔑 `POST /sales/:id/review` · `POST /reviews/:id/reply` · `/report` · 🌐 `GET /shop/sellers/:slug` · `/shop/sellers/:slug/reviews` · 🛡️ `PATCH /reviews/:id/hidden` |
+| 💬 **Preguntas** | 🌐 `GET /shop/products/:slug/questions` · 🔑 `POST /products/:id/questions` · `/questions/:id/answer` · `/report` · `PATCH /questions/:id/hidden` · `DELETE /questions/:id` · `GET /questions/mine/unanswered` |
+| 🛡️ **Moderación** | 🛡️ `GET /reports` · `PATCH /reports/:id` (descartar u ocultar) |
+| 🤖 **IA** | 🔑 `POST /ai/chat` · `/ai/listings/draft` · `/ai/questions/:id/suggest-answer` · 🌐 `GET /ai/sellers/:slug/summary` (los atiende el [servicio de IA](secondhand-ai/README.md)) |
 
 <details>
 <summary><b>🔐 Cómo funciona la sesión</b></summary>
@@ -283,6 +305,9 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | 🏷️ **Categorías** | Nombre único (también frente a la papelera) · solo se cuelga de una principal · no se borra con productos o subcategorías (`409` con cuántos) · una subcategoría no se restaura si su padre sigue en la papelera · un producto solo va a una categoría **publicada y activa** |
 | 🙋 **Usuarios** | Email único (si es de uno de la papelera, el `409` dice que lo restaures) · contraseña de 8 a 128 caracteres con **Argon2id**, nunca en una respuesta · el rol tiene que existir · **siempre queda un admin activo** · no se borra un usuario con productos |
 | 📦 **Productos** | El vendedor es el de la sesión (el admin puede indicar otro) · uno **inactivo** solo lo ven su dueño y el admin · todo producto tiene al menos una variante |
+| 🧾 **Ventas** | Solo el vendedor la registra, a un comprador activo (el mismo `422` si el email no existe o está suspendido) · **una venta viva por variante** (índice único parcial) · la variante pasa a vendida y, si la venta se rechaza, cancela o caduca, vuelve a como estaba · las caducadas se marcan al leer (sin cron) |
+| ⭐ **Valoraciones** | Solo las dos partes de una venta **confirmada**, una vez cada una y en **72 h** · comentario obligatorio con 1 o 2 ★ · se publican las dos a la vez cuando valora el segundo (o al acabar el plazo) · el autor suspendido sale como «Usuario de Revishop» |
+| 💬 **Preguntas** | No en tus anuncios · una sola respuesta, del vendedor · el autor la borra mientras no tenga respuesta · el vendedor puede ocultarla |
 
 </details>
 
@@ -308,7 +333,7 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | `404` | No existe o está en la papelera |
 | `409` | Choca con otro registro o con su estado · refresh renovado hace un instante por otra pestaña |
 | `422` | Datos no válidos (Zod, reglas del service o Mongoose) |
-| `429` | Demasiados intentos de login o de renovaciones |
+| `429` | Demasiados intentos de login o de renovaciones · demasiadas ventas, preguntas o denuncias seguidas |
 | `413` · `415` | Cuerpo de más de 100 KB · formato no soportado (charset o compresión) |
 | `503` | MongoDB no responde (en vez de dejar la petición colgada) |
 
@@ -327,6 +352,7 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | 🚧 **Rutas protegidas** | `guestGuard` (`/login`), `authGuard` (`/profile`, publicar y editar) y `adminGuard` (`/admin/**` → `/forbidden` si no eres admin) |
 | 👤 **Lo tuyo** | "Editar" y "Retirar" solo en tus anuncios (o en todos si eres admin); el select **Vendedor** solo lo ve el admin |
 | 🚨 **Errores** | En español, junto al campo o en la pantalla con *Reintentar*. Un `401` que no se puede arreglar renovando cierra la sesión y te devuelve después a donde estabas |
+| ⭐ **Valoraciones** | Las reglas las decide la API: cada venta y pregunta trae `can` y el front solo pinta los botones · estrellas que se eligen con radios (teclado y lector de pantalla) · `<dialog>` nativo para valorar · cuenta atrás con una *signal* `now` · `PendingStore` para el aviso del menú |
 | 🎨 **UX** | Skeletons, estados vacíos y de error, View Transitions, sin scroll horizontal desde 375 px y accesibilidad (labels, `aria-*`, foco al primer error) |
 
 ---
@@ -352,6 +378,11 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | Categorías con **borrador** además de `isActive` | Se puede preparar una categoría antes de que salga en la tienda |
 | Borrar una categoría con productos da **409** | Borrar una categoría no debería hacer desaparecer anuncios de otros usuarios |
 | **Siempre queda un admin activo** | Si no, nadie podría volver a entrar al panel |
+| Se valoran **personas, no productos** | En segunda mano cada objeto es único: lo que sirve al siguiente comprador es saber si el vendedor es de fiar (y al vendedor, si el comprador lo es) |
+| Solo valora quien **ha comprado de verdad** | La venta la registra el vendedor y la confirma el comprador: sin venta confirmada no hay valoración, y así no se puede inflar la nota |
+| Valoraciones **ciegas, 72 h** | Como Airbnb, pero con un plazo corto: nadie valora «en respuesta» a la otra y no hay represalias. Sin editar después, por lo mismo |
+| Comentario obligatorio con **1 o 2 ★** | Una nota baja sin explicación no ayuda a nadie y no se puede moderar |
+| La **IA resume, no puntúa** | La media y las barras salen de la base de datos; el modelo solo resume los comentarios, con caché, y si falla el perfil sale igual. La respuesta sugerida **nunca se publica sola** |
 | Al cambiar las fotos, **primero se crean las nuevas** | Sin transacciones (necesitan *replica set*), es la forma de que un fallo no deje un producto sin fotos |
 
 ---
@@ -377,6 +408,8 @@ En cada petición se comprueban la firma, la caducidad, la blacklist, que el usu
 | ✅ | Asistente IA (`secondhand-ai`): asistente de compra con herramientas y asistente de anuncios, sin acceso a la base de datos |
 | ✅ | API Gateway en el puerto 4000 (CORS centralizado) y `npm run dev` para arrancarlo todo |
 | ✅ | Access (15 min) + refresh token rotatorio con detección de reutilización, renovación automática en el front, sincronización entre pestañas y cierre en todos los dispositivos |
+| ✅ | Ventas confirmadas por el comprador, valoraciones ciegas en las dos direcciones, perfil público del vendedor, preguntas en los anuncios y moderación de denuncias |
+| ✅ | IA: resumen de las valoraciones del vendedor y respuesta sugerida a preguntas · seed con ventas, valoraciones y preguntas de ejemplo |
 | 🔜 | Mis anuncios, cambio de contraseña y registro |
 | 🔜 | Carrito, reservas y pagos |
 

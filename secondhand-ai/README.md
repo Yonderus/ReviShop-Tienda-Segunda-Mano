@@ -89,6 +89,8 @@ Todos bajo `/api/ai` · respuestas `{ success: true, data }` o `{ success: false
 | 🌐 | `GET` | `/api/ai/health` | `{ status, provider, model, enabled }`. No llama al proveedor |
 | 🔑 | `POST` | `/api/ai/chat` | Asistente de compra |
 | 🔑 | `POST` | `/api/ai/listings/draft` | Asistente de anuncio. **No guarda nada** |
+| 🌐 | `GET` | `/api/ai/sellers/:slug/summary` | Resumen de las valoraciones de un vendedor («Lo que dicen de…»). Público, con **caché** y 60/h por IP |
+| 👤 | `POST` | `/api/ai/questions/:id/suggest-answer` | Respuesta sugerida a una pregunta de un anuncio (solo su vendedor). **No publica nada** |
 
 ### 💬 `POST /api/ai/chat`
 
@@ -123,6 +125,33 @@ Todos bajo `/api/ai` · respuestas `{ success: true, data }` o `{ success: false
 - La **descripción** la redacta el modelo (de 2 a 4 frases), y luego se limpia **en código**: se quitan markdown, enlaces, correos y teléfonos, y se recorta a 600 caracteres por una frase entera.
 - El **rango de precio no lo decide el modelo**: son los percentiles 25–75 de `basePrice` de productos reales. Primero se buscan los parecidos por título dentro de la categoría (`basis: "similar"`); si hay menos de 3, toda la categoría (`basis: "category"`); y si aun así no hay 3, `priceRange: null`.
 - Las dos cosas se piden **en paralelo**.
+
+### ⭐ `GET /api/ai/sellers/:slug/summary`
+
+```jsonc
+// respuesta (o "data": null si tiene menos de 3 comentarios: entonces ni se llama al modelo)
+{ "success": true, "data": {
+  "summary": "Los compradores destacan su trato y que los productos llegan como se describen…",
+  "strengths": ["Buen trato", "Responde rápido"],
+  "improvements": ["Estado del producto"],
+  "basedOn": 6, "generatedAt": "2026-11-27T10:00:00.000Z", "cached": true
+} }
+```
+
+- Lee las valoraciones de `/shop/sellers/:slug/reviews` (la API ya quita las que aún no se ven y las ocultas) y le pasa al modelo los 40 comentarios más recientes, **entre comillas y recortados**.
+- **El modelo solo resume texto, en JSON** (validado con Zod; si no cumple, 502). La nota media y las barras las calcula la API.
+- **Caché en memoria** (LRU, 500 vendedores). La clave es `slug + número de valoraciones + la última`: una valoración nueva, oculta o restaurada genera un resumen nuevo; el resto de visitas no llaman al modelo. Si llegan dos visitas a la vez sin caché, comparten **una** llamada.
+
+### 💬 `POST /api/ai/questions/:id/suggest-answer`
+
+```jsonc
+// petición                                  // respuesta
+{ "productSlug": "raqueta-de-padel-vertex" } { "success": true, "data": { "suggestion": "Sí, es la funda original de Bullpadel." } }
+```
+
+- Solo el **vendedor** del anuncio (o un admin), comprobado con datos públicos (el `sellerId` de la ficha) y la sesión (`/auth/me`). La pregunta tiene que verse (404) y no tener respuesta (409).
+- Responde **solo con lo que dice el anuncio** (título, descripción, estado, precio y variantes); si no está, lo dice en vez de inventarlo. Se limpia como la descripción del anuncio.
+- No publica nada: el front rellena el campo y el vendedor la revisa y la publica él.
 
 ---
 
@@ -173,7 +202,8 @@ Si el modelo se equivoca (herramienta que no existe, JSON roto, argumentos no v�
 | 🔍 **Herramientas de solo lectura** | Solo endpoints públicos de `/shop`, y **sin la cookie del usuario**: aunque alguien engañe al modelo, lo peor que puede pasar es una búsqueda |
 | 💉 **Inyección de instrucciones** | El cliente solo puede mandar mensajes `user` y `assistant` (nunca `system` ni `tool`). Los resultados de las herramientas van como mensajes `tool` (datos, no órdenes) y las descripciones de los vendedores se recortan |
 | 🃏 **Tarjetas con datos reales** | Los productos de la respuesta salen de la API, no del texto del modelo: no se puede inventar un precio ni un enlace. El front pinta `reply` como **texto**, nunca como HTML |
-| 💸 **Gasto controlado** | 30 mensajes por usuario y hora (`429` con `Retry-After`), `max_tokens`, timeout, vueltas limitadas, y se **aborta** la llamada al modelo si el usuario cierra el chat |
+| 💸 **Gasto controlado** | 30 mensajes por usuario y hora entre chat, anuncio y respuestas sugeridas (`429` con `Retry-After`), `max_tokens`, timeout, vueltas limitadas, y se **aborta** la llamada al modelo si el usuario se va. El resumen de valoraciones (público) va con caché y 60/h por IP |
+| ✍️ **Textos de usuarios** | Comentarios, preguntas y descripciones van al modelo como **datos** entre comillas y recortados, y lo que devuelve se limpia en código (sin enlaces, correos ni teléfonos) |
 | 🧱 **CSRF** | `checkOrigin` como en la API; las cookies son `SameSite=Strict` |
 | 📝 **Logs** | Por cada llamada: usuario, modelo, tokens y milisegundos. **Nunca** el contenido de los mensajes ni la key |
 
@@ -190,6 +220,8 @@ Al cliente **nunca** le llega el error crudo del proveedor (puede llevar datos d
 |:-:|---|
 | `401` | Sin sesión, o la API dice que ya no vale → «Inicia sesión para usar el asistente» (el front intenta renovar antes) |
 | `403` | Usuario suspendido o inactivo (lo dice la API) · `Origin` no permitido |
+| `404` | El vendedor, el anuncio o la pregunta no existen (o no se ven) |
+| `409` | La pregunta ya tiene respuesta |
 | `422` | Historial o formulario no válidos, con el detalle por campo |
 | `429` | Límite del usuario superado · o el proveedor está saturado |
 | `502` | El proveedor ha fallado o no ha devuelto nada útil |
@@ -208,12 +240,13 @@ src/
 ├── controllers/                ai.controller (aborta si el cliente se va)
 ├── llm/                        index (complete, providerInfo) · openai.provider · fake.provider · errors
 ├── middlewares/                session (requireSession) · rateLimit · origin · validate
-├── prompts/                    system.prompt (compra) · listing.prompt (anuncio)
-├── routes/ai.routes.js         health, chat, listings/draft
+├── prompts/                    system.prompt (compra) · listing.prompt (anuncio) · reviews.prompt (resumen) · answer.prompt (respuesta)
+├── routes/ai.routes.js         health, chat, listings/draft, sellers/:slug/summary, questions/:id/suggest-answer
 ├── services/                   chat.service (bucle del agente) · listing.service (descripción + rango)
+│                               · reviewSummary.service (resumen + caché) · answerSuggestion.service (respuesta)
 ├── tools/                      search_products · get_product · list_categories · list_locations · summaries
 ├── utils/                      AppError · errorHandler · response
-├── validators/ai.validator.js  esquemas del chat y del anuncio
+├── validators/ai.validator.js  esquemas del chat, del anuncio, del resumen y de la respuesta
 └── server.js                   trust proxy, helmet, json 32 kB, cookies, rutas y apagado ordenado
 ```
 

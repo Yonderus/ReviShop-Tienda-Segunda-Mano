@@ -31,6 +31,9 @@ SPA del marketplace de segunda mano Revishop: Home y tienda públicas, publicaci
 - Ficha por **slug** con galería, variantes y la *escala de segunda vida*.
 - Publicar, editar y retirar **tus** anuncios.
 - **Mi perfil**: foto, teléfono, ubicación y bio.
+- **Ventas y valoraciones**: registrar a quién vendiste, confirmar tus compras y valoraros (ciego, 72 h) desde **Mi actividad**.
+- **Perfil público** del vendedor con su nota, barras de 5 a 1 ★, criterios y el resumen de la IA.
+- **Preguntas** públicas en cada anuncio, con respuesta sugerida por la IA para el vendedor.
 
 </td>
 <td width="50%" valign="top">
@@ -39,6 +42,7 @@ SPA del marketplace de segunda mano Revishop: Home y tienda públicas, publicaci
 - Resumen con datos reales del inventario.
 - CRUD de **productos** (con variantes), **categorías** (en árbol) y **usuarios** (con avatar).
 - Pestañas Activos · Inactivos · Papelera, con cambios **optimistas**.
+- **Denuncias** de valoraciones y preguntas: ocultar o descartar (y volver a mostrar).
 - Solo para el rol `admin`.
 
 </td>
@@ -188,8 +192,10 @@ Los dos tokens viven en cookies que pone la API (`HttpOnly`, `SameSite=Strict`):
 |---|:-:|---|
 | `/` | 🌐 | **Home**: carruseles de categorías, vendedores y ubicaciones (cada tarjeta abre el shop filtrado) y lo último publicado |
 | `/shop` | 🌐 | **Shop**: búsqueda, filtros con varios valores, rango de precio, orden y paginación; todo en la URL (`?category=moviles,ordenadores&sort=price-asc&page=2`) |
-| `/shop/:slug` | 🌐 | **Ficha de la tienda**: producto y sus variantes activas, enlaces al shop por vendedor, categoría y ubicación; *Editar* solo a su dueño o un admin |
-| `/products/:slug` | 🌐 | Ficha clásica (galería y variantes, con *Editar / Eliminar* en lo tuyo); a ella llevan Publicar y Editar |
+| `/shop/:slug` | 🌐 | **Ficha de la tienda**: producto y sus variantes activas; el vendedor con su nota y «suele responder en…» (enlace a su perfil); **preguntas y respuestas**; *Editar* y *Registrar venta* a su dueño |
+| `/products/:slug` | 🌐 | Ficha clásica (galería y variantes, con *Editar / Eliminar* en lo tuyo); a ella llevan Publicar y Editar. En lo tuyo, la sección **Ventas** (`#ventas`): registrar a quién vendiste cada variante |
+| `/sellers/:slug` | 🌐 | **Perfil público**: nota grande, barras de 5 a 1 ★ (filtran), criterios, «Lo que dicen de…» (IA), pestañas vendedor/comprador y sus anuncios; todo en la URL (`?role=buyer&rating=2`) |
+| `/activity` | 🔑 | **Mi actividad**: Compras y Ventas (confirmar, rechazar, cancelar, **valorar** con cuenta atrás) y las preguntas sin responder de tus anuncios |
 | `/login` | 🚪 | Iniciar sesión, con los errores de la API (credenciales, cuenta bloqueada, demasiados intentos) |
 | `/profile` | 🔑 | **Mi perfil**: foto con vista previa, teléfono, ubicación y bio (`PATCH` solo con lo cambiado) |
 | `/products/new` | 🔑 | Publicar un anuncio |
@@ -205,9 +211,10 @@ Los dos tokens viven en cookies que pone la API (`HttpOnly`, `SameSite=Strict`):
 | `/admin/products` · `/inactive` · `/trash` | Productos: interruptor de visibilidad y estado de venta **optimistas**, editor de variantes, papelera restaurable |
 | `/admin/categories` · `/inactive` · `/trash` | Categorías en árbol, con borrador y atributos heredados |
 | `/admin/users` · `/inactive` · `/trash` | Usuarios con foto, rol, estado y **Avatar (URL)** en el formulario |
+| `/admin/reports` · `/resolved` | **Denuncias** de valoraciones y preguntas, con lo denunciado completo: ocultar, descartar o volver a mostrar. El Resumen avisa de las abiertas |
 | `…/new` · `…/:slug/edit` | Crear y editar cada entidad |
 
-Mensajes, Reservas, Valoraciones, Pagos y Envíos aparecen en el menú como **Próximamente** (`PLATFORM_MODULES` en `features/admin/admin-nav.config.ts`): sin rutas ni datos todavía.
+Mensajes, Reservas, Pagos y Envíos aparecen en el menú como **Próximamente** (`PLATFORM_MODULES` en `features/admin/admin-nav.config.ts`): sin rutas ni datos todavía.
 
 ---
 
@@ -218,7 +225,11 @@ Base: `environment.apiUrl` · respuestas `{ success: true, data }` o `{ success:
 | Recurso | Endpoints | Uso |
 |---|---|---|
 | 🔐 **Auth** | `POST /auth/login` · `POST /auth/refresh` · `GET /auth/me` · `POST /auth/logout` · `POST /auth/logout-all` | Sesión y renovación |
-| 🤖 **IA** | `POST /ai/chat` · `POST /ai/listings/draft` | Asistente de compra y de anuncio (`AssistantService`); el gateway lo manda al servicio de IA |
+| 🤖 **IA** | `POST /ai/chat` · `POST /ai/listings/draft` · `GET /ai/sellers/:slug/summary` · `POST /ai/questions/:id/suggest-answer` | Asistentes de compra y de anuncio, resumen de valoraciones y respuesta sugerida; el gateway lo manda al servicio de IA |
+| 🧾 **Ventas** | `POST /sales` · `GET /sales/mine` · `POST /sales/:id/confirm` · `/reject` · `/cancel` · `GET /me/pending` | Registrar ventas, Mi actividad y el aviso del menú (`SalesService`, `PendingStore`) |
+| ⭐ **Valoraciones** | `POST /sales/:id/review` · `POST /reviews/:id/reply` · `/report` · `GET /shop/sellers/:slug` · `/reviews` | Valorar, responder, denunciar y el perfil público (`ReviewsService`) |
+| 💬 **Preguntas** | `GET /shop/products/:slug/questions` · `POST /products/:id/questions` · `/questions/:id/answer` · `/hidden` · `/report` · `DELETE /questions/:id` · `GET /questions/mine/unanswered` | La sección de la ficha y Mi actividad (`QuestionsService`) |
+| 🛡️ **Moderación** | `GET /reports` · `PATCH /reports/:id` · `PATCH /reviews/:id/hidden` | Panel de denuncias (`ModerationService`) |
 | 👤 **Perfil** | `GET` · `PATCH /profile/me` | Mi perfil |
 | 🛍️ **Tienda** | `GET /shop/categories` · `/shop/sellers` · `/shop/locations` · `/shop/products` · `/shop/products/:slug` · `/:slug/variants` | Home, shop y ficha (`ShopService`) |
 | 📦 **Productos** | `GET /products/slug/:slug` | Ficha de gestión |
@@ -235,6 +246,7 @@ Base: `environment.apiUrl` · respuestas `{ success: true, data }` o `{ success:
 ```
 src/app/
 ├── core/                    Infraestructura transversal (no conoce productos)
+│   ├── activity/            PendingStore: el aviso del menú (lo usa el menú compartido, por eso está en core)
 │   ├── auth/                AuthStore, AuthService, AuthChannel, authInterceptor, refreshInterceptor y guards
 │   ├── config/              HttpContextTokens y constantes
 │   ├── interceptors/        errorInterceptor (401/403/429, timeout, alertas) y loadingInterceptor
@@ -255,7 +267,10 @@ src/app/
 │   ├── products/            modelo, servicios, ProductsStore, componentes y páginas
 │   ├── users/               modelo, servicios y UsersStore
 │   ├── assistant/           widget del chat, tarjeta de producto, AssistantService y AssistantStore
-│   └── admin/               panel: dashboard, products, categories, users
+│   ├── sales/               Mi actividad, panel «Ventas» del anuncio, SalesService
+│   ├── reviews/             perfil público, estrellas (ver y elegir), diálogo de valorar, tarjeta, medias, resumen IA
+│   ├── questions/           preguntas de la ficha (con respuesta sugerida por la IA), QuestionsService
+│   └── admin/               panel: dashboard, products, categories, users, reports (denuncias)
 ├── app.routes.ts            /admin (adminGuard) + tienda + 404
 └── app.config.ts            router, interceptores, APP_INITIALIZER (restaura la sesión), locale es-ES
 ```
@@ -368,6 +383,21 @@ Todo va a `environment.apiUrl` como el resto (`/ai/...`): el **gateway** decide 
   - Un mensaje nuevo, «Nueva conversación» o cerrar sesión **abortan** la petición en curso (`AbortController`).
 - **Asistente de anuncio** (formulario de publicar y editar): «Sugerir descripción» pide `/ai/listings/draft` con el título, la categoría y el estado. Rellena el textarea **sin guardar**; si ya había texto, no lo pisa: enseña la sugerencia y deja elegir entre sustituirlo o descartarla. También muestra «Productos parecidos se venden entre X € y Y €» si hay rango.
 - **Peticiones de IA:** timeout propio (`aiRequestTimeoutMs`, 35 s; el resto usa `requestTimeoutMs`, 10 s), sin loader global y sin modal: el error se pinta **junto a donde se pidió**.
+
+</details>
+
+<details>
+<summary><b>⭐ Ventas, valoraciones y preguntas</b></summary>
+
+<br/>
+
+- **Las reglas, en la API:** cada venta y cada pregunta traen `can` (confirmar, cancelar, valorar, responder, ocultar…). El front pinta los botones con eso y no repite las reglas.
+- **Sistema ciego:** Mi actividad enseña tu valoración siempre y la del otro solo cuando ya es pública; mientras, «X ya te ha valorado: valora tú para ver las dos». Después de valorar se **recarga** la lista: si el otro ya había valorado, ahora salen las dos (lo decide la API).
+- **Estrellas accesibles:** las que se eligen son radios de verdad (teclado y lector de pantalla sin código extra); las que se muestran son dos capas recortadas al porcentaje (medias estrellas) con `aria-label` «4,5 de 5 estrellas».
+- **`<dialog>` nativo** para valorar: encierra el foco, Escape lo cierra y el fondo no se toca.
+- **La cuenta atrás** («Quedan 41 h») lee una *signal* `now` que se actualiza cada minuto.
+- **Las ayudas de IA nunca publican solas:** el resumen de valoraciones avisa de que es de la IA y, si falla, no aparece; la respuesta sugerida rellena el campo sin pisar lo que ya habías escrito.
+- **El aviso del menú** (`core/activity/pending.store.ts`) suma compras por confirmar, valoraciones por hacer y preguntas sin responder; se pide al entrar y se refresca después de cada acción.
 
 </details>
 

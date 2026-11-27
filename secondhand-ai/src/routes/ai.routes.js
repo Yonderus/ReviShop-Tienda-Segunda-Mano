@@ -29,10 +29,6 @@ router.post("/chat", requireSession, aiRateLimit, validate({ body: chatSchema })
 router.post("/listings/draft", requireSession, aiRateLimit, validate({ body: listingDraftSchema }), postListingDraft);
 
 /**
- * Resumen de las valoraciones de un vendedor («Lo que dicen de…»). Público, como su perfil: sin sesión, con límite
- * por IP y caché (solo se paga una llamada al modelo por cada valoración nueva).
- */
-/**
  * Respuesta sugerida a una pregunta de un anuncio: solo su vendedor. Comparte el límite por usuario con el chat y el
  * asistente de anuncio (cada una es una llamada de pago al modelo). No publica nada.
  */
@@ -44,6 +40,10 @@ router.post(
   postSuggestAnswer,
 );
 
+/**
+ * Resumen de las valoraciones de un vendedor («Lo que dicen de…»). Público, como su perfil: sin sesión, con límite
+ * por IP y caché (solo se paga una llamada al modelo por cada valoración nueva).
+ */
 router.get("/sellers/:slug/summary", summaryRateLimit, validate({ params: sellerSlugParamsSchema }), getSellerSummary);
 
 export default router;

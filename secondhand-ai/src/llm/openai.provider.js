@@ -30,10 +30,12 @@ function getClient() {
 }
 
 /**
- * @param {{ messages: object[], tools?: object[], signal?: AbortSignal }} input
+ * @param {{ messages: object[], tools?: object[], json?: boolean, signal?: AbortSignal }} input
+ *   `json`: pide al modelo un objeto JSON (modo JSON de la API de OpenAI, que Groq también admite). Aun así, quien
+ *   lo pide valida la respuesta: no todos los modelos lo respetan igual.
  * @returns {Promise<{ content: string, toolCalls: object[], usage: object | null, model: string }>}
  */
-export async function complete({ messages, tools, signal }) {
+export async function complete({ messages, tools, json, signal }) {
   const response = await getClient().chat.completions.create(
     {
       model: env.AI_MODEL,
@@ -41,6 +43,7 @@ export async function complete({ messages, tools, signal }) {
       max_tokens: env.AI_MAX_TOKENS,
       temperature: AI_TEMPERATURE,
       ...(tools?.length && { tools, tool_choice: "auto" }),
+      ...(json && { response_format: { type: "json_object" } }),
     },
     { signal },
   );

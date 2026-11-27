@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from '../../../core/services/api.service';
 import { READ_OPTIONS } from '../../../core/services/entity-api.service';
-import { OwnReview, PublicProfile, PublicReview, ReportReason, ReviewInput, ReviewPage, RevieweeRole } from '../models/review.model';
+import { environment } from '../../../../environments/environment';
+import { OwnReview, PublicProfile, PublicReview, ReportReason, ReviewInput, ReviewPage, ReviewSummary, RevieweeRole } from '../models/review.model';
 
 /** Solo HTTP: valorar, responder, denunciar y lo público (perfil y valoraciones). */
 @Injectable({ providedIn: 'root' })
@@ -23,6 +24,18 @@ export class ReviewsService {
 
   profile(slug: string): Promise<PublicProfile> {
     return this.api.get<PublicProfile>(`/shop/sellers/${encodeURIComponent(slug)}`, READ_OPTIONS);
+  }
+
+  /**
+   * El resumen de la IA (va al servicio de IA por el gateway). Con el timeout de la IA, sin modal ni loader: si
+   * falla, el bloque simplemente no se enseña.
+   */
+  summary(slug: string, signal?: AbortSignal): Promise<ReviewSummary | null> {
+    return this.api.get<ReviewSummary | null>(`/ai/sellers/${encodeURIComponent(slug)}/summary`, {
+      ...READ_OPTIONS,
+      timeoutMs: environment.aiRequestTimeoutMs,
+      signal,
+    });
   }
 
   list(slug: string, query: { role: RevieweeRole; rating?: number | null; page?: number }, signal?: AbortSignal): Promise<ReviewPage> {

@@ -40,3 +40,8 @@ export const listingDraftSchema = z.object({
   condition: z.enum(PRODUCT_CONDITIONS, { error: "Elige el estado del producto" }),
   excludeSlug: z.string().regex(SLUG_PATTERN, "excludeSlug no es un slug válido").max(120).optional(),
 });
+
+/** El perfil del que se resumen las valoraciones: un slug (lo que se pasa tal cual a la API). */
+export const sellerSlugParamsSchema = z.object({
+  slug: z.string().max(120, "slug no válido").regex(SLUG_PATTERN, "slug no válido"),
+});

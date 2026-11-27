@@ -87,6 +87,17 @@ export interface ReviewPage {
   pagination: { total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean };
 }
 
+/** `GET /api/ai/sellers/:slug/summary`: lo que resume la IA de los comentarios (null si hay menos de 3). */
+export interface ReviewSummary {
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  /** Cuántos comentarios se han resumido. */
+  basedOn: number;
+  generatedAt: string;
+  cached: boolean;
+}
+
 export const REPORT_REASONS = ['insultos', 'datos_personales', 'no_tiene_que_ver', 'spam', 'otro'] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 

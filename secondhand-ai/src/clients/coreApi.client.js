@@ -84,4 +84,12 @@ export const coreApi = {
   listLocations() {
     return get("/shop/locations");
   },
+
+  /**
+   * Las valoraciones públicas de un usuario como vendedor, las más recientes primero (`{ items, pagination }`). Solo
+   * lo público: la API ya quita las que aún no se ven (sistema ciego) y las ocultas por moderación. 404 si no existe.
+   */
+  sellerReviews(slug, limit) {
+    return get(`/shop/sellers/${encodeURIComponent(slug)}/reviews`, { query: { role: "seller", limit } });
+  },
 };

@@ -23,13 +23,13 @@ export const providerInfo = () => ({
  * @param {{ messages: object[], tools?: object[], signal?: AbortSignal, user?: { id: string } }} input
  * @returns {Promise<{ content: string, toolCalls: object[], usage: object | null, model: string }>}
  */
-export async function complete({ messages, tools, signal, user }) {
+export async function complete({ messages, tools, json, signal, user }) {
   if (!env.aiEnabled) throw new ServiceUnavailableError(AI_MESSAGES.DISABLED);
 
   const startedAt = Date.now();
   let result;
   try {
-    result = await provider.complete({ messages, tools, signal });
+    result = await provider.complete({ messages, tools, json, signal });
   } catch (error) {
     throw toProviderError(error);
   }

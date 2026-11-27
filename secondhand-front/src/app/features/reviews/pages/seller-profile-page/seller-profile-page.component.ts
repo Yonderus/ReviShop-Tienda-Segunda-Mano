@@ -16,6 +16,7 @@ import { ProductCardComponent } from '../../../products/components/product-card/
 import { Product } from '../../../products/models/product.model';
 import { EMPTY_SHOP_FILTERS } from '../../../shop/models/shop.model';
 import { ShopService } from '../../../shop/services/shop.service';
+import { AiReviewSummaryComponent } from '../../components/ai-review-summary/ai-review-summary.component';
 import { RatingSummaryComponent } from '../../components/rating-summary/rating-summary.component';
 import { ReviewCardComponent } from '../../components/review-card/review-card.component';
 import { PublicProfile, PublicReview, ReviewPage, RevieweeRole } from '../../models/review.model';
@@ -47,6 +48,7 @@ const LISTINGS_PREVIEW = 8;
     ProductCardComponent,
     RatingSummaryComponent,
     ReviewCardComponent,
+    AiReviewSummaryComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -105,6 +107,11 @@ const LISTINGS_PREVIEW = 8;
             <div class="mt-6 rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6">
               <app-rating-summary [summary]="summary()" [selected]="ratingFilter()" (filter)="filterBy($event)" />
             </div>
+
+            <!-- El resumen de la IA es de las valoraciones como vendedor: solo en esa pestaña -->
+            @if (activeRole() === 'seller') {
+              <app-ai-review-summary class="mt-4 block" [slug]="p.slug" [name]="p.name" />
+            }
 
             <div class="mt-6" aria-live="polite">
               @if (ratingFilter()) {

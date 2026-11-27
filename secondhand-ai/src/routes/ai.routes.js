@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { getHealth, postChat, postListingDraft } from "../controllers/ai.controller.js";
-import { aiRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { getHealth, getSellerSummary, postChat, postListingDraft } from "../controllers/ai.controller.js";
+import { aiRateLimit, summaryRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { requireSession } from "../middlewares/session.middleware.js";
 import { validate } from "../middlewares/validate.js";
-import { chatSchema, listingDraftSchema } from "../validators/ai.validator.js";
+import { chatSchema, listingDraftSchema, sellerSlugParamsSchema } from "../validators/ai.validator.js";
 
 const router = Router();
 
@@ -21,5 +21,11 @@ router.post("/chat", requireSession, aiRateLimit, validate({ body: chatSchema })
 
 /** Asistente de anuncio: descripción sugerida y rango de precio. No guarda nada. */
 router.post("/listings/draft", requireSession, aiRateLimit, validate({ body: listingDraftSchema }), postListingDraft);
+
+/**
+ * Resumen de las valoraciones de un vendedor («Lo que dicen de…»). Público, como su perfil: sin sesión, con límite
+ * por IP y caché (solo se paga una llamada al modelo por cada valoración nueva).
+ */
+router.get("/sellers/:slug/summary", summaryRateLimit, validate({ params: sellerSlugParamsSchema }), getSellerSummary);
 
 export default router;

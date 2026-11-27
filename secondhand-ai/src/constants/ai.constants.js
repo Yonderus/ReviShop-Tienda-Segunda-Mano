@@ -37,4 +37,27 @@ export const AI_MESSAGES = Object.freeze({
   CORE_UNAVAILABLE: "La tienda no responde ahora mismo. Inténtalo de nuevo en unos segundos",
   TOO_MANY: "Has hecho muchas preguntas seguidas. Prueba de nuevo dentro de un rato",
   ORIGIN_NOT_ALLOWED: "Origen no permitido",
+  TOO_MANY_SUMMARIES: "Demasiadas peticiones seguidas. Prueba de nuevo dentro de un rato",
+});
+
+/**
+ * Resumen de las valoraciones de un vendedor («Lo que dicen de Lucía»). Es público (lo ve cualquiera en el perfil),
+ * así que se cachea en memoria: solo se paga una llamada al modelo por cada valoración nueva, no por cada visita.
+ */
+export const REVIEW_SUMMARY = Object.freeze({
+  /** Con menos comentarios no hay de qué resumir: no se llama al modelo. */
+  MIN_COMMENTS: 3,
+  /** Los más recientes que se le pasan al modelo (menos tokens y menos superficie para inyecciones). */
+  MAX_COMMENTS: 40,
+  /** Cada comentario se recorta a esto: lo escribe un usuario. */
+  COMMENT_MAX_LENGTH: 500,
+  /** Valoraciones que se piden a la API (la página más grande que admite). */
+  FETCH_LIMIT: 50,
+  SUMMARY_MAX_LENGTH: 400,
+  POINTS_MAX: 3,
+  POINT_MAX_LENGTH: 90,
+  /** Resúmenes que se guardan a la vez (los más antiguos salen primero). */
+  CACHE_MAX_ENTRIES: 500,
+  /** Peticiones por IP y hora: es público, pero cada fallo de caché cuesta una llamada. */
+  RATE_LIMIT_PER_HOUR: 60,
 });

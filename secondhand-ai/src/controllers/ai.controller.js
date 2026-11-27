@@ -1,6 +1,7 @@
 import { providerInfo } from "../llm/index.js";
 import { chatService } from "../services/chat.service.js";
 import { listingService } from "../services/listing.service.js";
+import { reviewSummaryService } from "../services/reviewSummary.service.js";
 import { sendSuccess } from "../utils/response.js";
 
 export const getHealth = (_req, res) => {
@@ -31,6 +32,15 @@ export const postChat = async (req, res, next) => {
 export const postListingDraft = async (req, res, next) => {
   try {
     sendSuccess(res, await listingService.draft(req.body, req.user, abortOnDisconnect(res)));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Resumen de las valoraciones de un vendedor (público). `null` si aún no hay comentarios suficientes. */
+export const getSellerSummary = async (req, res, next) => {
+  try {
+    sendSuccess(res, await reviewSummaryService.forSeller(req.params.slug));
   } catch (error) {
     next(error);
   }

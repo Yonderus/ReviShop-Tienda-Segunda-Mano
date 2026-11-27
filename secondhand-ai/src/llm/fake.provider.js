@@ -9,8 +9,10 @@
  * - "#many"                              → 6 herramientas en la misma vuelta (para probar el máximo por vuelta).
  * - cualquier otra cosa                  → "Eco: …".
  * Con las instrucciones del asistente de anuncio, redacta una descripción con los datos (ver listingDraft).
+ * Con las del resumen de valoraciones, devuelve un JSON con los comentarios (ver reviewSummary).
  */
 import { LISTING_ASSISTANT_PROMPT } from "../prompts/listing.prompt.js";
+import { REVIEW_SUMMARY_PROMPT } from "../prompts/reviews.prompt.js";
 
 let counter = 0;
 const toolCall = (name, args) => ({
@@ -53,10 +55,32 @@ function listingDraft(userMessage) {
   return `Vendo ${title} (${field("Categoría")}) en estado "${field("Estado").toLowerCase()}". Lo vendo porque ya no lo uso. Si tienes dudas o quieres más fotos, pregúntame.`;
 }
 
+/**
+ * Resumen de valoraciones: un JSON hecho con los comentarios (cuántos hay y si alguno es de 1 o 2 estrellas). Para
+ * probar la validación y la limpieza: si un comentario lleva "#roto" devuelve algo que no es JSON; "#markdown", el
+ * JSON dentro de un bloque ```json con formato, un correo y un teléfono; "#vacio", un JSON sin resumen.
+ */
+function reviewSummary(userMessage) {
+  const lines = userMessage.split("\n").slice(1);
+  if (userMessage.includes("#roto")) return "Lo siento, no puedo resumir esto.";
+  if (userMessage.includes("#vacio")) return '{"summary": "", "strengths": [], "improvements": []}';
+  const low = lines.filter((line) => /\((1|2)\/5\)/.test(line)).length;
+  const json = JSON.stringify({
+    summary: `Los compradores comentan ${lines.length} experiencias con este vendedor.${low ? " Alguno señala problemas con el estado del producto." : ""}`,
+    strengths: ["Buen trato", "Responde rápido", "Buen trato"],
+    improvements: low ? ["Estado del producto"] : [],
+  });
+  if (userMessage.includes("#markdown")) {
+    return "```json\n" + json.replace("Los compradores", "**Los compradores** (escribe a fake@correo.es o al 612 345 678)") + "\n```";
+  }
+  return json;
+}
+
 /** @param {{ messages: { role: string, content: string }[] }} input */
 export async function complete({ messages }) {
   const lastUser = messages.findLast((message) => message.role === "user")?.content ?? "";
   if (messages[0]?.content === LISTING_ASSISTANT_PROMPT) return reply(listingDraft(lastUser));
+  if (messages[0]?.content === REVIEW_SUMMARY_PROMPT) return reply(reviewSummary(lastUser));
   const last = messages.at(-1);
 
   if (lastUser.startsWith("#loop")) return reply("", [toolCall("list_categories", {})]);

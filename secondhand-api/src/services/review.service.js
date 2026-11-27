@@ -1,16 +1,16 @@
 import {
-  FORMER_USER_NAME,
   REVIEW_CRITERIA,
   REVIEW_MESSAGES,
   REVIEWEE_ROLE,
 } from "../constants/review.constants.js";
 import { SALE_MESSAGES, SALE_STATE } from "../constants/sale.constants.js";
-import { USER_STATUS } from "../constants/user.constants.js";
 import { reviewRepository } from "../repositories/review.repository.js";
 import { saleRepository } from "../repositories/sale.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/AppError.js";
 import { paginationOf, skipFor } from "../utils/pagination.js";
+import { publicAuthor } from "../utils/publicAuthor.js";
+import { questionService } from "./question.service.js";
 
 const sameId = (a, b) => String(a) === String(b);
 const round1 = (value) => (value === null || value === undefined ? null : Math.round(value * 10) / 10);
@@ -30,12 +30,6 @@ function assertCriteria(role, criteria = {}) {
   if (errors.length) throw new ValidationError(undefined, errors);
 }
 
-/** Quien valoró, si su cuenta sigue en pie; si no (suspendido, desactivado o borrado), sin nombre ni enlace. */
-function publicReviewer(user) {
-  const gone = !user?.name || user.deletedAt || !user.isActive || user.status === USER_STATUS.SUSPENDED;
-  return gone ? { name: FORMER_USER_NAME, slug: null } : { name: user.name, slug: user.slug };
-}
-
 /** Una valoración tal como se enseña en público. Nunca emails ni ids internos de la venta. */
 export function toPublicReview(review) {
   return {
@@ -46,7 +40,7 @@ export function toPublicReview(review) {
     comment: review.comment,
     reply: review.reply,
     product: { title: review.snapshot.productTitle, slug: review.snapshot.productSlug },
-    reviewer: publicReviewer(review.reviewerId),
+    reviewer: publicAuthor(review.reviewerId),
     publishedAt: review.visibleAt,
   };
 }
@@ -158,10 +152,11 @@ export const reviewService = {
   async publicProfile(slug) {
     const now = new Date();
     const user = await findPublicUser(slug);
-    const [asSeller, asBuyer, salesCount] = await Promise.all([
+    const [asSeller, asBuyer, salesCount, responseMinutes] = await Promise.all([
       reviewRepository.summaryFor(user._id, REVIEWEE_ROLE.SELLER, now),
       reviewRepository.summaryFor(user._id, REVIEWEE_ROLE.BUYER, now),
       saleRepository.countConfirmedAsSeller(user._id),
+      questionService.responseMinutes(user._id),
     ]);
     return {
       _id: user._id,
@@ -172,6 +167,8 @@ export const reviewService = {
       ...(user.profile?.bio ? { bio: user.profile.bio } : {}),
       memberSince: user.createdAt,
       salesCount,
+      // "Suele responder en…": mediana de sus últimas respuestas a preguntas (null si aún no ha respondido ninguna).
+      responseMinutes,
       ratings: { asSeller: toSummary(asSeller, REVIEWEE_ROLE.SELLER), asBuyer: toSummary(asBuyer, REVIEWEE_ROLE.BUYER) },
     };
   },

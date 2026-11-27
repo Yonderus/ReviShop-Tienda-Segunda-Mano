@@ -61,6 +61,7 @@ export const swaggerSpec = swaggerJSDoc({
       { name: "Usuarios", description: "Cuentas (cualquiera compra y vende), roles, visibilidad y papelera" },
       { name: "Tienda", description: "Home y Shop públicos: catálogo paginado, ficha, categorías, vendedores y ubicaciones (solo lo que está a la venta)" },
       { name: "Ventas", description: "Registro de ventas entre usuarios: el vendedor la registra y el comprador la confirma (la prueba que exigen las valoraciones)" },
+      { name: "Preguntas", description: "Preguntas públicas en los anuncios: preguntar, responder (el vendedor, una vez), ocultar, borrar y denunciar" },
       { name: "Valoraciones", description: "Valoraciones ciegas entre comprador y vendedor (72 h, sin edición), respuesta, denuncias y perfil público" },
     ],
     components: {
@@ -623,6 +624,7 @@ export const swaggerSpec = swaggerJSDoc({
             bio: { type: "string" },
             memberSince: { type: "string", format: "date-time" },
             salesCount: { type: "integer", description: "Ventas confirmadas como vendedor", example: 7 },
+            responseMinutes: { type: "integer", nullable: true, description: "Mediana de lo que tarda en responder preguntas (null si aún no ha respondido)", example: 45 },
             ratings: {
               type: "object",
               properties: {
@@ -640,6 +642,28 @@ export const swaggerSpec = swaggerJSDoc({
             note: { type: "string", maxLength: 300 },
           },
         },
+        Question: {
+          type: "object",
+          properties: {
+            _id: objectId,
+            text: { type: "string", example: "¿Tiene factura?" },
+            asker: { type: "object", properties: { name: { type: "string" }, slug: { type: "string", nullable: true } } },
+            createdAt: { type: "string", format: "date-time" },
+            answer: {
+              type: "object",
+              nullable: true,
+              properties: { text: { type: "string", example: "Sí, la incluyo." }, answeredAt: { type: "string", format: "date-time" } },
+            },
+            hidden: { type: "boolean", description: "Solo la ven así el vendedor y los admin" },
+            can: {
+              type: "object",
+              description: "Lo que puede hacer quien la mira",
+              properties: { answer: { type: "boolean" }, hide: { type: "boolean" }, delete: { type: "boolean" }, report: { type: "boolean" } },
+            },
+          },
+        },
+        QuestionResponse: success({ $ref: "#/components/schemas/Question" }),
+        QuestionListResponse: success({ type: "array", items: { $ref: "#/components/schemas/Question" } }),
         ReportPageResponse: success({
           type: "object",
           properties: {
@@ -673,6 +697,7 @@ export const swaggerSpec = swaggerJSDoc({
             salesToConfirm: { type: "integer", description: "Compras que el vendedor ha registrado y faltan por confirmar", example: 1 },
             reviewsToWrite: { type: "integer", description: "Ventas confirmadas que aún puedo valorar", example: 0 },
             othersReviewedMe: { type: "integer", description: "Ventas en las que la otra parte ya me ha valorado y yo no", example: 0 },
+            questionsToAnswer: { type: "integer", description: "Preguntas sin responder en mis anuncios", example: 2 },
           },
         }),
       },
@@ -682,6 +707,7 @@ export const swaggerSpec = swaggerJSDoc({
         SaleId: { name: "id", in: "path", required: true, schema: objectId },
         ReviewId: { name: "id", in: "path", required: true, schema: objectId },
         ReportId: { name: "id", in: "path", required: true, schema: objectId },
+        QuestionId: { name: "id", in: "path", required: true, schema: objectId },
         UserSlug: { name: "slug", in: "path", required: true, schema: { type: "string", example: "lucia-martin" } },
         CategoryId: { name: "id", in: "path", required: true, schema: objectId },
         CategoryStatus: { name: "status", in: "query", schema: { type: "string", enum: CATEGORY_STATUSES } },

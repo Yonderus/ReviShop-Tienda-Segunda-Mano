@@ -21,6 +21,8 @@ import { sellerIdOf, variantPrice } from '../../../products/models/product.utils
 import { ShopService } from '../../services/shop.service';
 import { StarRatingComponent } from '../../../reviews/components/star-rating/star-rating.component';
 import { formatRating } from '../../../reviews/models/review.model';
+import { ProductQuestionsComponent } from '../../../questions/components/product-questions/product-questions.component';
+import { responseTimeText } from '../../../questions/models/question.model';
 
 type Status = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -38,6 +40,7 @@ type Status = 'loading' | 'ready' | 'not-found' | 'error';
     DatePipe,
     PricePipe,
     StarRatingComponent,
+    ProductQuestionsComponent,
     BadgeComponent,
     IconComponent,
     LevelMeterComponent,
@@ -135,6 +138,9 @@ type Status = 'loading' | 'ready' | 'not-found' | 'error';
                             <span>Aún sin valoraciones</span>
                           }
                         </a>
+                        @if (responseText(p.seller.responseMinutes); as text) {
+                          <span class="mt-0.5 block text-xs text-ink-muted">{{ text }}</span>
+                        }
                       </dd>
                     </div>
                   </div>
@@ -167,7 +173,9 @@ type Status = 'loading' | 'ready' | 'not-found' | 'error';
                   <p class="mt-2 max-w-prose whitespace-pre-line text-[0.9375rem] leading-relaxed text-ink">{{ p.description }}</p>
                 </section>
 
-                <div class="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row">
+                <app-product-questions [productId]="p._id" [slug]="p.slug" [sellerId]="sellerOf(p)" [sellerName]="p.seller.name" />
+
+                <div class="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:flex-wrap">
                   <!-- Las reservas llegan en otra fase: el botón queda preparado con la variante elegida. -->
                   <button type="button" class="btn btn-accent" disabled aria-describedby="reserve-soon">
                     <app-icon name="calendarCheck" [size]="18" />
@@ -240,6 +248,8 @@ export class ShopDetailPageComponent implements OnChanges {
   });
   /** Registrar una venta: solo el vendedor (se hace en la ficha de gestión, sección Ventas). */
   protected readonly ratingText = formatRating;
+  protected readonly responseText = responseTimeText;
+  protected readonly sellerOf = sellerIdOf;
   protected readonly isOwner = computed(() => {
     const product = this.product();
     return !!product && this.auth.user()?._id === sellerIdOf(product);

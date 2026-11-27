@@ -10,6 +10,7 @@ import {
 import { imageRepository } from "../repositories/image.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { productVariantRepository } from "../repositories/productVariant.repository.js";
+import { questionRepository } from "../repositories/question.repository.js";
 import { reviewRepository } from "../repositories/review.repository.js";
 import { saleRepository } from "../repositories/sale.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
@@ -239,14 +240,16 @@ export const saleService = {
    * Lo pendiente para el aviso del menú:
    * - `salesToConfirm`: compras que el vendedor ha registrado y espero confirmar;
    * - `reviewsToWrite`: ventas confirmadas, aún en su ventana, que no he valorado;
-   * - `othersReviewedMe`: de esas, en las que el otro ya me ha valorado (sin decir la nota: el sistema es ciego).
+   * - `othersReviewedMe`: de esas, en las que el otro ya me ha valorado (sin decir la nota: el sistema es ciego);
+   * - `questionsToAnswer`: preguntas sin responder en mis anuncios.
    */
   async pendingFor(actor) {
     const now = new Date();
     await saleRepository.expireOverdue({ buyerId: actor.id }, now);
-    const [salesToConfirm, reviewable] = await Promise.all([
+    const [salesToConfirm, reviewable, questionsToAnswer] = await Promise.all([
       saleRepository.countPendingToConfirm(actor.id, now),
       saleRepository.findReviewable(actor.id, now),
+      questionRepository.countUnansweredForSeller(actor.id),
     ]);
     const reviews = await reviewRepository.findBySales(reviewable.map((sale) => sale._id));
     const reviewed = (sale, byMe) =>
@@ -256,6 +259,7 @@ export const saleService = {
       salesToConfirm,
       reviewsToWrite: toWrite.length,
       othersReviewedMe: toWrite.filter((sale) => reviewed(sale, false)).length,
+      questionsToAnswer,
     };
   },
 };

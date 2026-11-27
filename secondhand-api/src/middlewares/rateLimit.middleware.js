@@ -1,5 +1,6 @@
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import { AUTH_MESSAGES, LOGIN_RATE_LIMIT, REFRESH_RATE_LIMIT } from "../constants/auth.constants.js";
+import { QUESTION_MESSAGES, QUESTION_RATE_LIMIT } from "../constants/question.constants.js";
 import { REPORT_RATE_LIMIT, REVIEW_MESSAGES } from "../constants/review.constants.js";
 import { SALE_MESSAGES, SALE_RATE_LIMIT } from "../constants/sale.constants.js";
 import { TooManyRequestsError } from "../utils/AppError.js";
@@ -72,4 +73,14 @@ export const reportRateLimit = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   handler: (_req, _res, next) => next(new TooManyRequestsError(REVIEW_MESSAGES.TOO_MANY_REPORTS)),
+});
+
+/** Preguntas en anuncios, por usuario (después de `authenticate`): ver QUESTION_RATE_LIMIT. */
+export const questionRateLimit = rateLimit({
+  windowMs: QUESTION_RATE_LIMIT.WINDOW_MS,
+  limit: QUESTION_RATE_LIMIT.PER_USER,
+  keyGenerator: (req) => `user:${req.user.id}`,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: (_req, _res, next) => next(new TooManyRequestsError(QUESTION_MESSAGES.TOO_MANY)),
 });

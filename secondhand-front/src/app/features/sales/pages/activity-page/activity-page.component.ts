@@ -14,6 +14,8 @@ import { PricePipe } from '../../../../shared/utils/price.pipe';
 import { RelativeTimePipe } from '../../../../shared/utils/relative-time.pipe';
 import { CLOSE_REASON_TEXT, SALE_STATE_LABELS, SALE_STATE_TONES, Sale, SalePage, SaleRole } from '../../models/sale.model';
 import { SalesService } from '../../services/sales.service';
+import { UnansweredQuestion } from '../../../questions/models/question.model';
+import { QuestionsService } from '../../../questions/services/questions.service';
 import { ReviewCardComponent } from '../../../reviews/components/review-card/review-card.component';
 import { ReviewDialogComponent } from '../../../reviews/components/review-dialog/review-dialog.component';
 import { StarRatingComponent } from '../../../reviews/components/star-rating/star-rating.component';
@@ -66,6 +68,29 @@ const PAGE_SIZE = 20;
             Confírmala si de verdad la has hecho: así podréis valoraros.
           </span>
         </p>
+      }
+
+      <!-- Preguntas sin responder en mis anuncios: cada una lleva a la sección de preguntas de su ficha -->
+      @if (unanswered().length) {
+        <section class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" aria-labelledby="unanswered-title">
+          <h2 id="unanswered-title" class="font-semibold">
+            {{ unanswered().length === 1 ? '1 pregunta sin responder' : unanswered().length + ' preguntas sin responder' }} en tus anuncios
+          </h2>
+          <ul class="mt-2 space-y-1.5">
+            @for (q of unanswered(); track q._id) {
+              <li>
+                @if (q.product) {
+                  <a [routerLink]="['/shop', q.product.slug]" fragment="preguntas" class="hover:underline">
+                    <span class="font-medium">{{ q.product.title }}:</span> «{{ q.text }}»
+                  </a>
+                } @else {
+                  <span>«{{ q.text }}»</span>
+                }
+                <span class="text-amber-800"> · {{ q.createdAt | relativeTime }}</span>
+              </li>
+            }
+          </ul>
+        </section>
       }
 
       <nav class="mt-6 flex gap-1 border-b border-line" aria-label="Compras o ventas">
@@ -241,6 +266,7 @@ export class ActivityPageComponent implements OnChanges, OnDestroy {
   private readonly sales = inject(SalesService);
   private readonly alert = inject(AlertService);
   private readonly router = inject(Router);
+  private readonly questions = inject(QuestionsService);
   protected readonly pending = inject(PendingStore);
 
   /** Query params (`withComponentInputBinding`). */
@@ -261,6 +287,8 @@ export class ActivityPageComponent implements OnChanges, OnDestroy {
   protected readonly data = signal<SalePage | null>(null);
   protected readonly error = signal<ApiError | null>(null);
   protected readonly busyId = signal<string | null>(null);
+  /** Preguntas sin responder en mis anuncios (se piden solo si el aviso dice que hay alguna). */
+  protected readonly unanswered = signal<UnansweredQuestion[]>([]);
   /** La venta que se está valorando (abre el diálogo). */
   protected readonly reviewing = signal<Sale | null>(null);
   /** La hora, refrescada cada minuto: las cuentas atrás («Quedan 41 h») se mantienen al día solas. */
@@ -270,6 +298,15 @@ export class ActivityPageComponent implements OnChanges, OnDestroy {
 
   ngOnChanges(): void {
     void this.load();
+    void this.loadUnanswered();
+  }
+
+  private async loadUnanswered(): Promise<void> {
+    try {
+      this.unanswered.set(await this.questions.mineUnanswered());
+    } catch {
+      this.unanswered.set([]); // un aviso: si falla, no se enseña
+    }
   }
 
   ngOnDestroy(): void {

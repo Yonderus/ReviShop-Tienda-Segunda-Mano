@@ -21,6 +21,7 @@ import { RatingSummaryComponent } from '../../components/rating-summary/rating-s
 import { ReviewCardComponent } from '../../components/review-card/review-card.component';
 import { PublicProfile, PublicReview, ReviewPage, RevieweeRole } from '../../models/review.model';
 import { ReviewsService } from '../../services/reviews.service';
+import { responseTimeText } from '../../../questions/models/question.model';
 
 /** Cuántos anuncios del vendedor se enseñan debajo; el resto, en la tienda filtrada. */
 const LISTINGS_PREVIEW = 8;
@@ -70,6 +71,9 @@ const LISTINGS_PREVIEW = 8;
               }
               <li class="flex items-center gap-1"><app-icon name="calendar" [size]="16" />En Revishop desde {{ p.memberSince | date: 'MMMM y' : undefined : 'es-ES' }}</li>
               <li class="flex items-center gap-1"><app-icon name="checkCircle" [size]="16" />{{ p.salesCount === 1 ? '1 venta cerrada' : p.salesCount + ' ventas cerradas' }}</li>
+              @if (responseText(p.responseMinutes); as text) {
+                <li class="flex items-center gap-1"><app-icon name="message" [size]="16" />{{ text }}</li>
+              }
             </ul>
             @if (p.bio) {
               <p class="mt-3 max-w-prose whitespace-pre-line text-[0.9375rem] text-ink">{{ p.bio }}</p>
@@ -185,6 +189,7 @@ export class SellerProfilePageComponent implements OnChanges, OnDestroy {
   readonly rating = input<string | undefined>();
   readonly page = input<string | undefined>();
 
+  protected readonly responseText = responseTimeText;
   protected readonly tabs: { role: RevieweeRole; label: string }[] = [
     { role: 'seller', label: 'Como vendedor' },
     { role: 'buyer', label: 'Como comprador' },

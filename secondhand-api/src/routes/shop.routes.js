@@ -7,7 +7,9 @@ import {
   getShopProducts,
   getShopSellers,
 } from "../controllers/shop.controller.js";
+import { getProductQuestions } from "../controllers/question.controller.js";
 import { getPublicProfile, getPublicReviews } from "../controllers/review.controller.js";
+import { optionalAuthenticate } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.js";
 import { slugParamsSchema } from "../validators/common.validator.js";
 import { publicReviewsQuerySchema } from "../validators/review.validator.js";
@@ -100,6 +102,25 @@ router.get("/products/:slug/variants", validate({ params: slugParamsSchema }), g
  *         description: Categorías
  *         content: { application/json: { schema: { $ref: '#/components/schemas/ShopCategoryListResponse' } } }
  */
+/**
+ * @openapi
+ * /shop/products/{slug}/questions:
+ *   get:
+ *     tags: [Preguntas]
+ *     summary: Preguntas y respuestas de un anuncio
+ *     security: [{}, { cookieAuth: [] }]
+ *     description: |
+ *       Las respondidas primero. Público; con sesión, cada pregunta trae `can` (qué puedes hacer con ella). El vendedor
+ *       y los admin ven también las ocultas (`hidden: true`), para poder volver a mostrarlas. 404 si no está a la venta.
+ *     parameters: [{ $ref: '#/components/parameters/ProductSlug' }]
+ *     responses:
+ *       200:
+ *         description: Preguntas
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/QuestionListResponse' } } }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.get("/products/:slug/questions", optionalAuthenticate, validate({ params: slugParamsSchema }), getProductQuestions);
+
 router.get("/categories", getShopCategories);
 
 /**

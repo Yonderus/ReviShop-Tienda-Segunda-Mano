@@ -12,7 +12,7 @@ import { RelativeTimePipe } from '../../../shared/utils/relative-time.pipe';
 import { StarRatingComponent } from '../../reviews/components/star-rating/star-rating.component';
 import { CRITERION_LABELS, CriterionKey } from '../../reviews/models/review.model';
 import { AdminTab, AdminTabsComponent } from '../components/admin-tabs/admin-tabs.component';
-import { AdminReport, ModerationService, ReportAction, ReportPage, ReportView } from './moderation.service';
+import { AdminReport, ModeratedQuestion, ModeratedReview, ModerationService, ReportAction, ReportPage, ReportView } from './moderation.service';
 
 /**
  * Denuncias (`/admin/reports` y `/admin/reports/resolved`). Cada una enseña la valoración entera (para decidir sin
@@ -42,7 +42,7 @@ import { AdminReport, ModerationService, ReportAction, ReportPage, ReportView } 
       <header class="mb-5">
         <h1 class="text-2xl font-semibold tracking-tight text-ink">Denuncias</h1>
         <p class="mt-1 text-sm text-ink-muted">
-          {{ isOpen() ? 'Valoraciones que los usuarios han denunciado. Ocultarla la quita del perfil y de la media; se puede deshacer.' : 'Las ya revisadas. Una valoración oculta se puede volver a mostrar.' }}
+          {{ isOpen() ? 'Valoraciones y preguntas que los usuarios han denunciado. Ocultar algo lo quita de la tienda (una valoración, también de la media); se puede deshacer.' : 'Las ya revisadas. Lo que está oculto se puede volver a mostrar.' }}
         </p>
       </header>
 
@@ -80,8 +80,35 @@ import { AdminReport, ModerationService, ReportAction, ReportPage, ReportView } 
                 <p class="mt-2 text-sm text-ink">«{{ report.note }}»</p>
               }
 
-              <!-- Lo denunciado -->
-              @if (report.target; as review) {
+              <!-- Lo denunciado: una pregunta… -->
+              @if (asQuestion(report); as question) {
+                <div class="mt-3 rounded-xl border p-3" [class]="question.hiddenAt ? 'border-dashed border-line bg-canvas/60' : 'border-line bg-canvas'">
+                  <div class="flex flex-wrap items-center gap-2 text-sm">
+                    <app-badge tone="info">Pregunta</app-badge>
+                    @if (question.author?.slug) {
+                      <a [routerLink]="['/sellers', question.author!.slug]" target="_blank" class="font-semibold text-ink hover:text-primary-700 hover:underline">{{ question.author!.name }}</a>
+                    } @else {
+                      <span class="font-semibold text-ink">{{ question.author?.name ?? 'Usuario de Revishop' }}</span>
+                    }
+                    @if (question.product) {
+                      <span class="text-ink-muted">en</span>
+                      <a [routerLink]="['/shop', question.product.slug]" fragment="preguntas" target="_blank" class="font-semibold text-ink hover:text-primary-700 hover:underline">{{ question.product.title }}</a>
+                    }
+                    @if (question.hiddenAt) {
+                      <app-badge tone="neutral">Oculta</app-badge>
+                    }
+                  </div>
+                  <p class="mt-2 whitespace-pre-line break-words text-sm text-ink">{{ question.text }}</p>
+                  @if (question.answer) {
+                    <p class="mt-2 border-l-4 border-primary-200 pl-2 text-sm text-ink-muted">Respuesta: {{ question.answer.text }}</p>
+                  }
+                  @if (question.hiddenAt && question.hiddenReason) {
+                    <p class="mt-2 text-xs text-ink-muted">Oculta por: {{ question.hiddenReason }}</p>
+                  }
+                </div>
+              }
+              <!-- …o una valoración -->
+              @if (asReview(report); as review) {
                 <div class="mt-3 rounded-xl border p-3" [class]="review.hiddenAt ? 'border-dashed border-line bg-canvas/60' : 'border-line bg-canvas'">
                   <div class="flex flex-wrap items-center gap-2 text-sm">
                     <app-star-rating [value]="review.rating" size="sm" />
@@ -112,7 +139,8 @@ import { AdminReport, ModerationService, ReportAction, ReportPage, ReportView } 
                     <p class="mt-2 text-xs text-ink-muted">Oculta por: {{ review.hiddenReason }}</p>
                   }
                 </div>
-              } @else {
+              }
+              @if (!report.target) {
                 <p class="mt-3 rounded-xl border border-dashed border-line p-3 text-sm text-ink-muted">Lo denunciado ya no existe.</p>
               }
 
@@ -120,7 +148,7 @@ import { AdminReport, ModerationService, ReportAction, ReportPage, ReportView } 
               <div class="mt-3 flex flex-wrap items-center gap-2">
                 @if (isOpen()) {
                   @if (report.target && !report.target.hiddenAt) {
-                    <button type="button" class="btn btn-danger min-h-9 px-3 text-sm" [disabled]="busyId() === report._id" (click)="resolve(report, 'hide')">Ocultar valoración</button>
+                    <button type="button" class="btn btn-danger min-h-9 px-3 text-sm" [disabled]="busyId() === report._id" (click)="resolve(report, 'hide')">Ocultar {{ kind(report) }}</button>
                   }
                   <button type="button" class="btn btn-secondary min-h-9 px-3 text-sm" [disabled]="busyId() === report._id" (click)="resolve(report, 'dismiss')">Descartar</button>
                 } @else {
@@ -130,7 +158,7 @@ import { AdminReport, ModerationService, ReportAction, ReportPage, ReportView } 
                   </span>
                   @if (report.target; as review) {
                     <button type="button" class="btn btn-secondary ml-auto min-h-9 px-3 text-sm" [disabled]="busyId() === report._id" (click)="toggleHidden(report)">
-                      {{ review.hiddenAt ? 'Volver a mostrar' : 'Ocultar valoración' }}
+                      {{ review.hiddenAt ? 'Volver a mostrar' : 'Ocultar ' + kind(report) }}
                     </button>
                   }
                 }
@@ -179,6 +207,19 @@ export class AdminReportsPageComponent implements OnChanges, OnDestroy {
     this.controller?.abort();
   }
 
+  /** Lo denunciado, con su tipo (para la plantilla): la valoración o la pregunta, o null si es del otro tipo. */
+  protected asReview(report: AdminReport): ModeratedReview | null {
+    return report.targetType === 'review' ? (report.target as ModeratedReview | null) : null;
+  }
+
+  protected asQuestion(report: AdminReport): ModeratedQuestion | null {
+    return report.targetType === 'question' ? (report.target as ModeratedQuestion | null) : null;
+  }
+
+  protected kind(report: AdminReport): string {
+    return report.targetType === 'question' ? 'pregunta' : 'valoración';
+  }
+
   /** "Estado 2/5 · Trato 3/5 · Puntualidad 3/5" */
   protected criteriaText(criteria: Partial<Record<CriterionKey, number>>): string {
     return (Object.entries(criteria) as [CriterionKey, number][]).map(([key, value]) => `${CRITERION_LABELS[key]} ${value}/5`).join(' · ');
@@ -202,25 +243,28 @@ export class AdminReportsPageComponent implements OnChanges, OnDestroy {
 
   protected async resolve(report: AdminReport, action: ReportAction): Promise<void> {
     if (action === 'hide') {
+      const review = this.asReview(report);
       const confirmed = await this.alert.confirm({
-        title: '¿Ocultar esta valoración?',
-        text: `Dejará de verse en el perfil de ${report.target?.reviewee?.name ?? 'esta persona'} y de contar en su media. Las demás denuncias de esta valoración se resolverán también. Podrás volver a mostrarla desde Resueltas.`,
+        title: `¿Ocultar esta ${this.kind(report)}?`,
+        text: review
+          ? `Dejará de verse en el perfil de ${review.reviewee?.name ?? 'esta persona'} y de contar en su media. Las demás denuncias de esta valoración se resolverán también. Podrás volver a mostrarla desde Resueltas.`
+          : 'Dejará de verse en el anuncio. Las demás denuncias de esta pregunta se resolverán también. Podrás volver a mostrarla desde Resueltas.',
         confirmText: 'Ocultar',
         danger: true,
       });
       if (!confirmed) return;
     }
-    await this.run(report, () => this.moderation.resolve(report._id, action), action === 'hide' ? 'Valoración ocultada' : 'Denuncia descartada');
+    await this.run(report, () => this.moderation.resolve(report._id, action), action === 'hide' ? 'Ocultada' : 'Denuncia descartada');
   }
 
   protected async toggleHidden(report: AdminReport): Promise<void> {
-    const review = report.target;
-    if (!review) return;
-    const hide = !review.hiddenAt;
+    const target = report.target;
+    if (!target) return;
+    const hide = !target.hiddenAt;
     if (hide) {
       const confirmed = await this.alert.confirm({
-        title: '¿Ocultar esta valoración?',
-        text: 'Dejará de verse en el perfil y de contar en la media.',
+        title: `¿Ocultar esta ${this.kind(report)}?`,
+        text: report.targetType === 'question' ? 'Dejará de verse en el anuncio.' : 'Dejará de verse en el perfil y de contar en la media.',
         confirmText: 'Ocultar',
         danger: true,
       });
@@ -228,8 +272,11 @@ export class AdminReportsPageComponent implements OnChanges, OnDestroy {
     }
     await this.run(
       report,
-      () => this.moderation.setReviewHidden(review._id, hide, hide ? report.reasonLabel : undefined),
-      hide ? 'Valoración ocultada' : 'Valoración visible de nuevo',
+      () =>
+        report.targetType === 'question'
+          ? this.moderation.setQuestionHidden(target._id, hide, hide ? report.reasonLabel : undefined)
+          : this.moderation.setReviewHidden(target._id, hide, hide ? report.reasonLabel : undefined),
+      hide ? 'Ocultada' : 'Visible de nuevo',
     );
   }
 

@@ -17,6 +17,7 @@ import profileRoutes from "./routes/profile.routes.js";
 import { productVariantRoutes, productVariantsOfProductRoutes } from "./routes/productVariant.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import roleRoutes from "./routes/role.routes.js";
+import questionRoutes, { productQuestionsRoutes } from "./routes/question.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
 import saleRoutes, { meRoutes } from "./routes/sale.routes.js";
@@ -56,6 +57,7 @@ app.use("/api", checkOrigin);
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/products/:id/variants", productVariantsOfProductRoutes);
+app.use("/api/products/:id/questions", productQuestionsRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/variants", productVariantRoutes);
 app.use("/api/categories", categoryRoutes);
@@ -67,6 +69,8 @@ app.use("/api/sales", saleRoutes);
 app.use("/api/me", meRoutes);
 // Valoraciones ya escritas (responder, denunciar). Valorar va en /api/sales/:id/review y lo público en /api/shop.
 app.use("/api/reviews", reviewRoutes);
+// Preguntas en los anuncios: responder, ocultar, borrar y denunciar (preguntar va en /api/products/:id/questions).
+app.use("/api/questions", questionRoutes);
 // Moderación de denuncias (panel de admin).
 app.use("/api/reports", reportRoutes);
 // Tienda pública (Home y Shop), separada del CRUD de productos.

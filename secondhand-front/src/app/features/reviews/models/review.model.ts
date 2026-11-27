@@ -79,6 +79,8 @@ export interface PublicProfile {
   bio?: string;
   memberSince: string;
   salesCount: number;
+  /** Mediana de lo que tarda en responder preguntas (null si aún no ha respondido ninguna). */
+  responseMinutes: number | null;
   ratings: { asSeller: RatingSummary; asBuyer: RatingSummary };
 }
 

@@ -5,6 +5,7 @@ import { userRepository } from "../repositories/user.repository.js";
 import { NotFoundError } from "../utils/AppError.js";
 import { paginationOf, skipFor } from "../utils/pagination.js";
 import { accentInsensitivePattern } from "../utils/search.js";
+import { questionService } from "./question.service.js";
 import { reviewService } from "./review.service.js";
 
 /*
@@ -114,14 +115,16 @@ export const shopService = {
 
   /**
    * La ficha, con todas sus fotos y solo las variantes que se pueden elegir (las activas). El vendedor lleva su
-   * nota como vendedor (`seller.rating: { average, count }`) para la tarjeta de la ficha.
+   * nota como vendedor (`seller.rating: { average, count }`) y lo que suele tardar en responder
+   * (`seller.responseMinutes`) para la tarjeta de la ficha.
    */
   async getProduct(slug) {
     const product = await shopRepository.findProductBySlug(slug);
     if (!product) throw new NotFoundError("Producto no encontrado");
     const data = product.toJSON();
     data.variants = data.variants.filter((variant) => variant.isActive);
-    data.seller = { ...data.seller, rating: await reviewService.sellerRating(data.sellerId) };
+    const [rating, responseMinutes] = await Promise.all([reviewService.sellerRating(data.sellerId), questionService.responseMinutes(data.sellerId)]);
+    data.seller = { ...data.seller, rating, responseMinutes };
     return data;
   },
 

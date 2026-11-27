@@ -28,6 +28,18 @@ export interface ModeratedReview {
   hiddenReason: string | null;
 }
 
+/** Una pregunta denunciada: el texto, la respuesta, quién preguntó y en qué anuncio. */
+export interface ModeratedQuestion {
+  _id: string;
+  text: string;
+  answer: { text: string; answeredAt: string } | null;
+  product: { title: string; slug: string } | null;
+  author: Person | null;
+  createdAt: string;
+  hiddenAt: string | null;
+  hiddenReason: string | null;
+}
+
 export interface AdminReport {
   _id: string;
   targetType: 'review' | 'question';
@@ -41,8 +53,8 @@ export interface AdminReport {
   resolvedAt: string | null;
   /** Cuántas denuncias tiene lo mismo (varias personas pueden denunciar la misma valoración). */
   reportsOnTarget: number;
-  /** null si lo denunciado ya no existe. */
-  target: ModeratedReview | null;
+  /** Según `targetType`: una valoración o una pregunta. null si lo denunciado ya no existe. */
+  target: ModeratedReview | ModeratedQuestion | null;
 }
 
 export interface ReportPage {
@@ -68,6 +80,10 @@ export class ModerationService {
   /** 409 (ya resuelta por otro admin) lo avisa el errorInterceptor; la página recarga para enseñar cómo está. */
   resolve(id: string, action: ReportAction): Promise<{ _id: string; status: ReportStatus }> {
     return this.api.patch(`/reports/${id}`, { action }, { blocking: true });
+  }
+
+  setQuestionHidden(questionId: string, hidden: boolean, reason?: string): Promise<unknown> {
+    return this.api.patch(`/questions/${questionId}/hidden`, { hidden, reason }, { blocking: true });
   }
 
   setReviewHidden(reviewId: string, hidden: boolean, reason?: string): Promise<{ _id: string; hiddenAt: string | null; hiddenReason: string | null }> {

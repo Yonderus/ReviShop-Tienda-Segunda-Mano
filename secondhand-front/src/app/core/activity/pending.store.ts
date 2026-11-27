@@ -10,6 +10,8 @@ export interface PendingCounts {
   reviewsToWrite: number;
   /** Ventas en las que la otra parte ya le ha valorado y él no. */
   othersReviewedMe: number;
+  /** Preguntas sin responder en sus anuncios. */
+  questionsToAnswer: number;
 }
 
 /**
@@ -26,10 +28,10 @@ export class PendingStore {
 
   private readonly _counts = signal<PendingCounts | null>(null);
   readonly counts = this._counts.asReadonly();
-  /** Lo que se cuenta en el aviso: lo que el usuario tiene que hacer él (confirmar compras y valorar ventas). */
+  /** Lo que se cuenta en el aviso: lo que el usuario tiene que hacer él (confirmar compras, valorar y responder). */
   readonly total = computed(() => {
     const counts = this._counts();
-    return counts ? counts.salesToConfirm + counts.reviewsToWrite : 0;
+    return counts ? counts.salesToConfirm + counts.reviewsToWrite + (counts.questionsToAnswer ?? 0) : 0;
   });
 
   private inFlight: Promise<void> | null = null;
